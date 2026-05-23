@@ -1,0 +1,256 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  password    String
+  name        String
+  storeName   String
+  plan        String   @default("starter")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  campaigns    Campaign[]
+  customers    Customer[]
+  automations  Automation[]
+  segments     Segment[]
+  templates    Template[]
+  integrations Integration[]
+  orders       Order[]
+}
+
+model Campaign {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name        String
+  type        String
+  status      String   @default("draft")
+  segment     String
+  subject     String?
+  previewText String?
+  body        String
+  cta         String?
+  tips        String   @default("[]")
+
+  sent        Int      @default(0)
+  opened      Int      @default(0)
+  clicked     Int      @default(0)
+  converted   Int      @default(0)
+  revenue     Float    @default(0)
+
+  scheduledAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  opens       CampaignOpen[]
+}
+
+model CampaignOpen {
+  id         String    @id @default(cuid())
+  userId     String
+  campaignId String
+  campaign   Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  channel    String    @default("email")
+  openedAt   DateTime  @default(now())
+
+  @@index([userId, openedAt])
+  @@index([campaignId])
+  @@index([customerId])
+}
+
+model Customer {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name        String
+  email       String
+  phone       String?
+  segment     String    @default("new")
+  totalOrders Int       @default(0)
+  totalSpent  Float     @default(0)
+  avgOrder    Float     @default(0)
+  lastOrder   DateTime?
+  tags        String    @default("[]")
+  score       Int       @default(50)
+
+  platformId  String?   // Shopify customer ID, WooCommerce ID vb.
+  source      String    @default("manual") // "shopify" | "woocommerce" | "trendyol" | "manual" | "csv"
+
+  unsubscribed     Boolean  @default(false)
+  unsubscribeToken String   @default(cuid())
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  orders      Order[]
+  events      CustomerEvent[]
+  opens       CampaignOpen[]
+
+  @@unique([userId, email])
+}
+
+// ─── Entegrasyon bağlantıları ──────────────────────────────────────────────
+
+model Integration {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  platform    String   // "shopify" | "woocommerce" | "trendyol" | "hepsiburada"
+  shopDomain  String?  // "mystore.myshopify.com"
+  accessToken String?  // Shopify access token / WooCommerce key
+  apiSecret   String?  // WooCommerce secret / Trendyol secret
+  sellerId    String?  // Trendyol sellerId
+  status      String   @default("active") // "active" | "error" | "disconnected"
+  lastSyncAt  DateTime?
+  webhookId   String?  // Shopify webhook ID (silmek için)
+  meta        String   @default("{}") // JSON ek bilgi
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  orders      Order[]
+
+  @@unique([userId, platform])
+}
+
+// ─── Sipariş verileri ──────────────────────────────────────────────────────
+
+model Order {
+  id              String      @id @default(cuid())
+  userId          String
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  integrationId   String?
+  integration     Integration? @relation(fields: [integrationId], references: [id])
+  customerId      String
+  customer        Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  platformOrderId String?     // Shopify order ID
+  orderNumber     String?     // Shopify #1001 gibi
+  status          String      @default("pending") // pending|confirmed|shipped|delivered|cancelled|refunded
+  financialStatus String?     // paid|pending|refunded vb.
+
+  total           Float
+  subtotal        Float       @default(0)
+  shipping        Float       @default(0)
+  discount        Float       @default(0)
+  currency        String      @default("TRY")
+
+  shippingCity    String?
+  shippingCountry String?
+
+  items           OrderItem[]
+  events          CustomerEvent[]
+
+  placedAt        DateTime    @default(now())
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@unique([userId, platformOrderId])
+}
+
+model OrderItem {
+  id          String  @id @default(cuid())
+  orderId     String
+  order       Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  platformId  String?
+  title       String
+  variantTitle String?
+  quantity    Int
+  price       Float
+  imageUrl    String?
+  productUrl  String?
+}
+
+// ─── Müşteri event'leri (otomasyon için tetikleyici) ──────────────────────
+
+model CustomerEvent {
+  id          String   @id @default(cuid())
+  userId      String
+  customerId  String
+  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  orderId     String?
+  order       Order?   @relation(fields: [orderId], references: [id])
+
+  type        String   // cart_abandoned | order_placed | order_delivered | customer_created
+                       // no_purchase_30d | no_purchase_60d | birthday | page_view
+  data        String   @default("{}") // JSON: sipariş detayı, ürün bilgisi vb.
+  source      String   @default("shopify") // hangi platform'dan geldi
+
+  processedAt DateTime? // otomasyon engine bu event'i işledi mi
+  createdAt   DateTime @default(now())
+
+  @@index([userId, type, processedAt])
+  @@index([customerId, type])
+}
+
+// ─── Diğer modeller ───────────────────────────────────────────────────────
+
+model Automation {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name        String
+  trigger     String   // cart_abandoned | order_placed | customer_created | no_purchase | birthday
+  status      String   @default("draft") // draft | active | paused
+  steps       String   @default("[]")    // JSON: [{channel, immediate, delayAmount, delayUnit, message}]
+  segment     String?
+  triggerConfig String @default("{}") // JSON: tetikleyici için özel ayarlar
+
+  sent        Int      @default(0)
+  opened      Int      @default(0)
+  converted   Int      @default(0)
+  revenue     Float    @default(0)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Segment {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?
+  type        String   @default("custom")
+  rules       String   @default("[]")
+  count       Int      @default(0)
+  color       String   @default("violet")
+  icon        String   @default("Users")
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Template {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name        String
+  type        String
+  category    String   @default("general")
+  subject     String?
+  body        String
+  cta         String?
+  isPublic    Boolean  @default(false)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
