@@ -299,24 +299,61 @@ function esc(s: string): string {
 }
 
 function nl2br(s: string): string {
-  return esc(s).replace(/\n/g, '<br>')
+  return esc(s.replace(/<br\s*\/?>/gi, '\n')).replace(/\n/g, '<br>')
+}
+
+function imagePlaceholder(theme: ThemeTokens): string {
+  return `<tr><td style="padding:0;line-height:0;height:140px;background:linear-gradient(135deg,${theme.cardBorder},${theme.cardBg});text-align:center;vertical-align:middle">
+<span style="font-size:40px;opacity:0.35">🛍️</span>
+</td></tr>`
 }
 
 function buildProductCardsHtml(products: Product[], theme: ThemeTokens, ctaUrl: string): string {
   if (!products || products.length === 0) return ''
   const shown = products.slice(0, 4)
 
-  // For dark-card themes (gaming, black-friday), override card text colors
   const darkCard = theme.cardBg.startsWith('#0') || theme.cardBg.startsWith('#1')
   const nameColor = darkCard ? '#fff' : theme.cardText
   const subColor = darkCard ? 'rgba(255,255,255,0.55)' : '#888'
 
+  // ── Single product: full-width premium layout ──────────────────────
+  if (shown.length === 1) {
+    const p = shown[0]
+    const hasDiscount = p.compareAtPrice && p.compareAtPrice !== p.price
+    return `
+<!-- SINGLE PRODUCT PREMIUM -->
+<tr><td style="background:${theme.bodyBg};padding:0 28px 28px">
+<p style="margin:0 0 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:${theme.bodyText}">Öne Çıkan Ürün</p>
+<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:${theme.cardBg};border:1px solid ${theme.cardBorder};border-radius:18px;overflow:hidden">
+${p.productImage
+  ? `<tr><td style="padding:0;line-height:0"><img src="${esc(p.productImage)}" width="100%" alt="${esc(p.productName)}" style="display:block;width:100%;height:auto;max-height:320px;object-fit:cover"/></td></tr>`
+  : imagePlaceholder(theme)
+}
+<tr><td style="padding:22px 26px">
+<p style="margin:0 0 8px;font-size:19px;font-weight:800;color:${nameColor};line-height:1.25;letter-spacing:-0.3px">${esc(p.productName)}</p>
+${p.description ? `<p style="margin:0 0 14px;font-size:13px;color:${subColor};line-height:1.55">${esc(p.description.slice(0, 120))}${p.description.length > 120 ? '…' : ''}</p>` : ''}
+<table role="presentation" cellpadding="0" cellspacing="0" width="100%"><tr>
+<td valign="middle">
+${p.price ? `<span style="display:block;font-size:26px;font-weight:900;color:${nameColor}">${esc(p.price)} ₺</span>` : ''}
+${hasDiscount ? `<span style="display:inline-block;font-size:12px;color:${subColor};text-decoration:line-through;margin-top:2px">${esc(p.compareAtPrice!)} ₺</span>` : ''}
+</td>
+${p.productUrl ? `<td align="right" valign="middle"><a href="${esc(p.productUrl)}" style="display:inline-block;background:${theme.cardPriceBg};color:#fff;font-size:13px;font-weight:700;padding:12px 24px;border-radius:10px;text-decoration:none">İncele →</a></td>` : ''}
+</tr></table>
+</td></tr>
+</table>
+</td></tr>`
+  }
+
+  // ── 2-4 products: responsive 2-column grid ─────────────────────────
   function cardHtml(p: Product): string {
     const hasDiscount = p.compareAtPrice && p.compareAtPrice !== p.price
     return `
-<td valign="top" style="width:48%;vertical-align:top">
+<td class="pcard-td" valign="top" style="width:48%;vertical-align:top">
 <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:${theme.cardBg};border:1px solid ${theme.cardBorder};border-radius:14px;overflow:hidden">
-${p.productImage ? `<tr><td style="padding:0;line-height:0"><img src="${esc(p.productImage)}" width="100%" alt="${esc(p.productName)}" style="display:block;width:100%;height:auto;max-height:200px;object-fit:cover"/></td></tr>` : ''}
+${p.productImage
+  ? `<tr><td style="padding:0;line-height:0"><img src="${esc(p.productImage)}" width="100%" alt="${esc(p.productName)}" style="display:block;width:100%;height:auto;max-height:200px;object-fit:cover"/></td></tr>`
+  : imagePlaceholder(theme)
+}
 <tr><td style="padding:14px 16px">
 <p style="margin:0 0 4px;font-size:13px;font-weight:700;color:${nameColor};line-height:1.3">${esc(p.productName)}</p>
 ${p.description ? `<p style="margin:0 0 8px;font-size:11px;color:${subColor};line-height:1.4">${esc(p.description.slice(0, 60))}${p.description.length > 60 ? '…' : ''}</p>` : ''}
@@ -339,15 +376,15 @@ ${p.productUrl ? `<td align="right" valign="middle"><a href="${esc(p.productUrl)
     rows += `
 <tr>
 ${cardHtml(left)}
-<td style="width:4%"></td>
-${right ? cardHtml(right) : '<td style="width:48%"></td>'}
+<td class="pcard-space" style="width:4%"></td>
+${right ? cardHtml(right) : '<td class="pcard-td" style="width:48%"></td>'}
 </tr>
 ${i + 2 < shown.length ? '<tr><td colspan="3" style="height:12px"></td></tr>' : ''}
 `
   }
 
   return `
-<!-- PRODUCTS SECTION -->
+<!-- PRODUCTS SHOWCASE -->
 <tr><td style="background:${theme.bodyBg};padding:0 28px 28px">
 <p style="margin:0 0 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:${theme.bodyText}">Öne Çıkan Ürünler</p>
 <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
@@ -371,12 +408,13 @@ export function buildEmailHtml(d: EmailData): string {
 <style>
 body{margin:0;padding:0;background:#f1f5f9}
 @media only screen and (max-width:600px){
-  .wrap{padding:12px 6px!important}
-  .card{border-radius:16px!important}
-  .ec{padding:28px 18px!important}
-  .h1{font-size:22px!important;line-height:1.3!important}
-  .cta-btn{padding:14px 28px!important;font-size:14px!important}
-  .pcard-td{display:block!important;width:100%!important;padding-bottom:12px!important}
+  .wrap{padding:8px 4px!important}
+  .card{border-radius:14px!important}
+  .ec{padding:24px 16px!important}
+  .h1{font-size:20px!important;line-height:1.3!important}
+  .cta-btn{padding:14px 24px!important;font-size:14px!important;display:block!important;text-align:center!important}
+  .pcard-td{display:block!important;width:100%!important;box-sizing:border-box!important;padding-bottom:10px!important}
+  .pcard-space{display:none!important;width:0!important}
 }
 </style>
 </head>
@@ -445,5 +483,5 @@ ${esc(d.storeName)} tarafından gönderildi.&nbsp;
 }
 
 export function personalize(text: string, vars: Record<string, string>): string {
-  return text.replace(/\{\{(\w+)\}\}/g, (match, key) => vars[key] ?? match)
+  return text.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? '')
 }

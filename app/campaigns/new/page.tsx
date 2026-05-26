@@ -1213,11 +1213,23 @@ const PREVIEW_THEMES: Record<string, { headerBg: string; ctaBg: string; ctaColor
   default:       { headerBg: '#0f172a', ctaBg: '#2563eb', ctaColor: '#fff', badgeBg: '#ef4444', cardBg: '#f0f4ff', cardBorder: '#bfdbfe' },
 }
 
+function previewSubst(text: string): string {
+  return (text ?? '')
+    .replace(/\{\{firstName\}\}/g, 'Ayşe')
+    .replace(/\{\{lastName\}\}/g, 'Yılmaz')
+    .replace(/\{\{email\}\}/g, 'ayse@example.com')
+    .replace(/\{\{\w+\}\}/g, '')
+    .replace(/<br\s*\/?>/gi, '\n')
+}
+
 function EmailPreview({ storeName, headline, body, ctaText, discountRate, imageUrl, layoutStyle, products }:
   { storeName: string; headline: string; body: string; ctaText: string; discountRate: string; imageUrl: string; layoutStyle: string; products: Product[] }) {
   const t = PREVIEW_THEMES[layoutStyle] ?? PREVIEW_THEMES.default
   const isLight = ['minimal', 'skincare'].includes(layoutStyle)
   const darkCard = layoutStyle === 'gaming' || layoutStyle === 'black-friday'
+
+  const previewBody = previewSubst(body)
+  const previewHeadline = previewSubst(headline)
 
   return (
     <div style={{ background: '#fff', fontFamily: '-apple-system,BlinkMacSystemFont,Arial,sans-serif' }}>
@@ -1237,10 +1249,10 @@ function EmailPreview({ storeName, headline, body, ctaText, discountRate, imageU
       {/* Content */}
       <div style={{ padding: '32px 28px 20px', background: '#fff' }}>
         <h1 style={{ margin: '0 0 12px', fontSize: '22px', fontWeight: 800, color: '#0f172a', lineHeight: 1.2 }}>
-          {headline || 'Kampanya Başlığı'}
+          {previewHeadline || 'Kampanya Başlığı'}
         </h1>
         <div style={{ fontSize: '14px', lineHeight: 1.75, color: '#475569', marginBottom: '24px', whiteSpace: 'pre-wrap' }}>
-          {body || 'Kampanya açıklaması burada görünecek…'}
+          {previewBody || 'Kampanya açıklaması burada görünecek…'}
         </div>
 
         {discountRate && (
@@ -1260,25 +1272,56 @@ function EmailPreview({ storeName, headline, body, ctaText, discountRate, imageU
       {/* Product cards */}
       {products.length > 0 && (
         <div style={{ padding: '0 28px 28px' }}>
-          <p style={{ margin: '0 0 12px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1.5px', color: '#94a3b8' }}>Öne Çıkan Ürünler</p>
-          <div style={{ display: 'grid', gridTemplateColumns: products.length === 1 ? '1fr' : '1fr 1fr', gap: 12 }}>
-            {products.slice(0, 4).map(p => (
-              <div key={p.id} style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 12, overflow: 'hidden' }}>
-                {p.productImage && (
-                  <img src={p.productImage} alt={p.productName}
-                    style={{ width: '100%', height: 120, objectFit: 'cover', display: 'block' }}
-                    onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
-                )}
-                <div style={{ padding: '10px 12px' }}>
-                  <p style={{ margin: '0 0 3px', fontSize: 12, fontWeight: 700, color: darkCard ? '#e2e8f0' : '#111', lineHeight: 1.3 }}>{p.productName}</p>
-                  {p.price && <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: t.ctaBg.startsWith('#') ? t.ctaBg : '#2563eb' }}>{p.price} ₺</p>}
-                  {p.compareAtPrice && p.compareAtPrice !== p.price && (
-                    <p style={{ margin: 0, fontSize: 11, color: '#94a3b8', textDecoration: 'line-through' }}>{p.compareAtPrice} ₺</p>
-                  )}
+          <p style={{ margin: '0 0 12px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1.5px', color: '#94a3b8' }}>
+            {products.length === 1 ? 'Öne Çıkan Ürün' : 'Öne Çıkan Ürünler'}
+          </p>
+          {products.length === 1 ? (
+            /* Single product premium */
+            <div style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 16, overflow: 'hidden' }}>
+              {products[0].productImage ? (
+                <img src={products[0].productImage} alt={products[0].productName}
+                  style={{ width: '100%', height: 240, objectFit: 'cover', display: 'block' }}
+                  onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+              ) : (
+                <div style={{ height: 140, background: `linear-gradient(135deg,${t.cardBorder},${t.cardBg})`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40, opacity: 0.4 }}>🛍️</div>
+              )}
+              <div style={{ padding: '18px 20px' }}>
+                <p style={{ margin: '0 0 6px', fontSize: 17, fontWeight: 800, color: darkCard ? '#e2e8f0' : '#111', lineHeight: 1.25 }}>{products[0].productName}</p>
+                {products[0].description && <p style={{ margin: '0 0 10px', fontSize: 13, color: '#64748b', lineHeight: 1.5 }}>{products[0].description.slice(0, 120)}{products[0].description.length > 120 ? '…' : ''}</p>}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    {products[0].price && <span style={{ fontSize: 22, fontWeight: 900, color: t.ctaBg.startsWith('#') ? t.ctaBg : '#2563eb' }}>{products[0].price} ₺</span>}
+                    {products[0].compareAtPrice && products[0].compareAtPrice !== products[0].price && (
+                      <span style={{ marginLeft: 8, fontSize: 12, color: '#94a3b8', textDecoration: 'line-through' }}>{products[0].compareAtPrice} ₺</span>
+                    )}
+                  </div>
+                  <span style={{ background: t.ctaBg, color: t.ctaColor, fontSize: 12, fontWeight: 700, padding: '9px 18px', borderRadius: 8 }}>İncele →</span>
                 </div>
               </div>
-            ))}
-          </div>
+            </div>
+          ) : (
+            /* 2-4 products grid */
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              {products.slice(0, 4).map(p => (
+                <div key={p.id} style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 12, overflow: 'hidden' }}>
+                  {p.productImage ? (
+                    <img src={p.productImage} alt={p.productName}
+                      style={{ width: '100%', height: 120, objectFit: 'cover', display: 'block' }}
+                      onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                  ) : (
+                    <div style={{ height: 100, background: `linear-gradient(135deg,${t.cardBorder},${t.cardBg})`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, opacity: 0.4 }}>🛍️</div>
+                  )}
+                  <div style={{ padding: '10px 12px' }}>
+                    <p style={{ margin: '0 0 3px', fontSize: 12, fontWeight: 700, color: darkCard ? '#e2e8f0' : '#111', lineHeight: 1.3 }}>{p.productName}</p>
+                    {p.price && <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: t.ctaBg.startsWith('#') ? t.ctaBg : '#2563eb' }}>{p.price} ₺</p>}
+                    {p.compareAtPrice && p.compareAtPrice !== p.price && (
+                      <p style={{ margin: 0, fontSize: 11, color: '#94a3b8', textDecoration: 'line-through' }}>{p.compareAtPrice} ₺</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

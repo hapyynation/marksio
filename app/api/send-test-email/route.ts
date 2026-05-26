@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth-options'
 import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
-import { buildEmailHtml, type LayoutStyle, type Product } from '@/lib/email-campaign-template'
+import { buildEmailHtml, personalize, type LayoutStyle, type Product } from '@/lib/email-campaign-template'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 const BASE_URL = process.env.NEXTAUTH_URL || 'http://localhost:3000'
@@ -45,12 +45,20 @@ export async function POST(req: NextRequest) {
       ? `${storeName} <test@${emailDomain.domain}>`
       : `${storeName} <onboarding@resend.dev>`
 
+    const testVars: Record<string, string> = {
+      firstName: 'Test',
+      lastName: 'Kullanıcı',
+      email: targetEmail,
+      productName: headline ?? 'Ürün',
+      discountCode: '',
+    }
+
     const html = buildEmailHtml({
       storeName,
-      previewText: previewText ?? '',
-      headline: headline ?? 'Test E-posta',
-      body: body ?? 'Bu bir test e-postasıdır.',
-      ctaText: ctaText ?? 'Alışverişe Başla',
+      previewText: personalize(previewText ?? '', testVars),
+      headline: personalize(headline ?? 'Test E-posta', testVars),
+      body: personalize(body ?? 'Bu bir test e-postasıdır.', testVars),
+      ctaText: personalize(ctaText ?? 'Alışverişe Başla', testVars),
       ctaUrl: BASE_URL,
       imageUrl: imageUrl || undefined,
       discountRate: discountRate || undefined,
