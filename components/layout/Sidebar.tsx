@@ -103,7 +103,7 @@ export default function Sidebar() {
                 style={active ? {
                   background: 'rgba(0,241,254,0.06)',
                   borderRight: '2px solid #00f1fe',
-                  boxShadow: 'inset 0 0 20px rgba(0,241,254,0.04)',
+                  boxShadow: 'inset 0 0 20px rgba(0,241,254,0.04), 0 0 15px rgba(180,197,255,0.08)',
                 } : undefined}
               >
                 <span className={cn('material-symbols-outlined shrink-0', active && 'icon-fill')}

@@ -135,6 +135,9 @@ function AutomationCard({ auto, onToggle, onDelete }: {
       'group relative rounded-lg border border-[#272a33] bg-[#191b24] overflow-hidden transition-all duration-200 hover:border-[#b4c5ff]/20',
       auto.status === 'active' && 'hover:shadow-lg hover:shadow-[#b4c5ff]/5'
     )}>
+      {/* gradient top accent */}
+      <div className={cn('h-0.5 w-full bg-gradient-to-r to-transparent', meta.bg.replace('from-', 'from-'))}
+        style={{ opacity: auto.status === 'active' ? 1 : 0.4 }} />
       <div className="p-5">
         <div className="flex items-start gap-4">
           {/* Icon */}

@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react'
 import {
   Mail, MessageSquare, Plus, TrendingUp, Eye, ShoppingBag,
   Calendar, Clock, Sparkles, Send, Loader2, Zap,
-  ShoppingCart, Gift, UserPlus, ChevronRight, ArrowUpRight,
+  ShoppingCart, Gift, UserPlus, ArrowUpRight,
   Crown, Flame, Search, SlidersHorizontal, CheckCircle2, Circle,
+  BarChart2, Copy,
 } from 'lucide-react'
 import Link from 'next/link'
 import AppShell from '@/components/layout/AppShell'
@@ -57,6 +58,14 @@ const triggerDefs = [
   { key: 'vip_reward',     icon: Crown,        label: 'VIP Ödül',      desc: 'Cuma günü',     color: 'text-teal-400',   bg: 'bg-teal-500/10' },
   { key: 'win_back',       icon: Flame,        label: 'Win-Back',      desc: '14 gün sonra',  color: 'text-red-400',    bg: 'bg-red-500/10' },
 ]
+
+function getCardGradient(type: CampaignType, status: CampaignStatus): string {
+  if (status === 'completed') return 'linear-gradient(135deg, #0a1f0a 0%, #0d1f14 100%)'
+  if (status === 'active') return 'linear-gradient(135deg, #001038 0%, #0a1628 100%)'
+  if (status === 'scheduled') return 'linear-gradient(135deg, #1a1200 0%, #161400 100%)'
+  if (type === 'whatsapp') return 'linear-gradient(135deg, #001a18 0%, #0d1f1e 100%)'
+  return 'linear-gradient(135deg, #0a0f2a 0%, #0d1228 100%)'
+}
 
 const typeFilters: { key: string; label: string }[] = [
   { key: 'all', label: 'Tümü' },
@@ -235,117 +244,17 @@ export default function CampaignsPage() {
               </button>
             </div>
 
-            {/* Table */}
-            <div className="flex-1 overflow-auto">
+            {/* Card Grid */}
+            <div className="flex-1 overflow-auto p-5">
               {loading ? (
-                <div className="p-4 space-y-2">
-                  {[...Array(5)].map((_, i) => (
-                    <div key={i} className="relative overflow-hidden rounded-lg bg-[#1a1e2b] h-14 animate-pulse">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {[...Array(6)].map((_, i) => (
+                    <div key={i} className="relative overflow-hidden rounded-xl bg-[#1a1e2b] h-44 animate-pulse">
                       <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/[0.04] to-transparent" />
                     </div>
                   ))}
                 </div>
-              ) : (
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-[#272a33] bg-[#191b24]">
-                      {['Durum', 'Kampanya', 'Kanal', 'Açılma Oranı', 'CTR', 'ROI', ''].map(h => (
-                        <th key={h} className="px-5 py-3 text-left text-[10px] font-semibold text-[#8b95a8] uppercase tracking-[0.1em]" style={{ fontFamily: 'JetBrains Mono, monospace' }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#272a33]">
-                    {filtered.map(c => {
-                      const type = typeConfig[c.type] ?? typeConfig.email
-                      const status = statusConfig[c.status] ?? statusConfig.draft
-                      const TypeIcon = type.icon
-                      const StatusIcon = status.icon
-                      const openRate = c.sent > 0 ? ((c.opened / c.sent) * 100).toFixed(1) : '—'
-                      const ctr = c.sent > 0 ? ((c.clicked / c.sent) * 100).toFixed(1) : '—'
-                      const roi = c.revenue > 0 && c.sent > 0 ? `×${(c.revenue / (c.sent * 0.05)).toFixed(1)}` : '—'
-                      const isSending = sendingId === c.id
-
-                      return (
-                        <tr key={c.id} className="hover:bg-[#272a33]/50 transition-colors group">
-                          {/* Status */}
-                          <td className="px-5 py-3.5 w-28">
-                            <span className={cn('inline-flex items-center gap-1.5 text-[10px] font-semibold px-2 py-1 rounded border', status.badge)}>
-                              <span className={cn('w-1.5 h-1.5 rounded-full inline-block', status.dot)} />
-                              {status.label}
-                            </span>
-                          </td>
-                          {/* Name */}
-                          <td className="px-5 py-3.5 max-w-[200px]">
-                            <p className="text-sm font-semibold text-[#e2e8f8] truncate">{c.name}</p>
-                            {c.subject && (
-                              <p className="text-[11px] text-[#8b95a8] truncate mt-0.5">{c.subject}</p>
-                            )}
-                            <p className="text-[10px] text-[#8b95a8]/60 mt-0.5" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
-                              {segmentLabel[c.segment] || c.segment}
-                              {c.sent > 0 && <span> · {formatNumber(c.sent)} gönderildi</span>}
-                            </p>
-                          </td>
-                          {/* Channel */}
-                          <td className="px-5 py-3.5 w-28">
-                            <span className={cn('inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-1 rounded border', type.bg, type.color)}>
-                              <TypeIcon className="w-3 h-3" />
-                              {type.label}
-                            </span>
-                          </td>
-                          {/* Open Rate */}
-                          <td className="px-5 py-3.5 w-28">
-                            <p className="text-sm font-bold text-[#e2e8f8]" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
-                              {openRate !== '—' ? `%${openRate}` : '—'}
-                            </p>
-                          </td>
-                          {/* CTR */}
-                          <td className="px-5 py-3.5 w-24">
-                            <p className="text-sm font-bold text-[#e2e8f8]" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
-                              {ctr !== '—' ? `%${ctr}` : '—'}
-                            </p>
-                          </td>
-                          {/* ROI */}
-                          <td className="px-5 py-3.5 w-28">
-                            <p className="text-sm font-bold text-emerald-400" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
-                              {formatCurrency(c.revenue)}
-                            </p>
-                            <p className="text-[10px] text-[#8b95a8]">{roi}</p>
-                          </td>
-                          {/* Actions */}
-                          <td className="px-5 py-3.5 w-24 text-right">
-                            {c.status === 'draft' ? (
-                              <button
-                                onClick={() => handleSend(c.id)}
-                                disabled={isSending}
-                                className="flex items-center gap-1.5 text-xs bg-[#0062ff] hover:bg-[#0052d4] disabled:opacity-50 text-white px-3 py-1.5 rounded-lg font-semibold transition-all ml-auto"
-                              >
-                                {isSending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
-                                Gönder
-                              </button>
-                            ) : (
-                              <Link href={`/campaigns/${c.id}`}
-                                className="flex items-center gap-1 text-xs text-[#b4c5ff] hover:text-white font-semibold transition-colors ml-auto">
-                                Detay <ArrowUpRight className="w-3 h-3" />
-                              </Link>
-                            )}
-                          </td>
-                        </tr>
-                      )
-                    })}
-                    {/* New row */}
-                    <tr>
-                      <td colSpan={7} className="px-5 py-3">
-                        <Link href="/campaigns/new"
-                          className="inline-flex items-center gap-2 text-xs text-[#8b95a8] hover:text-[#b4c5ff] font-semibold transition-colors">
-                          <Plus className="w-3.5 h-3.5" /> Yeni kampanya ekle
-                        </Link>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              )}
-
-              {!loading && filtered.length === 0 && campaigns.length === 0 && (
+              ) : filtered.length === 0 && campaigns.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 gap-5 animate-fade-in">
                   <div className="relative">
                     <div className="w-16 h-16 rounded-2xl bg-[#b4c5ff]/[0.06] border border-[#b4c5ff]/15 flex items-center justify-center">
@@ -367,6 +276,116 @@ export default function CampaignsPage() {
                       <Sparkles className="w-3.5 h-3.5" /> Şablon Seç
                     </Link>
                   </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {filtered.map(c => {
+                    const type = typeConfig[c.type] ?? typeConfig.email
+                    const status = statusConfig[c.status] ?? statusConfig.draft
+                    const TypeIcon = type.icon
+                    const openRate = c.sent > 0 ? ((c.opened / c.sent) * 100).toFixed(1) : null
+                    const ctr = c.sent > 0 ? ((c.clicked / c.sent) * 100).toFixed(1) : null
+                    const isSending = sendingId === c.id
+                    const cardGradient = getCardGradient(c.type, c.status)
+
+                    return (
+                      <div key={c.id} className="group relative rounded-xl border border-[#272a33] overflow-hidden transition-all duration-300 hover:border-[#b4c5ff]/20 hover:shadow-[0_8px_32px_-8px_rgba(180,197,255,0.1)] cursor-pointer"
+                        style={{ background: '#191b24' }}>
+
+                        {/* Card header */}
+                        <div className="px-4 pt-4 pb-3 relative" style={{ background: cardGradient }}>
+                          <div className="absolute inset-0 opacity-30"
+                            style={{ background: 'radial-gradient(ellipse at 80% 0%, rgba(180,197,255,0.12) 0%, transparent 60%)' }} />
+                          <div className="relative flex items-start justify-between gap-2 mb-2">
+                            <p className="text-sm font-bold text-[#e2e8f8] leading-tight line-clamp-2 flex-1">{c.name}</p>
+                            <div className="flex flex-col items-end gap-1.5 shrink-0">
+                              <span className={cn('inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase tracking-wide', status.badge)}>
+                                <span className={cn('w-1 h-1 rounded-full inline-block', status.dot)} />
+                                {status.label}
+                              </span>
+                              <span className={cn('inline-flex items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded border', type.bg, type.color)}>
+                                <TypeIcon className="w-2.5 h-2.5" />
+                                {type.label}
+                              </span>
+                            </div>
+                          </div>
+                          {c.subject && (
+                            <p className="text-[11px] text-[#8b95a8] truncate relative">{c.subject}</p>
+                          )}
+                          <p className="text-[10px] text-[#8b95a8]/60 mt-0.5 relative" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
+                            {segmentLabel[c.segment] || c.segment}
+                          </p>
+                        </div>
+
+                        {/* Stats */}
+                        <div className="px-4 py-3 grid grid-cols-3 gap-2 border-t border-[#272a33]">
+                          <div>
+                            <p className="text-[9px] text-[#8b95a8] font-semibold uppercase tracking-wide mb-0.5">Gönderim</p>
+                            <p className="text-sm font-bold text-[#e2e8f8]" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
+                              {c.sent > 0 ? formatNumber(c.sent) : '—'}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-[9px] text-[#8b95a8] font-semibold uppercase tracking-wide mb-0.5">Açılma</p>
+                            <p className="text-sm font-bold text-[#e2e8f8]" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
+                              {openRate ? `%${openRate}` : '—'}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-[9px] text-[#8b95a8] font-semibold uppercase tracking-wide mb-0.5">Gelir</p>
+                            <p className="text-sm font-bold text-emerald-400" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
+                              {c.revenue > 0 ? formatCurrency(c.revenue) : '—'}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Footer actions */}
+                        <div className="px-4 py-2.5 border-t border-[#272a33] flex items-center justify-between">
+                          <span className="text-[10px] text-[#8b95a8]">
+                            {ctr ? `CTR %${ctr}` : formatDate(c.createdAt)}
+                          </span>
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={() => navigator.clipboard.writeText(c.id)}
+                              className="p-1.5 rounded-lg text-[#8b95a8] hover:text-[#e2e8f8] hover:bg-[#272a33] transition-all"
+                              title="ID Kopyala">
+                              <Copy className="w-3 h-3" />
+                            </button>
+                            {c.status === 'draft' ? (
+                              <button
+                                onClick={() => handleSend(c.id)}
+                                disabled={isSending}
+                                className="flex items-center gap-1 text-[10px] font-bold bg-[#0062ff] hover:bg-[#0052d4] disabled:opacity-50 text-white px-2 py-1 rounded-lg transition-all">
+                                {isSending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+                                Gönder
+                              </button>
+                            ) : (
+                              <Link href={`/campaigns/${c.id}`}
+                                className="flex items-center gap-1 text-[10px] font-bold text-[#b4c5ff] hover:text-white bg-[#b4c5ff]/10 hover:bg-[#b4c5ff]/20 px-2 py-1 rounded-lg transition-all">
+                                <BarChart2 className="w-3 h-3" />
+                                Detay
+                              </Link>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Hover glow border */}
+                        <div className="absolute inset-0 rounded-xl border border-[#b4c5ff]/0 group-hover:border-[#b4c5ff]/10 transition-all pointer-events-none" />
+                      </div>
+                    )
+                  })}
+
+                  {/* Create New card */}
+                  <Link href="/campaigns/new"
+                    className="group flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-[#272a33] hover:border-[#b4c5ff]/30 min-h-[180px] transition-all duration-300 hover:bg-[#b4c5ff]/[0.02]">
+                    <div className="w-10 h-10 rounded-xl bg-[#272a33] group-hover:bg-[#b4c5ff]/10 border border-[#272a33] group-hover:border-[#b4c5ff]/20 flex items-center justify-center transition-all">
+                      <Plus className="w-4 h-4 text-[#8b95a8] group-hover:text-[#b4c5ff] transition-colors" />
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xs font-semibold text-[#8b95a8] group-hover:text-[#e2e8f8] transition-colors">Yeni Kampanya</p>
+                      <p className="text-[10px] text-[#8b95a8]/60 mt-0.5">AI ile oluştur</p>
+                    </div>
+                  </Link>
                 </div>
               )}
             </div>

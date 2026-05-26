@@ -214,15 +214,15 @@ export default function AnalyticsPage() {
             { label: 'Dönüşüm Oranı',  value: `%${kpis.convRate}`, icon: Target, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
             { label: 'Ort. AOV',        value: formatCurrency(kpis.aov), icon: ShoppingBag, color: 'text-amber-400', bg: 'bg-amber-500/10' },
           ].map(kpi => (
-            <div key={kpi.label} className="bg-[#191b24] border border-[#272a33] rounded-lg px-5 py-4 hover:border-[#b4c5ff]/20 transition-all">
+            <div key={kpi.label} className="group bg-[#191b24] border border-[#272a33] rounded-xl px-5 py-4 hover:border-[#b4c5ff]/20 hover:shadow-[0_0_24px_-6px_rgba(180,197,255,0.12)] transition-all duration-300">
               <div className="flex items-start justify-between mb-3">
                 <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center', kpi.bg)}>
                   <kpi.icon className={cn('w-4 h-4', kpi.color)} />
                 </div>
-                <span className="flex items-center gap-0.5 text-[10px] font-bold text-[#8b95a8]">—</span>
+                <p className="text-[10px] font-semibold text-[#8b95a8] uppercase tracking-[0.12em] text-right mt-1"
+                  style={{ fontFamily: 'JetBrains Mono, monospace' }}>{kpi.label}</p>
               </div>
-              <p className="text-xl font-bold text-[#e2e8f8]">{kpi.value}</p>
-              <p className="text-[11px] text-[#8b95a8] mt-0.5 font-medium">{kpi.label}</p>
+              <p className="text-2xl font-bold text-[#e2e8f8] tracking-tight group-hover:text-white transition-colors duration-200">{kpi.value}</p>
             </div>
           ))}
         </div>

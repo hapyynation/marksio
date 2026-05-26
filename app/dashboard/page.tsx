@@ -281,6 +281,28 @@ export default function DashboardPage() {
         })}
       </div>
 
+      {/* ── AI Ticker Strip ── */}
+      <div className="border-b border-[#272a33] bg-[#1d1f28] overflow-hidden relative h-8 flex items-center">
+        <div className="flex animate-ticker whitespace-nowrap">
+          {[
+            { label: 'Toplam Gelir', value: data?.stats?.revenue?.value ? formatCurrency(data.stats.revenue.value) : '₺0', color: 'text-emerald-400' },
+            { label: 'Müşteri', value: data?.stats?.customers?.value ? formatNumber(data.stats.customers.value) : '0', color: 'text-[#b4c5ff]' },
+            { label: 'Email Gönderim', value: data?.channelStats?.email?.sent ? formatNumber(data.channelStats.email.sent) : '0', color: 'text-[#b4c5ff]' },
+            { label: 'Açılma Oranı', value: data?.channelStats?.email?.openRate ? `%${data.channelStats.email.openRate}` : '%0', color: 'text-violet-400' },
+            { label: 'Kampanya', value: data?.recentCampaigns?.length ? `${data.recentCampaigns.length} aktif` : '—', color: 'text-amber-400' },
+            { label: 'Dönüşüm', value: data?.stats?.campaigns?.clicked ? formatNumber(data.stats.campaigns.clicked) : '0', color: 'text-teal-400' },
+            { label: 'WhatsApp', value: data?.channelStats?.whatsapp?.sent ? formatNumber(data.channelStats.whatsapp.sent) : '0', color: 'text-emerald-400' },
+            { label: 'Sepet Terk', value: data?.stats?.cartAbandons ? formatNumber(data.stats.cartAbandons) : '0', color: 'text-red-400' },
+          ].flatMap(item => [item, item]).map((item, i) => (
+            <span key={i} className="inline-flex items-center gap-1.5 px-6 text-[10px] font-semibold">
+              <span className="text-[#8b95a8]">{item.label}</span>
+              <span className={item.color} style={{ fontFamily: 'JetBrains Mono, monospace' }}>{item.value}</span>
+              <span className="text-[#272a33] mx-2">·</span>
+            </span>
+          ))}
+        </div>
+      </div>
+
       {/* ── Live tab ── */}
       {activeTab === 'live' && (
         <div className="p-4 lg:p-6 flex-1 bg-[#11131c]">
