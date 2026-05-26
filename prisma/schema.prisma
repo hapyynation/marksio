@@ -44,10 +44,14 @@ model Campaign {
   segment     String
   subject     String?
   previewText String?
+  headline    String?
   body        String
-  design      String   @default("[]")  // JSON: Block[] — editörde yeniden açmak için
+  design      String   @default("[]")
   cta         String?
   tips        String   @default("[]")
+  purpose     String?
+  imageUrl    String?
+  htmlContent String?
 
   sent        Int      @default(0)
   opened      Int      @default(0)
@@ -60,6 +64,21 @@ model Campaign {
   updatedAt   DateTime @updatedAt
 
   opens       CampaignOpen[]
+  emailEvents EmailEvent[]
+}
+
+model EmailEvent {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  type       String   // sent | opened | clicked | failed | unsubscribed
+  metadata   String   @default("{}")
+  createdAt  DateTime @default(now())
+
+  @@index([campaignId, type])
+  @@index([customerId])
 }
 
 model CampaignOpen {
@@ -105,6 +124,7 @@ model Customer {
   orders      Order[]
   events      CustomerEvent[]
   opens       CampaignOpen[]
+  emailEvents EmailEvent[]
 
   @@unique([userId, email])
 }

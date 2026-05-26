@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth-options'
 import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
 import { sendWhatsAppMessage } from '@/lib/whatsapp'
+import { buildEmailHtml } from '@/lib/email-campaign-template'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 const BASE_URL = process.env.NEXTAUTH_URL || 'http://localhost:3000'
@@ -19,10 +20,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     if (!campaign) return NextResponse.json({ error: 'Kampanya bulunamadı' }, { status: 404 })
     if (campaign.status === 'active') return NextResponse.json({ error: 'Kampanya zaten gönderildi' }, { status: 400 })
 
-    const user = await prisma.user.findUnique({ where: { id: userId }, select: { storeName: true } })
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { storeName: true },
+    })
     const storeName = user?.storeName ?? 'Marksio'
 
-    // Kullanıcının verify edilmiş email domain'ini bul
     const emailDomain = await prisma.emailDomain.findFirst({
       where: { userId, status: 'verified' },
       orderBy: { createdAt: 'desc' },
@@ -31,10 +34,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       ? `${storeName} <kampanya@${emailDomain.domain}>`
       : `${storeName} <kampanya@marksio.co>`
 
-    // Segment müşterilerini çek
-    const segmentFilter = campaign.segment && campaign.segment !== 'all'
-      ? { segment: campaign.segment }
-      : {}
+    const segmentFilter =
+      campaign.segment && campaign.segment !== 'all'
+        ? { segment: campaign.segment }
+        : {}
 
     const customers = await prisma.customer.findMany({
       where: { userId, unsubscribed: false, ...segmentFilter },
@@ -47,6 +50,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     let sent = 0
     const errors: string[] = []
+    const eventRecords: Array<{ campaignId: string; customerId: string; type: string; metadata: string }> = []
 
     if (campaign.type === 'email') {
       for (const customer of customers) {
@@ -54,30 +58,22 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
         const trackParams = new URLSearchParams({ c: campaign.id, u: customer.id })
         const clickParams = new URLSearchParams({ c: campaign.id, u: customer.id })
+        const ctaUrl = `${BASE_URL}/api/track/click?${clickParams.toString()}&url=${encodeURIComponent(BASE_URL)}`
+        const unsubscribeUrl = `${BASE_URL}/unsubscribe/${customer.unsubscribeToken}`
+        const trackingPixelUrl = `${BASE_URL}/api/track/open?${trackParams.toString()}`
 
-        const ctaHtml = campaign.cta
-          ? `<div style="text-align:center;margin:24px 0">
-              <a href="${BASE_URL}/api/track/click?${clickParams.toString()}&url=${encodeURIComponent('#')}"
-                 style="background:#2563EB;color:white;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">
-                ${campaign.cta}
-              </a>
-             </div>`
-          : ''
-
-        const html = `<!DOCTYPE html>
-<html><head><meta charset="utf-8"></head>
-<body style="font-family:-apple-system,sans-serif;background:#f9fafb;margin:0;padding:32px 16px">
-  <div style="max-width:560px;margin:0 auto;background:white;border-radius:16px;padding:32px">
-    <p style="font-size:13px;font-weight:700;color:#2563EB;margin:0 0 16px">${storeName}</p>
-    <div style="font-size:15px;line-height:1.7;color:#374151;white-space:pre-line">${campaign.body}</div>
-    ${ctaHtml}
-    <hr style="border:none;border-top:1px solid #f3f4f6;margin:24px 0">
-    <p style="font-size:11px;color:#9ca3af;text-align:center">
-      <a href="${BASE_URL}/unsubscribe/${customer.unsubscribeToken}" style="color:#2563EB">Aboneliği iptal et</a>
-    </p>
-    <img src="${BASE_URL}/api/track/open?${trackParams.toString()}" width="1" height="1" style="display:none" />
-  </div>
-</body></html>`
+        const html = buildEmailHtml({
+          storeName,
+          previewText: campaign.previewText ?? '',
+          headline: campaign.headline ?? campaign.name,
+          body: campaign.body,
+          ctaText: campaign.cta ?? 'Alışverişe Başla',
+          ctaUrl,
+          imageUrl: campaign.imageUrl ?? undefined,
+          discountRate: undefined,
+          unsubscribeUrl,
+          trackingPixelUrl,
+        })
 
         const { error } = await resend.emails.send({
           from: fromEmail,
@@ -87,8 +83,13 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
           text: campaign.body,
         })
 
-        if (error) errors.push(`${customer.email}: ${error.message}`)
-        else sent++
+        if (error) {
+          errors.push(`${customer.email}: ${error.message}`)
+          eventRecords.push({ campaignId: campaign.id, customerId: customer.id, type: 'failed', metadata: JSON.stringify({ error: error.message }) })
+        } else {
+          sent++
+          eventRecords.push({ campaignId: campaign.id, customerId: customer.id, type: 'sent', metadata: '{}' })
+        }
       }
     } else if (campaign.type === 'whatsapp') {
       const integration = await prisma.integration.findFirst({
@@ -109,19 +110,32 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
             body: campaign.body,
           })
           sent++
+          eventRecords.push({ campaignId: campaign.id, customerId: customer.id, type: 'sent', metadata: '{}' })
         } catch (e) {
-          errors.push(`${customer.phone}: ${e instanceof Error ? e.message : 'hata'}`)
+          const msg = e instanceof Error ? e.message : 'hata'
+          errors.push(`${customer.phone}: ${msg}`)
+          eventRecords.push({ campaignId: campaign.id, customerId: customer.id, type: 'failed', metadata: JSON.stringify({ error: msg }) })
         }
       }
     }
 
-    // Kampanya istatistiklerini güncelle
-    await prisma.campaign.update({
-      where: { id: campaign.id },
-      data: { sent: { increment: sent }, status: 'active' },
-    })
+    await Promise.all([
+      prisma.campaign.update({
+        where: { id: campaign.id },
+        data: { sent: { increment: sent }, status: 'active' },
+      }),
+      eventRecords.length > 0
+        ? prisma.emailEvent.createMany({ data: eventRecords })
+        : Promise.resolve(),
+    ])
 
-    return NextResponse.json({ success: true, sent, total: customers.length, errors: errors.length ? errors : undefined })
+    return NextResponse.json({
+      success: true,
+      sent,
+      total: customers.length,
+      failed: errors.length,
+      errors: errors.length > 0 ? errors.slice(0, 10) : undefined,
+    })
   } catch (err) {
     console.error('[Campaign Send]', err)
     return NextResponse.json({ error: 'Kampanya gönderilemedi' }, { status: 500 })

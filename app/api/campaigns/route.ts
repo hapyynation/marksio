@@ -34,14 +34,18 @@ export async function POST(req: NextRequest) {
       data: {
         userId,
         name: body.name,
-        type: body.type,
+        type: body.type ?? 'email',
         status: body.status ?? 'draft',
-        segment: body.segment,
+        segment: body.segment ?? 'all',
         subject: body.subject,
         previewText: body.previewText,
-        body: body.body,
+        headline: body.headline,
+        body: body.body ?? '',
         cta: body.cta,
         tips: JSON.stringify(body.tips ?? []),
+        purpose: body.purpose,
+        imageUrl: body.imageUrl,
+        scheduledAt: body.scheduledAt ? new Date(body.scheduledAt) : null,
       },
     })
     return NextResponse.json({ ...campaign, tips: JSON.parse(campaign.tips) }, { status: 201 })
