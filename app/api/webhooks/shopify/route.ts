@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createHmac } from 'crypto'
 import { prisma } from '@/lib/prisma'
-
-// Shopify webhook HMAC doğrulama
-function verifyShopifyWebhook(body: string, hmacHeader: string, secret: string): boolean {
-  if (!secret || !hmacHeader) return false
-  const hash = createHmac('sha256', secret).update(body, 'utf8').digest('base64')
-  return hash === hmacHeader
-}
+import {
+  verifyWebhookHmac,
+  classifySegment,
+  mapFulfillmentStatus,
+  getCustomerName,
+  detectProductCategory,
+  type ShopifyProduct,
+} from '@/lib/shopify'
 
 export async function POST(req: NextRequest) {
   const topic = req.headers.get('x-shopify-topic') ?? ''
@@ -16,9 +16,8 @@ export async function POST(req: NextRequest) {
 
   const rawBody = await req.text()
 
-  // HMAC doğrulama (webhook secret varsa)
   const webhookSecret = process.env.SHOPIFY_WEBHOOK_SECRET
-  if (webhookSecret && !verifyShopifyWebhook(rawBody, hmac, webhookSecret)) {
+  if (webhookSecret && !verifyWebhookHmac(rawBody, hmac, webhookSecret)) {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
   }
 
@@ -54,8 +53,13 @@ export async function POST(req: NextRequest) {
         await handleCheckout(userId, payload)
         break
 
+      case 'products/create':
+      case 'products/update':
+        await handleProduct(userId, payload)
+        break
+
       default:
-        // Bilinmeyen topic — görmezden gel
+        break
     }
   } catch (err) {
     console.error(`Shopify webhook error [${topic}]:`, err)
@@ -90,7 +94,7 @@ async function handleOrder(userId: string, integrationId: string, o: Record<stri
   })
 
   const orderData = {
-    status: mapFulfillmentStatus(o.fulfillment_status as string | null),
+    status: mapFulfillmentStatus(o.fulfillment_status as string | undefined | null),
     financialStatus: o.financial_status as string | null,
     total: parseFloat((o.total_price as string) ?? '0'),
     subtotal: parseFloat((o.subtotal_price as string) ?? '0'),
@@ -209,6 +213,52 @@ async function handleCheckout(userId: string, ch: Record<string, unknown>) {
   })
 }
 
+// ─── Products handler ──────────────────────────────────────────────────────
+
+async function handleProduct(userId: string, payload: Record<string, unknown>) {
+  const p = payload as unknown as ShopifyProduct
+  if (!p.id) return
+
+  const mainImage = p.images?.find(i => i.position === 1)?.src ?? p.images?.[0]?.src ?? null
+  const variant = p.variants?.[0]
+  const price = variant ? parseFloat(variant.price) : null
+  const compareAt = variant?.compare_at_price ? parseFloat(variant.compare_at_price) : null
+  const platformId = String(p.id)
+  const category = detectProductCategory(p)
+
+  const existing = await prisma.campaignProduct.findFirst({ where: { userId, platformId } })
+
+  if (existing) {
+    await prisma.campaignProduct.update({
+      where: { id: existing.id },
+      data: {
+        productName: p.title,
+        productImage: mainImage,
+        price,
+        compareAtPrice: compareAt,
+        description: p.body_html ? p.body_html.replace(/<[^>]+>/g, '').slice(0, 500) : null,
+        category,
+      },
+    })
+  } else {
+    // Only create if product is active
+    if (p.status && p.status !== 'active') return
+    await prisma.campaignProduct.create({
+      data: {
+        userId,
+        productName: p.title,
+        productImage: mainImage,
+        price,
+        compareAtPrice: compareAt,
+        description: p.body_html ? p.body_html.replace(/<[^>]+>/g, '').slice(0, 500) : null,
+        category,
+        platformId,
+        source: 'shopify',
+      },
+    })
+  }
+}
+
 // ─── Yardımcı fonksiyonlar ─────────────────────────────────────────────────
 
 async function updateCustomerStats(userId: string, customerId: string) {
@@ -222,32 +272,10 @@ async function updateCustomerStats(userId: string, customerId: string) {
   const totalSpent = orders.reduce((s, o) => s + o.total, 0)
   const avgOrder = totalOrders > 0 ? totalSpent / totalOrders : 0
   const lastOrder = orders[0]?.placedAt ?? null
-
-  let segment = 'new'
-  if (totalOrders >= 5) segment = 'vip'
-  else if (totalOrders >= 3) segment = 'loyal'
-  else if (totalOrders >= 1 && lastOrder) {
-    const daysSince = (Date.now() - lastOrder.getTime()) / 86400000
-    if (daysSince > 90) segment = 'inactive'
-    else if (daysSince > 60) segment = 'at_risk'
-    else segment = 'loyal'
-  }
+  const segment = classifySegment({ totalOrders, totalSpent, lastOrderAt: lastOrder })
 
   await prisma.customer.update({
     where: { id: customerId },
     data: { totalOrders, totalSpent, avgOrder, lastOrder, segment },
   })
-}
-
-function getCustomerName(c: Record<string, unknown>): string {
-  const first = (c.first_name as string) ?? ''
-  const last = (c.last_name as string) ?? ''
-  return `${first} ${last}`.trim() || ((c.email as string) ?? 'Müşteri')
-}
-
-function mapFulfillmentStatus(status?: string | null): string {
-  if (!status) return 'confirmed'
-  if (status === 'fulfilled') return 'delivered'
-  if (status === 'partial') return 'shipped'
-  return 'confirmed'
 }

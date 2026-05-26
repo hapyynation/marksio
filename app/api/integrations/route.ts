@@ -11,7 +11,7 @@ export async function GET() {
     where: { userId: session.user.id },
     select: {
       id: true, platform: true, shopDomain: true, status: true,
-      lastSyncAt: true, createdAt: true,
+      lastSyncAt: true, createdAt: true, meta: true,
     },
   })
 

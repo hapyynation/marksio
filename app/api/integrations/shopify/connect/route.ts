@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth-options'
 import { prisma } from '@/lib/prisma'
+import { registerWebhooks } from '@/lib/shopify'
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -45,6 +46,19 @@ export async function POST(req: NextRequest) {
         meta: JSON.stringify({ shopName }),
       },
     })
+
+    // Register webhooks async (non-blocking)
+    const appUrl = process.env.NEXTAUTH_URL ?? process.env.APP_URL ?? ''
+    if (appUrl) {
+      registerWebhooks(domain, accessToken, appUrl)
+        .then(() =>
+          prisma.integration.update({
+            where: { id: integration.id },
+            data: { meta: JSON.stringify({ shopName, webhooksRegistered: true }) },
+          }),
+        )
+        .catch(console.error)
+    }
 
     return NextResponse.json({ success: true, integration: { id: integration.id, shopName, domain } })
   } catch {

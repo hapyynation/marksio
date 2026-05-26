@@ -6,7 +6,7 @@ import {
   Mail, MessageSquare, Link2, Link2Off,
   RefreshCw, Loader2, AlertCircle, ShoppingBag, Globe,
   ChevronRight, Package, X, Settings, Trash2, Globe2,
-  CheckCircle2, Clock, AlertTriangle, Plus,
+  CheckCircle2, Clock, AlertTriangle, Plus, Users, ShoppingCart,
 } from 'lucide-react'
 import AppShell from '@/components/layout/AppShell'
 import Header from '@/components/layout/Header'
@@ -23,8 +23,25 @@ const tabs: Array<{ key: Tab; label: string; icon: React.ElementType }> = [
   { key: 'billing',      label: 'Plan & Ödeme',    icon: Shield},
 ]
 
+interface SyncStats {
+  customers: number; orders: number; products: number; abandonedCarts: number
+  completedAt: string; durationMs: number
+}
+
+interface IntegrationMeta {
+  shopName?: string
+  webhooksRegistered?: boolean
+  syncInProgress?: boolean
+  lastSync?: SyncStats
+}
+
 interface Integration {
   id: string; platform: string; shopDomain?: string; status: string; lastSyncAt?: string
+  meta?: string
+}
+
+function parseMeta(raw?: string): IntegrationMeta {
+  try { return raw ? JSON.parse(raw) as IntegrationMeta : {} } catch { return {} }
 }
 
 interface EmailDomain {
@@ -923,21 +940,42 @@ export default function SettingsPage() {
 // ─── Shopify settings button (OAuth flow) ─────────────────────────────────────
 
 function ShopifySettingsButton({ integration, onConnected }: { integration?: Integration; onConnected: () => void }) {
-  const [showModal, setShowModal] = useState(false)
-  const [domain, setDomain]       = useState('')
-  const [syncing, setSyncing]     = useState(false)
-  const [syncResult, setSyncResult] = useState('')
+  const [showModal, setShowModal]   = useState(false)
+  const [domain, setDomain]         = useState('')
+  const [syncing, setSyncing]       = useState(false)
+  const [syncResult, setSyncResult] = useState<{ stats?: { customers: number; orders: number; products: number; abandonedCarts: number }; error?: string } | null>(null)
+  const [polling, setPolling]       = useState(false)
   const isConnected = integration?.status === 'active'
+  const meta = parseMeta(integration?.meta)
 
   async function handleSync() {
-    setSyncing(true)
+    setSyncing(true); setSyncResult(null)
     try {
       const res  = await fetch('/api/integrations/shopify/sync', { method: 'POST' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
-      setSyncResult(data.message); onConnected()
+      setSyncResult({ stats: data.stats })
+      onConnected()
+    } catch (e) {
+      setSyncResult({ error: e instanceof Error ? e.message : 'Hata' })
     } finally { setSyncing(false) }
   }
+
+  // Poll for sync progress (used while syncInProgress = true after page load)
+  useEffect(() => {
+    if (!isConnected || !meta.syncInProgress) { setPolling(false); return }
+    setPolling(true)
+    const id = setInterval(async () => {
+      const res = await fetch('/api/integrations/shopify/status').catch(() => null)
+      if (!res?.ok) return
+      const data = await res.json() as { syncInProgress?: boolean }
+      if (!data.syncInProgress) { setPolling(false); clearInterval(id); onConnected() }
+    }, 3000)
+    return () => clearInterval(id)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isConnected, meta.syncInProgress])
+
+  const syncIndicator = syncing || polling
 
   return (
     <>
@@ -947,50 +985,126 @@ function ShopifySettingsButton({ integration, onConnected }: { integration?: Int
 
       {showModal && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#111] border border-[#1e1e1e] rounded-2xl shadow-2xl w-full max-w-md">
+          <div className="bg-[#111] border border-[#1e1e1e] rounded-2xl shadow-2xl w-full max-w-lg">
+
+            {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-[#1e1e1e]">
-              <h3 className="font-semibold text-white">Shopify Ayarları</h3>
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-[#96bf48]/15 border border-[#96bf48]/20 flex items-center justify-center">
+                  <ShoppingBag className="w-4 h-4 text-[#96bf48]" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-white text-sm">
+                    {isConnected ? (meta.shopName ?? integration?.shopDomain) : 'Mağaza Bağla'}
+                  </h3>
+                  {isConnected && (
+                    <p className="text-[11px] text-gray-600 font-mono">{integration?.shopDomain}</p>
+                  )}
+                </div>
+              </div>
               <button onClick={() => setShowModal(false)} className="text-gray-600 hover:text-gray-300"><X className="w-5 h-5" /></button>
             </div>
+
             <div className="p-6 space-y-4">
               {isConnected ? (
                 <>
-                  <div className="flex items-center gap-3 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
-                    <Check className="w-4 h-4 text-emerald-400 shrink-0" />
-                    <div className="text-xs text-emerald-400">
-                      <p className="font-semibold">{integration?.shopDomain}</p>
-                      {integration?.lastSyncAt && <p className="opacity-70">Son sync: {new Date(integration.lastSyncAt).toLocaleString('tr-TR')}</p>}
+                  {/* Status row */}
+                  <div className="flex items-center justify-between p-3 bg-emerald-500/8 border border-emerald-500/15 rounded-xl">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                      <span className="text-xs font-semibold text-emerald-400">Bağlı</span>
+                      {meta.webhooksRegistered && (
+                        <span className="text-[10px] text-emerald-500/60 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded font-mono">webhooks ✓</span>
+                      )}
                     </div>
+                    {integration?.lastSyncAt && (
+                      <span className="text-[11px] text-gray-600">
+                        Son sync: {new Date(integration.lastSyncAt).toLocaleString('tr-TR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    )}
                   </div>
-                  {syncResult && <p className="text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-3 py-2">✓ {syncResult}</p>}
-                  <div className="flex items-center gap-3">
-                    <button onClick={handleSync} disabled={syncing}
-                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white text-sm font-semibold rounded-xl transition-all">
-                      {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                      {syncing ? 'Senkronize ediliyor...' : 'Senkronize Et'}
+
+                  {/* Last sync stats */}
+                  {meta.lastSync && (
+                    <div className="grid grid-cols-4 gap-2">
+                      {[
+                        { label: 'Ürünler',    value: meta.lastSync.products,      icon: Package      },
+                        { label: 'Müşteriler', value: meta.lastSync.customers,     icon: Users        },
+                        { label: 'Siparişler', value: meta.lastSync.orders,        icon: ShoppingBag  },
+                        { label: 'Sepet Terk', value: meta.lastSync.abandonedCarts,icon: ShoppingCart },
+                      ].map(s => (
+                        <div key={s.label} className="bg-[#0d0d0d] border border-[#1a1a1a] rounded-xl p-3 text-center">
+                          <s.icon className="w-3.5 h-3.5 text-gray-600 mx-auto mb-1" />
+                          <p className="text-sm font-bold text-white" style={{ fontFamily: 'JetBrains Mono, monospace' }}>{s.value.toLocaleString('tr-TR')}</p>
+                          <p className="text-[10px] text-gray-600 mt-0.5">{s.label}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Sync result feedback */}
+                  {syncResult?.stats && (
+                    <div className="text-xs text-emerald-400 bg-emerald-500/8 border border-emerald-500/15 rounded-xl px-3 py-2.5 space-y-0.5">
+                      <p className="font-semibold">✓ Senkronizasyon tamamlandı</p>
+                      <p className="text-emerald-500/70">{syncResult.stats.products} ürün · {syncResult.stats.customers} müşteri · {syncResult.stats.orders} sipariş · {syncResult.stats.abandonedCarts} sepet</p>
+                    </div>
+                  )}
+                  {syncResult?.error && (
+                    <div className="flex items-center gap-2 text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {syncResult.error}
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-3 pt-1">
+                    <button onClick={handleSync} disabled={syncIndicator}
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-[#b4c5ff]/10 hover:bg-[#b4c5ff]/20 disabled:opacity-40 text-[#b4c5ff] border border-[#b4c5ff]/20 text-sm font-semibold rounded-xl transition-all">
+                      {syncIndicator ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                      {syncing ? 'Senkronize ediliyor...' : polling ? 'Sync devam ediyor...' : 'Tüm Veriyi Senkronize Et'}
                     </button>
-                    <button onClick={async () => { await fetch('/api/integrations/shopify/disconnect', { method: 'POST' }); onConnected(); setShowModal(false) }}
-                      className="px-4 py-2.5 text-sm font-medium text-red-400 bg-red-500/10 hover:bg-red-500/15 border border-red-500/20 rounded-xl transition-all">
+                    <button
+                      onClick={async () => {
+                        await fetch('/api/integrations/shopify/disconnect', { method: 'POST' })
+                        onConnected(); setShowModal(false)
+                      }}
+                      className="px-4 py-2.5 text-sm font-medium text-red-400 bg-red-500/10 hover:bg-red-500/15 border border-red-500/20 rounded-xl transition-all whitespace-nowrap"
+                    >
                       Bağlantıyı Kes
                     </button>
+                  </div>
+
+                  {/* Webhook URL */}
+                  <div className="flex items-center gap-2 px-3 py-2.5 bg-[#0d0d0d] border border-[#1a1a1a] rounded-xl">
+                    <Globe className="w-3.5 h-3.5 text-gray-600 shrink-0" />
+                    <code className="text-[11px] text-gray-600 font-mono flex-1 truncate">
+                      {typeof window !== 'undefined' ? window.location.origin : ''}/api/webhooks/shopify
+                    </code>
+                    <CopyButton value={typeof window !== 'undefined' ? `${window.location.origin}/api/webhooks/shopify` : ''} />
                   </div>
                 </>
               ) : (
                 <>
-                  <div className="bg-blue-500/5 border border-blue-500/15 rounded-xl px-4 py-3 text-xs text-blue-400">
-                    Mağaza adresini gir → Shopify izin sayfasına yönlendirilirsin → İzin ver → Otomatik bağlanır.
+                  <div className="bg-[#b4c5ff]/5 border border-[#b4c5ff]/15 rounded-xl px-4 py-3 space-y-1">
+                    <p className="text-xs font-semibold text-[#b4c5ff]">OAuth bağlantısı</p>
+                    <p className="text-[11px] text-gray-600">Mağaza adresini gir → İzin sayfasına yönlendirilirsin → İzin ver → Otomatik bağlanır.</p>
                   </div>
                   <div>
                     <label className="text-xs font-medium text-gray-500 mb-1.5 block uppercase tracking-wider">Mağaza Domain</label>
                     <div className="flex gap-2">
                       <input
                         value={domain} onChange={e => setDomain(e.target.value)}
-                        onKeyDown={e => { if (e.key === 'Enter' && domain) window.location.href = `/api/integrations/shopify/auth?shop=${encodeURIComponent(domain.replace(/^https?:\/\//, '').replace(/\/$/, ''))}` }}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' && domain)
+                            window.location.href = `/api/integrations/shopify/auth?shop=${encodeURIComponent(domain.replace(/^https?:\/\//, '').replace(/\/$/, ''))}`
+                        }}
                         placeholder="magazaniz.myshopify.com"
-                        className="flex-1 px-3 py-2.5 text-sm border border-[#2a2a2a] bg-[#0d0d0d] text-gray-300 placeholder:text-gray-700 rounded-xl focus:outline-none focus:border-blue-500/50"
+                        className="flex-1 px-3 py-2.5 text-sm border border-[#2a2a2a] bg-[#0d0d0d] text-gray-300 placeholder:text-gray-700 rounded-xl focus:outline-none focus:border-[#b4c5ff]/50 focus:ring-2 focus:ring-[#b4c5ff]/20"
                       />
                       <button
-                        onClick={() => { if (domain) window.location.href = `/api/integrations/shopify/auth?shop=${encodeURIComponent(domain.replace(/^https?:\/\//, '').replace(/\/$/, ''))}` }}
+                        onClick={() => {
+                          if (domain)
+                            window.location.href = `/api/integrations/shopify/auth?shop=${encodeURIComponent(domain.replace(/^https?:\/\//, '').replace(/\/$/, ''))}`
+                        }}
                         disabled={!domain}
                         className="flex items-center gap-2 px-4 py-2.5 bg-[#96bf48] hover:bg-[#7ea33a] disabled:opacity-40 text-white text-sm font-semibold rounded-xl transition-all whitespace-nowrap"
                       >

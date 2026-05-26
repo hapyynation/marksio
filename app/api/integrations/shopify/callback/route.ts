@@ -1,18 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createHmac } from 'crypto'
 import { prisma } from '@/lib/prisma'
-
-function verifyHmac(params: URLSearchParams, secret: string): boolean {
-  const hmac = params.get('hmac') ?? ''
-  const pairs: string[] = []
-  params.forEach((value, key) => {
-    if (key !== 'hmac') pairs.push(`${key}=${value}`)
-  })
-  pairs.sort()
-  const message = pairs.join('&')
-  const computed = createHmac('sha256', secret).update(message).digest('hex')
-  return computed === hmac
-}
+import { verifyOAuthHmac, registerWebhooks } from '@/lib/shopify'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl
@@ -31,55 +19,73 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(new URL('/settings?error=invalid_state', req.url))
   }
 
-  // HMAC doğrula
   const clientSecret = process.env.SHOPIFY_CLIENT_SECRET
-  if (clientSecret && !verifyHmac(searchParams, clientSecret)) {
+  if (clientSecret && !verifyOAuthHmac(searchParams, clientSecret)) {
     return NextResponse.redirect(new URL('/settings?error=invalid_hmac', req.url))
   }
 
   try {
-    // Code'u access token ile değiştir
     const tokenRes = await fetch(`https://${shop}/admin/oauth/access_token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         client_id: process.env.SHOPIFY_CLIENT_ID,
-        client_secret: process.env.SHOPIFY_CLIENT_SECRET,
+        client_secret: clientSecret,
         code,
       }),
     })
 
-    const tokenBody = await tokenRes.json()
-    console.log('Shopify token response:', tokenRes.status, JSON.stringify(tokenBody))
-
+    const tokenBody = await tokenRes.json() as Record<string, string>
     if (!tokenRes.ok) {
-      const errMsg = tokenBody?.error_description || tokenBody?.error || 'Token alınamadı'
-      throw new Error(errMsg)
+      throw new Error(tokenBody?.error_description || tokenBody?.error || 'Token alınamadı')
     }
     const { access_token } = tokenBody
 
-    await prisma.integration.upsert({
+    // Fetch shop name
+    let shopName = shop
+    try {
+      const shopRes = await fetch(`https://${shop}/admin/api/2024-10/shop.json`, {
+        headers: { 'X-Shopify-Access-Token': access_token },
+      })
+      const shopData = await shopRes.json() as { shop?: { name?: string } }
+      shopName = shopData.shop?.name ?? shop
+    } catch {}
+
+    const integration = await prisma.integration.upsert({
       where: { userId_platform: { userId, platform: 'shopify' } },
       create: {
-        userId,
-        platform: 'shopify',
-        shopDomain: shop,
-        accessToken: access_token,
-        status: 'active',
+        userId, platform: 'shopify', shopDomain: shop, accessToken: access_token,
+        status: 'active', meta: JSON.stringify({ shopName, webhooksRegistered: false }),
       },
       update: {
-        shopDomain: shop,
-        accessToken: access_token,
-        status: 'active',
+        shopDomain: shop, accessToken: access_token, status: 'active',
+        meta: JSON.stringify({ shopName, webhooksRegistered: false }),
       },
     })
 
-    const res = NextResponse.redirect(new URL('/settings?tab=integrations&connected=shopify', req.url))
+    // Register webhooks async (non-blocking)
+    const appUrl = process.env.NEXTAUTH_URL ?? process.env.APP_URL ?? ''
+    if (appUrl) {
+      registerWebhooks(shop, access_token, appUrl)
+        .then(() =>
+          prisma.integration.update({
+            where: { id: integration.id },
+            data: { meta: JSON.stringify({ shopName, webhooksRegistered: true }) },
+          }),
+        )
+        .catch(console.error)
+    }
+
+    const res = NextResponse.redirect(
+      new URL('/settings?tab=integrations&connected=shopify', req.url),
+    )
     res.cookies.delete('shopify_oauth_nonce')
     return res
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     console.error('Shopify OAuth callback error:', msg)
-    return NextResponse.redirect(new URL(`/settings?error=${encodeURIComponent(msg)}`, req.url))
+    return NextResponse.redirect(
+      new URL(`/settings?error=${encodeURIComponent(msg)}`, req.url),
+    )
   }
 }
