@@ -122,7 +122,7 @@ export async function shopifyFetchAll<T>(
   let url: string | null = `https://${domain}/admin/api/${SHOPIFY_API}${initialPath}${sep}limit=250`
 
   while (url) {
-    const res = await fetch(url, {
+    const res: Response = await fetch(url, {
       headers: { 'X-Shopify-Access-Token': token, 'Content-Type': 'application/json' },
     })
     if (!res.ok) break
