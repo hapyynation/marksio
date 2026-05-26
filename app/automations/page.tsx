@@ -6,7 +6,7 @@ import {
   ShoppingCart, UserPlus, Gift, Clock, Package, TrendingUp,
   Sparkles, Trash2, Loader2, AlertCircle, ArrowRight,
   ChevronRight, BarChart3, Target, Crown, Flame,
-  CheckCircle, Activity, Settings2,
+  CheckCircle, Activity, Settings2, Workflow,
 } from 'lucide-react'
 import Link from 'next/link'
 import AppShell from '@/components/layout/AppShell'
@@ -221,6 +221,10 @@ function AutomationCard({ auto, onToggle, onDelete }: {
                   className="p-1.5 text-[#8b95a8] hover:text-red-400 transition-colors rounded-lg hover:bg-red-500/10">
                   {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                 </button>
+                <Link href={`/automations/${auto.id}/builder`}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-violet-500/10 text-violet-400 border border-violet-500/20 hover:bg-violet-500/20 transition-all">
+                  <Workflow className="w-3 h-3" /> Görsel Builder
+                </Link>
                 {auto.status !== 'draft' && (
                   <button onClick={handleToggle} disabled={toggling}
                     className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border',

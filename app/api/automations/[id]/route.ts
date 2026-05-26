@@ -19,6 +19,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       ...(body.status !== undefined && { status: body.status }),
       ...(body.steps !== undefined && { steps: JSON.stringify(body.steps) }),
       ...(body.segment !== undefined && { segment: body.segment }),
+      ...(body.flowData !== undefined && { flowData: JSON.stringify(body.flowData) }),
+      ...(body.trigger !== undefined && { trigger: body.trigger }),
     },
   })
 

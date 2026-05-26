@@ -42,6 +42,7 @@
     "react": "^18",
     "react-dom": "^18",
     "react-email-editor": "^1.8.0",
+    "reactflow": "^11.11.4",
     "recharts": "^2.12.4",
     "resend": "^6.12.3",
     "tailwind-merge": "^2.3.0",
