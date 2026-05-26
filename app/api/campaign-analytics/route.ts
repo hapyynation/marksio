@@ -15,13 +15,9 @@ export async function GET(req: NextRequest) {
     if (id) {
       const campaign = await prisma.campaign.findFirst({
         where: { id, userId },
-        select: {
-          id: true, name: true, type: true, status: true, segment: true,
-          subject: true, purpose: true, sent: true, opened: true,
-          clicked: true, converted: true, revenue: true, createdAt: true,
-          scheduledAt: true,
+        include: {
           emailEvents: {
-            select: { type: true, createdAt: true },
+            select: { type: true, createdAt: true, openedAt: true, clickedAt: true, bouncedAt: true, failedReason: true },
             orderBy: { createdAt: 'asc' },
           },
         },
@@ -30,32 +26,44 @@ export async function GET(req: NextRequest) {
       if (!campaign) return NextResponse.json({ error: 'Kampanya bulunamadı' }, { status: 404 })
 
       const events = campaign.emailEvents
-      const sentCount = events.filter(e => e.type === 'sent').length || campaign.sent
-      const openedCount = events.filter(e => e.type === 'opened').length || campaign.opened
-      const clickedCount = events.filter(e => e.type === 'clicked').length || campaign.clicked
-      const failedCount = events.filter(e => e.type === 'failed').length
+      const countBy = (t: string) => events.filter(e => e.type === t).length
+
+      const sent = countBy('sent') || campaign.sent
+      const delivered = countBy('delivered')
+      const opened = countBy('opened') || campaign.opened
+      const clicked = countBy('clicked') || campaign.clicked
+      const bounced = countBy('bounced')
+      const complained = countBy('complained')
+      const failed = countBy('failed')
+      const unsubscribed = countBy('unsubscribed')
+
+      const base = delivered || sent
+      const openRate = base > 0 ? +(((opened / base) * 100).toFixed(1)) : 0
+      const clickRate = base > 0 ? +(((clicked / base) * 100).toFixed(1)) : 0
+      const bounceRate = sent > 0 ? +(((bounced / sent) * 100).toFixed(1)) : 0
+      const conversionScore = Math.round((openRate * 0.4) + (clickRate * 0.6))
 
       return NextResponse.json({
-        ...campaign,
+        id: campaign.id,
+        name: campaign.name,
+        status: campaign.status,
+        createdAt: campaign.createdAt,
+        sentAt: campaign.sentAt,
         metrics: {
-          sent: sentCount,
-          opened: openedCount,
-          clicked: clickedCount,
-          failed: failedCount,
-          converted: campaign.converted,
-          openRate: sentCount > 0 ? Math.round((openedCount / sentCount) * 100) : 0,
-          clickRate: sentCount > 0 ? Math.round((clickedCount / sentCount) * 100) : 0,
+          sent, delivered, opened, clicked, bounced,
+          complained, failed, unsubscribed,
+          openRate, clickRate, bounceRate, conversionScore,
         },
       })
     }
 
-    // List all campaigns with analytics
+    // List all campaigns with summary analytics
     const campaigns = await prisma.campaign.findMany({
       where: { userId },
       select: {
         id: true, name: true, type: true, status: true, segment: true,
         purpose: true, sent: true, opened: true, clicked: true,
-        converted: true, revenue: true, createdAt: true,
+        converted: true, revenue: true, createdAt: true, sentAt: true,
         _count: { select: { emailEvents: true } },
       },
       orderBy: { createdAt: 'desc' },
@@ -63,8 +71,8 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(campaigns.map(c => ({
       ...c,
-      openRate: c.sent > 0 ? Math.round((c.opened / c.sent) * 100) : 0,
-      clickRate: c.sent > 0 ? Math.round((c.clicked / c.sent) * 100) : 0,
+      openRate: c.sent > 0 ? +((c.opened / c.sent) * 100).toFixed(1) : 0,
+      clickRate: c.sent > 0 ? +((c.clicked / c.sent) * 100).toFixed(1) : 0,
     })))
   } catch (err) {
     console.error('[Campaign Analytics]', err)

@@ -1,3 +1,228 @@
+export type LayoutStyle =
+  | 'luxury'
+  | 'minimal'
+  | 'black-friday'
+  | 'skincare'
+  | 'fashion'
+  | 'tech'
+  | 'furniture'
+  | 'gaming'
+  | 'default'
+
+interface ThemeTokens {
+  headerBg: string
+  headerText: string
+  headerSubtext: string
+  ctaBg: string
+  ctaText: string
+  ctaRadius: string
+  badgeBg: string
+  badgeText: string
+  discountBorderColor: string
+  discountInnerBg: string
+  discountTextMain: string
+  discountTextSub: string
+  bodyBg: string
+  bodyText: string
+  headlineColor: string
+  footerBg: string
+  footerBorder: string
+  footerText: string
+  footerLink: string
+}
+
+const THEMES: Record<LayoutStyle, ThemeTokens> = {
+  luxury: {
+    headerBg: 'linear-gradient(135deg,#0a0a0a 0%,#1a1500 100%)',
+    headerText: '#c9a84c',
+    headerSubtext: 'rgba(201,168,76,0.6)',
+    ctaBg: 'linear-gradient(135deg,#c9a84c 0%,#b8943e 100%)',
+    ctaText: '#0a0a0a',
+    ctaRadius: '4px',
+    badgeBg: '#c9a84c',
+    badgeText: '#0a0a0a',
+    discountBorderColor: '#c9a84c',
+    discountInnerBg: 'linear-gradient(135deg,#1a1500,#0d0d00)',
+    discountTextMain: '#f5e68c',
+    discountTextSub: '#c9a84c',
+    bodyBg: '#ffffff',
+    bodyText: '#333333',
+    headlineColor: '#0a0a0a',
+    footerBg: '#f8f6f0',
+    footerBorder: '#e8e0c8',
+    footerText: '#888',
+    footerLink: '#7a6830',
+  },
+  minimal: {
+    headerBg: '#ffffff',
+    headerText: '#111111',
+    headerSubtext: '#999',
+    ctaBg: '#111111',
+    ctaText: '#ffffff',
+    ctaRadius: '4px',
+    badgeBg: '#111111',
+    badgeText: '#ffffff',
+    discountBorderColor: '#111',
+    discountInnerBg: '#f7f7f7',
+    discountTextMain: '#111',
+    discountTextSub: '#555',
+    bodyBg: '#ffffff',
+    bodyText: '#555',
+    headlineColor: '#111',
+    footerBg: '#f7f7f7',
+    footerBorder: '#ebebeb',
+    footerText: '#bbb',
+    footerLink: '#555',
+  },
+  'black-friday': {
+    headerBg: 'linear-gradient(135deg,#000000 0%,#1a1a1a 100%)',
+    headerText: '#facc15',
+    headerSubtext: 'rgba(250,204,21,0.6)',
+    ctaBg: 'linear-gradient(135deg,#facc15 0%,#eab308 100%)',
+    ctaText: '#000000',
+    ctaRadius: '8px',
+    badgeBg: '#facc15',
+    badgeText: '#000000',
+    discountBorderColor: '#facc15',
+    discountInnerBg: '#000000',
+    discountTextMain: '#facc15',
+    discountTextSub: 'rgba(250,204,21,0.7)',
+    bodyBg: '#ffffff',
+    bodyText: '#333',
+    headlineColor: '#000',
+    footerBg: '#000',
+    footerBorder: '#222',
+    footerText: '#555',
+    footerLink: '#facc15',
+  },
+  skincare: {
+    headerBg: 'linear-gradient(135deg,#f9f0e8 0%,#f0e6d8 100%)',
+    headerText: '#7c4b3a',
+    headerSubtext: '#c4957a',
+    ctaBg: 'linear-gradient(135deg,#c4806a 0%,#a86754 100%)',
+    ctaText: '#ffffff',
+    ctaRadius: '100px',
+    badgeBg: '#c4806a',
+    badgeText: '#ffffff',
+    discountBorderColor: '#c4806a',
+    discountInnerBg: 'linear-gradient(135deg,#fff9f5,#fef0e8)',
+    discountTextMain: '#7c4b3a',
+    discountTextSub: '#c4806a',
+    bodyBg: '#ffffff',
+    bodyText: '#6b5245',
+    headlineColor: '#4a2f22',
+    footerBg: '#fdf6f0',
+    footerBorder: '#f0e2d4',
+    footerText: '#c0a090',
+    footerLink: '#a86754',
+  },
+  fashion: {
+    headerBg: '#0d0d0d',
+    headerText: '#ffffff',
+    headerSubtext: 'rgba(255,255,255,0.5)',
+    ctaBg: '#ffffff',
+    ctaText: '#000000',
+    ctaRadius: '0px',
+    badgeBg: '#ffffff',
+    badgeText: '#000000',
+    discountBorderColor: '#fff',
+    discountInnerBg: '#111',
+    discountTextMain: '#fff',
+    discountTextSub: 'rgba(255,255,255,0.6)',
+    bodyBg: '#ffffff',
+    bodyText: '#555',
+    headlineColor: '#000',
+    footerBg: '#0d0d0d',
+    footerBorder: '#222',
+    footerText: '#555',
+    footerLink: '#fff',
+  },
+  tech: {
+    headerBg: 'linear-gradient(135deg,#0f172a 0%,#1e293b 100%)',
+    headerText: '#60a5fa',
+    headerSubtext: 'rgba(96,165,250,0.5)',
+    ctaBg: 'linear-gradient(135deg,#3b82f6 0%,#2563eb 100%)',
+    ctaText: '#ffffff',
+    ctaRadius: '8px',
+    badgeBg: '#3b82f6',
+    badgeText: '#ffffff',
+    discountBorderColor: '#3b82f6',
+    discountInnerBg: 'linear-gradient(135deg,#0f172a,#1e293b)',
+    discountTextMain: '#93c5fd',
+    discountTextSub: '#60a5fa',
+    bodyBg: '#ffffff',
+    bodyText: '#475569',
+    headlineColor: '#0f172a',
+    footerBg: '#0f172a',
+    footerBorder: '#1e293b',
+    footerText: '#475569',
+    footerLink: '#60a5fa',
+  },
+  furniture: {
+    headerBg: 'linear-gradient(135deg,#3d2b1f 0%,#5c3d2e 100%)',
+    headerText: '#e8c99a',
+    headerSubtext: 'rgba(232,201,154,0.6)',
+    ctaBg: 'linear-gradient(135deg,#8b6f47 0%,#7a5c37 100%)',
+    ctaText: '#ffffff',
+    ctaRadius: '6px',
+    badgeBg: '#8b6f47',
+    badgeText: '#ffffff',
+    discountBorderColor: '#8b6f47',
+    discountInnerBg: 'linear-gradient(135deg,#fdf8f0,#f5ede0)',
+    discountTextMain: '#5c3d2e',
+    discountTextSub: '#8b6f47',
+    bodyBg: '#ffffff',
+    bodyText: '#5c4033',
+    headlineColor: '#3d2b1f',
+    footerBg: '#fdf8f0',
+    footerBorder: '#e8d8c4',
+    footerText: '#b8977a',
+    footerLink: '#7a5c37',
+  },
+  gaming: {
+    headerBg: 'linear-gradient(135deg,#0a0a0f 0%,#130a1f 100%)',
+    headerText: '#a78bfa',
+    headerSubtext: 'rgba(167,139,250,0.5)',
+    ctaBg: 'linear-gradient(135deg,#7c3aed 0%,#6d28d9 100%)',
+    ctaText: '#ffffff',
+    ctaRadius: '6px',
+    badgeBg: '#7c3aed',
+    badgeText: '#ffffff',
+    discountBorderColor: '#7c3aed',
+    discountInnerBg: 'linear-gradient(135deg,#0a0a0f,#130a1f)',
+    discountTextMain: '#c4b5fd',
+    discountTextSub: '#a78bfa',
+    bodyBg: '#ffffff',
+    bodyText: '#374151',
+    headlineColor: '#111',
+    footerBg: '#0a0a0f',
+    footerBorder: '#1f1535',
+    footerText: '#4b4b6b',
+    footerLink: '#a78bfa',
+  },
+  default: {
+    headerBg: 'linear-gradient(135deg,#0f172a 0%,#1e3a5f 100%)',
+    headerText: '#ffffff',
+    headerSubtext: 'rgba(255,255,255,0.5)',
+    ctaBg: 'linear-gradient(135deg,#2563eb 0%,#4338ca 100%)',
+    ctaText: '#ffffff',
+    ctaRadius: '12px',
+    badgeBg: 'linear-gradient(135deg,#ef4444,#dc2626)',
+    badgeText: '#ffffff',
+    discountBorderColor: '#f59e0b',
+    discountInnerBg: 'linear-gradient(135deg,#fffbeb,#fef3c7)',
+    discountTextMain: '#78350f',
+    discountTextSub: '#92400e',
+    bodyBg: '#ffffff',
+    bodyText: '#475569',
+    headlineColor: '#0f172a',
+    footerBg: '#f8fafc',
+    footerBorder: '#e2e8f0',
+    footerText: '#94a3b8',
+    footerLink: '#64748b',
+  },
+}
+
 export interface EmailData {
   storeName: string
   previewText: string
@@ -9,14 +234,17 @@ export interface EmailData {
   discountRate?: string
   unsubscribeUrl: string
   trackingPixelUrl: string
+  layoutStyle?: LayoutStyle
+  brandColor?: string
 }
 
 function esc(s: string): string {
-  return s
+  return String(s)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;')
 }
 
 function nl2br(s: string): string {
@@ -24,62 +252,91 @@ function nl2br(s: string): string {
 }
 
 export function buildEmailHtml(d: EmailData): string {
+  const theme = THEMES[d.layoutStyle ?? 'default'] ?? THEMES.default
+  const ctaBg = d.brandColor
+    ? d.brandColor
+    : theme.ctaBg
+
   return `<!DOCTYPE html>
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="x-apple-disable-message-reformatting">
 <title>${esc(d.headline)}</title>
 <style>
+body{margin:0;padding:0;background:#f1f5f9}
 @media only screen and (max-width:600px){
-  .wrap{padding:16px 8px!important}
+  .wrap{padding:12px 6px!important}
   .card{border-radius:16px!important}
-  .ec{padding:28px 20px!important}
-  .h1{font-size:22px!important}
+  .ec{padding:28px 18px!important}
+  .h1{font-size:22px!important;line-height:1.3!important}
+  .cta-btn{padding:14px 28px!important;font-size:14px!important}
 }
 </style>
 </head>
-<body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">
-<div style="display:none;max-height:0;overflow:hidden;font-size:1px;color:#f1f5f9">${esc(d.previewText)} &zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;</div>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;-webkit-text-size-adjust:100%">
+
+<div style="display:none;max-height:0;overflow:hidden;font-size:1px;color:#f1f5f9">${esc(d.previewText)} &zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;</div>
+
 <table role="presentation" cellpadding="0" cellspacing="0" width="100%" class="wrap" style="background:#f1f5f9;padding:40px 20px">
 <tr><td align="center">
-<table role="presentation" cellpadding="0" cellspacing="0" width="600" class="card" style="max-width:600px;width:100%;background:#fff;border-radius:24px;overflow:hidden;box-shadow:0 4px 32px rgba(0,0,0,0.08)">
+<table role="presentation" cellpadding="0" cellspacing="0" width="600" class="card" style="max-width:600px;width:100%;background:${theme.bodyBg};border-radius:24px;overflow:hidden;box-shadow:0 4px 32px rgba(0,0,0,0.10)">
 
-<!-- Header -->
-<tr><td style="background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 100%);padding:22px 32px">
+<!-- HEADER -->
+<tr><td style="background:${theme.headerBg};padding:24px 32px">
 <table role="presentation" cellpadding="0" cellspacing="0" width="100%"><tr>
-<td><span style="color:#fff;font-size:18px;font-weight:800;letter-spacing:-0.3px">${esc(d.storeName)}</span></td>
-${d.discountRate ? `<td align="right"><span style="display:inline-block;background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;font-size:12px;font-weight:800;padding:5px 14px;border-radius:100px;letter-spacing:0.5px">%${esc(d.discountRate)} İNDİRİM</span></td>` : ''}
+<td style="vertical-align:middle">
+  <span style="color:${theme.headerText};font-size:19px;font-weight:800;letter-spacing:-0.3px">${esc(d.storeName)}</span>
+</td>
+${d.discountRate ? `<td align="right" style="vertical-align:middle">
+  <span style="display:inline-block;background:${theme.badgeBg};color:${theme.badgeText};font-size:12px;font-weight:800;padding:5px 14px;border-radius:100px;letter-spacing:0.5px">%${esc(d.discountRate)} İNDİRİM</span>
+</td>` : ''}
 </tr></table>
 </td></tr>
 
-${d.imageUrl ? `<!-- Hero -->
-<tr><td style="padding:0;line-height:0"><img src="${esc(d.imageUrl)}" width="600" alt="" style="display:block;width:100%;max-width:600px;height:auto;border:none"/></td></tr>` : ''}
+${d.imageUrl ? `<!-- HERO IMAGE -->
+<tr><td style="padding:0;line-height:0"><img src="${esc(d.imageUrl)}" width="600" alt="" style="display:block;width:100%;max-width:600px;height:auto;border:none;line-height:0"/></td></tr>` : ''}
 
-<!-- Content -->
-<tr><td class="ec" style="padding:40px 36px 32px">
-<h1 class="h1" style="margin:0 0 14px;font-size:28px;font-weight:800;color:#0f172a;line-height:1.2;letter-spacing:-0.5px">${esc(d.headline)}</h1>
-<div style="font-size:15px;line-height:1.75;color:#475569;margin-bottom:28px">${nl2br(d.body)}</div>
+<!-- CONTENT -->
+<tr><td class="ec" style="background:${theme.bodyBg};padding:40px 36px 32px">
+<h1 class="h1" style="margin:0 0 14px;font-size:28px;font-weight:800;color:${theme.headlineColor};line-height:1.2;letter-spacing:-0.5px">${esc(d.headline)}</h1>
+<div style="font-size:15px;line-height:1.75;color:${theme.bodyText};margin-bottom:28px">${nl2br(d.body)}</div>
 
-${d.discountRate ? `<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:24px">
-<tr><td style="background:linear-gradient(135deg,#fffbeb,#fef3c7);border:2px dashed #f59e0b;border-radius:14px;padding:18px 24px;text-align:center">
-<p style="margin:0;font-size:13px;color:#92400e;font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Özel Fırsat</p>
-<p style="margin:6px 0 0;font-size:26px;font-weight:900;color:#78350f;letter-spacing:3px">%${esc(d.discountRate)} TASARRUF</p>
+${d.discountRate ? `<!-- DISCOUNT BADGE -->
+<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:24px">
+<tr><td style="background:${theme.discountInnerBg};border:2px dashed ${theme.discountBorderColor};border-radius:14px;padding:18px 24px;text-align:center">
+<p style="margin:0;font-size:13px;color:${theme.discountTextSub};font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Özel Fırsat</p>
+<p style="margin:6px 0 0;font-size:26px;font-weight:900;color:${theme.discountTextMain};letter-spacing:3px">%${esc(d.discountRate)} TASARRUF</p>
 </td></tr></table>` : ''}
 
-<table role="presentation" cellpadding="0" cellspacing="0" width="100%"><tr><td align="center">
-<a href="${esc(d.ctaUrl)}" style="display:inline-block;background:linear-gradient(135deg,#2563eb 0%,#4338ca 100%);color:#fff;font-size:15px;font-weight:700;padding:16px 44px;border-radius:12px;text-decoration:none;letter-spacing:0.2px;box-shadow:0 4px 16px rgba(37,99,235,0.3)">${esc(d.ctaText)}</a>
-</td></tr></table>
+<!-- CTA BUTTON -->
+<table role="presentation" cellpadding="0" cellspacing="0" width="100%"><tr>
+<td align="center">
+<a href="${esc(d.ctaUrl)}" class="cta-btn" style="display:inline-block;background:${ctaBg};color:${theme.ctaText};font-size:15px;font-weight:700;padding:16px 44px;border-radius:${theme.ctaRadius};text-decoration:none;letter-spacing:0.2px;mso-padding-alt:0">
+  ${esc(d.ctaText)}
+</a>
+</td>
+</tr></table>
+
 </td></tr>
 
-<!-- Footer -->
-<tr><td style="background:#f8fafc;padding:20px 36px;border-top:1px solid #e2e8f0">
-<p style="margin:0;font-size:11px;color:#94a3b8;line-height:1.6">${esc(d.storeName)} tarafından gönderildi. Bu e-postayı almak istemiyorsanız <a href="${esc(d.unsubscribeUrl)}" style="color:#64748b;text-decoration:underline">aboneliğinizi iptal edebilirsiniz</a>.</p>
+<!-- FOOTER -->
+<tr><td style="background:${theme.footerBg};padding:20px 36px;border-top:1px solid ${theme.footerBorder}">
+<p style="margin:0;font-size:11px;color:${theme.footerText};line-height:1.6">
+${esc(d.storeName)} tarafından gönderildi.&nbsp;
+<a href="${esc(d.unsubscribeUrl)}" style="color:${theme.footerLink};text-decoration:underline">Aboneliği iptal et</a>
+</p>
 </td></tr>
 
 </table>
 </td></tr></table>
-<img src="${esc(d.trackingPixelUrl)}" width="1" height="1" alt="" style="display:none"/>
+
+<img src="${esc(d.trackingPixelUrl)}" width="1" height="1" alt="" style="display:none;visibility:hidden;opacity:0;width:1px;height:1px;border:0"/>
 </body>
 </html>`
+}
+
+export function personalize(text: string, vars: Record<string, string>): string {
+  return text.replace(/\{\{(\w+)\}\}/g, (match, key) => vars[key] ?? match)
 }

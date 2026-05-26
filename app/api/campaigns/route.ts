@@ -45,6 +45,10 @@ export async function POST(req: NextRequest) {
         tips: JSON.stringify(body.tips ?? []),
         purpose: body.purpose,
         imageUrl: body.imageUrl,
+        imagePrompt: body.imagePrompt,
+        ctaText: body.ctaText,
+        layoutStyle: body.layoutStyle,
+        brandColor: body.brandColor,
         scheduledAt: body.scheduledAt ? new Date(body.scheduledAt) : null,
       },
     })
