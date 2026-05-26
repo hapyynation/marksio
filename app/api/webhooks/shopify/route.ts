@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { attributeRevenue } from '@/lib/attribution'
 import {
   verifyWebhookHmac,
   classifySegment,
@@ -141,6 +142,15 @@ async function handleOrder(userId: string, integrationId: string, o: Record<stri
         data: JSON.stringify({ orderNumber: o.name, total: o.total_price, currency: o.currency }),
       },
     })
+
+    // Revenue attribution — fire-and-forget, never block the webhook response
+    attributeRevenue(
+      userId,
+      customer.id,
+      order.id,
+      orderData.total,
+      order.placedAt,
+    ).catch(err => console.error('[Attribution]', err))
 
     // Müşteri istatistiklerini güncelle
     await updateCustomerStats(userId, customer.id)

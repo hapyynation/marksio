@@ -72,6 +72,32 @@ model Campaign {
 
   opens       CampaignOpen[]
   emailEvents EmailEvent[]
+  revenues    CampaignRevenue[]
+}
+
+// ─── Revenue Attribution ──────────────────────────────────────────────────────
+
+model CampaignRevenue {
+  id              String   @id @default(cuid())
+  userId          String
+  campaignId      String
+  campaign        Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  orderId         String
+  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  customerId      String
+
+  revenue         Float    // attributed revenue
+  orderTotal      Float    // original order total (before attribution split)
+  attributionType String   @default("last_click") // last_click | first_click | assisted
+  daysSinceClick  Int?
+  touchCount      Int      @default(1) // # of campaigns that touched this customer
+
+  createdAt       DateTime @default(now())
+
+  @@unique([orderId, campaignId, attributionType])
+  @@index([campaignId, createdAt])
+  @@index([userId, createdAt])
+  @@index([customerId])
 }
 
 model CampaignProduct {
@@ -216,6 +242,7 @@ model Order {
 
   items           OrderItem[]
   events          CustomerEvent[]
+  revenues        CampaignRevenue[]
 
   placedAt        DateTime    @default(now())
   createdAt       DateTime    @default(now())
