@@ -141,10 +141,21 @@ export default function AnalyticsPage() {
     return (
       <AppShell>
         <Header title="Analytics" subtitle="Kanal ve kampanya performans analizi" />
-        <div className="flex-1 flex items-center justify-center bg-[#11131c]">
-          <div className="flex flex-col items-center gap-3">
-            <Loader2 className="w-5 h-5 text-[#b4c5ff] animate-spin" />
-            <span className="text-xs text-[#8b95a8]" style={{ fontFamily: 'JetBrains Mono, monospace' }}>Analiz yükleniyor...</span>
+        <div className="flex-1 bg-[#11131c] p-4 lg:p-6 space-y-4 animate-pulse">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="relative overflow-hidden rounded-xl bg-[#1a1e2b] h-24">
+                <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/[0.04] to-transparent" />
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            <div className="relative overflow-hidden rounded-xl bg-[#1a1e2b] h-64">
+              <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/[0.04] to-transparent" />
+            </div>
+            <div className="relative overflow-hidden rounded-xl bg-[#1a1e2b] h-64">
+              <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/[0.04] to-transparent" />
+            </div>
           </div>
         </div>
       </AppShell>
@@ -183,7 +194,7 @@ export default function AnalyticsPage() {
     <AppShell>
       <Header title="Analytics" subtitle="Kanal ve kampanya performans analizi" />
 
-      <div className="p-6 space-y-5 flex-1 bg-[#11131c]">
+      <div className="p-6 space-y-5 flex-1 bg-[#11131c] animate-fade-in">
 
         {!data.hasData && (
           <div className="bg-amber-500/5 border border-amber-500/20 rounded-lg p-4 flex items-start gap-3">

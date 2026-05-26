@@ -132,7 +132,7 @@ export default function SegmentsPage() {
         actions={[{ label: '+ Yeni Segment', href: '#', variant: 'primary' }]}
       />
 
-      <div className="flex-1 overflow-y-auto bg-[#10131c]">
+      <div className="flex-1 overflow-y-auto bg-[#10131c] animate-fade-in">
         <div className="max-w-[1440px] mx-auto px-6 pt-8 pb-12">
 
           {/* Filter row */}
@@ -190,8 +190,12 @@ export default function SegmentsPage() {
 
           {/* Segment Bento Grid */}
           {loading ? (
-            <div className="flex items-center justify-center py-20">
-              <Loader2 className="w-6 h-6 text-[#b3c5ff] animate-spin" />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="relative overflow-hidden rounded-xl bg-[#1a1e2b] h-40 animate-pulse">
+                  <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/[0.04] to-transparent" />
+                </div>
+              ))}
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">

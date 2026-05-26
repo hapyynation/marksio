@@ -311,7 +311,7 @@ export default function AutomationsPage() {
         action={{ label: '+ Yeni Otomasyon', href: '/automations/new' }}
       />
 
-      <div className="p-6 space-y-6 flex-1 bg-[#11131c]">
+      <div className="p-6 space-y-6 flex-1 bg-[#11131c] animate-fade-in">
 
         {/* Stats */}
         <div className="grid grid-cols-3 gap-4">
@@ -375,11 +375,12 @@ export default function AutomationsPage() {
 
         {/* Content */}
         {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <div className="flex flex-col items-center gap-3">
-              <Loader2 className="w-6 h-6 text-[#b4c5ff] animate-spin" />
-              <span className="text-xs text-[#8b95a8]" style={{ fontFamily: 'JetBrains Mono, monospace' }}>Otomasyonlar yükleniyor...</span>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="relative overflow-hidden rounded-xl bg-[#1a1e2b] h-36 animate-pulse">
+                <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/[0.04] to-transparent" />
+              </div>
+            ))}
           </div>
         ) : error ? (
           <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-5 flex items-center gap-3">

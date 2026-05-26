@@ -52,8 +52,7 @@ export default function Header({ title, subtitle, action, actions }: HeaderProps
       }}>
 
       <button onClick={() => setOpen(true)}
-        className="lg:hidden p-2 rounded-lg transition-colors"
-        style={{ color: '#8c90a1' }}>
+        className="lg:hidden p-2 rounded-lg transition-colors text-[#8c90a1] hover:text-[#e5e2e1] hover:bg-white/[0.04]">
         <Menu className="w-4 h-4" />
       </button>
 
@@ -97,10 +96,7 @@ export default function Header({ title, subtitle, action, actions }: HeaderProps
         {/* Notifications */}
         <div className="relative" ref={ref}>
           <button onClick={() => setShowNotifs(!showNotifs)}
-            className="relative p-2 rounded-xl transition-colors"
-            style={{ color: '#8c90a1' }}
-            onMouseOver={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
-            onMouseOut={e => (e.currentTarget.style.background = 'transparent')}>
+            className="relative p-2 rounded-xl transition-colors text-[#8c90a1] hover:text-[#e5e2e1] hover:bg-white/[0.04]">
             <span className="material-symbols-outlined" style={{ fontSize: 18 }}>notifications</span>
             {unread > 0 && (
               <span className="absolute top-1.5 right-1.5 min-w-[14px] h-3.5 rounded-full flex items-center justify-center text-[9px] font-bold text-white px-0.5"
@@ -148,14 +144,12 @@ export default function Header({ title, subtitle, action, actions }: HeaderProps
               <div className="max-h-80 overflow-y-auto divide-y divide-white/[0.03]">
                 {notifs.map(n => (
                   <div key={n.id}
-                    className="flex gap-3 px-4 py-3 cursor-pointer transition-colors"
-                    style={{
-                      background: !n.read ? 'rgba(0,241,254,0.02)' : 'transparent',
-                      borderBottom: '1px solid rgba(255,255,255,0.03)',
-                    }}
-                    onClick={() => setNotifs(prev => prev.map(x => x.id === n.id ? { ...x, read: true } : x))}
-                    onMouseOver={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.03)')}
-                    onMouseOut={e => (e.currentTarget.style.background = !n.read ? 'rgba(0,241,254,0.02)' : 'transparent')}>
+                    className={cn(
+                      'flex gap-3 px-4 py-3 cursor-pointer transition-colors hover:bg-white/[0.03]',
+                      !n.read && 'bg-[#00f1fe]/[0.02]',
+                    )}
+                    style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}
+                    onClick={() => setNotifs(prev => prev.map(x => x.id === n.id ? { ...x, read: true } : x))}>
                     <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
                       style={{ background: n.bg }}>
                       <n.icon className="w-4 h-4" style={{ color: n.color }} />

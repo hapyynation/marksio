@@ -282,7 +282,7 @@ export default function CustomersPage() {
         />
       )}
 
-      <div className="p-6 space-y-5 flex-1">
+      <div className="p-6 space-y-5 flex-1 animate-fade-in">
         {/* Segment cards */}
         <div className="grid grid-cols-5 gap-3">
           {(Object.keys(segmentConfig) as Segment[]).map(seg => {
@@ -368,8 +368,12 @@ export default function CustomersPage() {
           </div>
 
           {loading ? (
-            <div className="flex items-center justify-center py-16">
-              <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
+            <div className="p-4 space-y-2">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="relative overflow-hidden rounded-xl bg-[#1a1e2b] h-16 animate-pulse">
+                  <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/[0.04] to-transparent" />
+                </div>
+              ))}
             </div>
           ) : customers.length === 0 ? (
             <div className="text-center py-16">

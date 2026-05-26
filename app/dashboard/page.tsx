@@ -7,7 +7,7 @@ import {
 } from 'recharts'
 import {
   TrendingUp, TrendingDown, Users, Megaphone, ShoppingCart, Mail,
-  MessageSquare, Zap, Loader2, ShoppingBag, AlertTriangle, RefreshCw,
+  MessageSquare, Zap, ShoppingBag, AlertTriangle, RefreshCw,
   Crown, Heart, AlertOctagon, Flame, Circle, Plus, ChevronRight,
   BarChart3, Target, Activity, Sparkles, ArrowUpRight, ArrowDownRight,
   MousePointerClick, Send, Eye, CheckCheck,
@@ -18,6 +18,7 @@ import Header from '@/components/layout/Header'
 import { formatCurrency, formatNumber, cn } from '@/lib/utils'
 import { useSession } from 'next-auth/react'
 import LiveActivityDashboard from '@/components/ui/live-activity-dashboard'
+import { DashboardSkeleton } from '@/components/ui/page-skeleton'
 
 /* ── Types ───────────────────────────────────────── */
 
@@ -152,7 +153,7 @@ function MetricCard({ label, value, sub, icon: Icon, accent, change }: {
 }) {
   const positive = (change ?? 0) >= 0
   return (
-    <div className="bg-[#191b24] border border-[#272a33] rounded-xl p-5 hover:border-[#b4c5ff]/20 transition-all duration-200">
+    <div className="bg-[#191b24] border border-[#272a33] rounded-xl p-5 hover:border-[#b4c5ff]/20 hover:shadow-[0_0_24px_-6px_rgba(180,197,255,0.12)] transition-all duration-300 group">
       <div className="flex items-start justify-between mb-3">
         <p className="text-[10px] font-semibold text-[#8b95a8] uppercase tracking-[0.12em]"
           style={{ fontFamily: 'JetBrains Mono, monospace' }}>{label}</p>
@@ -160,7 +161,7 @@ function MetricCard({ label, value, sub, icon: Icon, accent, change }: {
           <Icon className="w-4 h-4" />
         </div>
       </div>
-      <p className="text-2xl font-bold text-[#e2e8f8] tracking-tight mb-1">{value}</p>
+      <p className="text-2xl font-bold text-[#e2e8f8] tracking-tight mb-1 group-hover:text-white transition-colors duration-200">{value}</p>
       {sub && <p className="text-[11px] text-[#8b95a8]">{sub}</p>}
       {change !== undefined && change !== 0 && (
         <div className={cn('inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded mt-2',
@@ -239,12 +240,7 @@ export default function DashboardPage() {
     return (
       <AppShell>
         <Header title="Dashboard" subtitle="Marksio Enterprise Console" />
-        <div className="flex-1 flex items-center justify-center bg-[#11131c]">
-          <div className="flex flex-col items-center gap-3">
-            <Loader2 className="w-5 h-5 text-[#b4c5ff] animate-spin" />
-            <span className="text-xs text-[#8b95a8]" style={{ fontFamily: 'JetBrains Mono, monospace' }}>Yükleniyor...</span>
-          </div>
-        </div>
+        <DashboardSkeleton />
       </AppShell>
     )
   }
@@ -294,7 +290,7 @@ export default function DashboardPage() {
 
       {/* ── Overview tab ── */}
       {activeTab === 'overview' && (
-      <div className="p-4 lg:p-6 space-y-4 flex-1 bg-[#11131c]">
+      <div className="p-4 lg:p-6 space-y-4 flex-1 bg-[#11131c] animate-fade-in">
 
         {/* Welcome strip */}
         <div className="bg-[#191b24] border border-[#272a33] rounded-xl px-6 py-4 flex items-center justify-between gap-4 flex-wrap">

@@ -145,7 +145,7 @@ export default function CampaignsPage() {
         ]}
       />
 
-      <div className="flex-1 flex flex-col bg-[#11131c]">
+      <div className="flex-1 flex flex-col bg-[#11131c] animate-fade-in">
 
         {/* AI Prompt Bar */}
         <div className="border-b border-[#272a33] px-6 py-4 bg-[#1d1f28]">
@@ -238,11 +238,12 @@ export default function CampaignsPage() {
             {/* Table */}
             <div className="flex-1 overflow-auto">
               {loading ? (
-                <div className="flex items-center justify-center h-48">
-                  <div className="flex flex-col items-center gap-3">
-                    <Loader2 className="w-5 h-5 animate-spin text-[#b4c5ff]" />
-                    <span className="text-xs text-[#8b95a8]" style={{ fontFamily: 'JetBrains Mono, monospace' }}>Kampanyalar yükleniyor...</span>
-                  </div>
+                <div className="p-4 space-y-2">
+                  {[...Array(5)].map((_, i) => (
+                    <div key={i} className="relative overflow-hidden rounded-lg bg-[#1a1e2b] h-14 animate-pulse">
+                      <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/[0.04] to-transparent" />
+                    </div>
+                  ))}
                 </div>
               ) : (
                 <table className="w-full">
@@ -345,18 +346,27 @@ export default function CampaignsPage() {
               )}
 
               {!loading && filtered.length === 0 && campaigns.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-20 gap-4">
-                  <div className="w-16 h-16 rounded-xl bg-[#272a33] border border-[#272a33] flex items-center justify-center">
-                    <Sparkles className="w-8 h-8 text-[#b4c5ff]" />
+                <div className="flex flex-col items-center justify-center py-20 gap-5 animate-fade-in">
+                  <div className="relative">
+                    <div className="w-16 h-16 rounded-2xl bg-[#b4c5ff]/[0.06] border border-[#b4c5ff]/15 flex items-center justify-center">
+                      <Sparkles className="w-7 h-7 text-[#b4c5ff]" />
+                    </div>
+                    <div className="absolute -inset-2 rounded-3xl bg-[#b4c5ff]/[0.03] blur-xl -z-10" />
                   </div>
-                  <div className="text-center">
-                    <p className="text-[#e2e8f8] font-semibold text-sm">Henüz kampanya yok</p>
-                    <p className="text-[#8b95a8] text-xs mt-1">Yukarıdaki AI çubuğunu kullanarak ilk kampanyanızı oluşturun</p>
+                  <div className="text-center max-w-xs">
+                    <p className="text-[#e2e8f8] font-semibold text-sm mb-1">Henüz kampanya yok</p>
+                    <p className="text-[#8b95a8] text-xs leading-relaxed">Yukarıdaki AI çubuğunu kullanarak ilk kampanyanızı dakikalar içinde oluşturun</p>
                   </div>
-                  <Link href="/campaigns/templates"
-                    className="flex items-center gap-2 text-sm bg-[#0062ff] hover:bg-[#0052d4] text-white px-5 py-2.5 rounded-lg font-semibold transition-all">
-                    <Sparkles className="w-4 h-4" /> Şablon Seç
-                  </Link>
+                  <div className="flex items-center gap-2">
+                    <Link href="/campaigns/new"
+                      className="flex items-center gap-2 text-xs bg-[#0062ff] hover:bg-[#0052d4] text-white px-4 py-2 rounded-lg font-semibold transition-all shadow-[0_0_16px_rgba(0,102,255,0.25)]">
+                      <Plus className="w-3.5 h-3.5" /> Yeni Kampanya
+                    </Link>
+                    <Link href="/campaigns/templates"
+                      className="flex items-center gap-2 text-xs bg-[#272a33] hover:bg-[#2e3140] text-[#8b95a8] hover:text-[#e2e8f8] px-4 py-2 rounded-lg font-semibold transition-all border border-[#272a33]">
+                      <Sparkles className="w-3.5 h-3.5" /> Şablon Seç
+                    </Link>
+                  </div>
                 </div>
               )}
             </div>

@@ -157,8 +157,20 @@ export default function CampaignDetailPage() {
 
   if (loading) return (
     <AppShell>
-      <div className="flex-1 flex items-center justify-center bg-[#0a0a0a]">
-        <Loader2 className="w-5 h-5 text-[#b4c5ff] animate-spin" />
+      <div className="flex-1 bg-[#11131c] p-4 lg:p-6 space-y-4 animate-pulse">
+        <div className="relative overflow-hidden rounded-xl bg-[#1a1e2b] h-16">
+          <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/[0.04] to-transparent" />
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {[...Array(7)].map((_, i) => (
+            <div key={i} className="relative overflow-hidden rounded-xl bg-[#1a1e2b] h-24">
+              <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/[0.04] to-transparent" />
+            </div>
+          ))}
+        </div>
+        <div className="relative overflow-hidden rounded-xl bg-[#1a1e2b] h-64">
+          <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/[0.04] to-transparent" />
+        </div>
       </div>
     </AppShell>
   )

@@ -96,19 +96,15 @@ export default function Sidebar() {
             return (
               <Link key={href} href={href} onClick={() => setOpen(false)} title={collapsed ? label : undefined}
                 className={cn(
-                  'group relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200',
+                  'relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200',
                   collapsed && 'justify-center px-2',
-                )
-                }
+                  active ? 'text-[#00f1fe]' : 'text-[#8c90a1] hover:bg-white/[0.03] hover:text-[#c4c8d4]',
+                )}
                 style={active ? {
-                  color: '#00f1fe',
                   background: 'rgba(0,241,254,0.06)',
                   borderRight: '2px solid #00f1fe',
-                } : {
-                  color: '#8c90a1',
-                }}
-                onMouseOver={e => { if (!active) e.currentTarget.style.background = 'rgba(255,255,255,0.03)' }}
-                onMouseOut={e => { if (!active) e.currentTarget.style.background = 'transparent' }}
+                  boxShadow: 'inset 0 0 20px rgba(0,241,254,0.04)',
+                } : undefined}
               >
                 <span className={cn('material-symbols-outlined shrink-0', active && 'icon-fill')}
                   style={{
@@ -149,7 +145,7 @@ export default function Sidebar() {
             className={cn(
               'flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all',
               collapsed && 'justify-center px-2',
-              pathname === '/settings' ? 'text-[#00f1fe]' : 'text-[#8c90a1]'
+              pathname === '/settings' ? 'text-[#00f1fe]' : 'text-[#8c90a1] hover:bg-white/[0.03] hover:text-[#c4c8d4]'
             )}>
             <span className="material-symbols-outlined" style={{ fontSize: 16 }}>settings</span>
             {!collapsed && 'Ayarlar'}
@@ -166,10 +162,7 @@ export default function Sidebar() {
                 <p className="text-[9px] uppercase tracking-wider" style={{ color: '#8c90a1' }}>Admin</p>
               </div>
               <button onClick={handleLogout} title="Çıkış"
-                className="p-1.5 rounded-lg transition-colors"
-                style={{ color: '#8c90a1' }}
-                onMouseOver={e => { e.currentTarget.style.color = '#f87171'; e.currentTarget.style.background = 'rgba(239,68,68,0.08)' }}
-                onMouseOut={e => { e.currentTarget.style.color = '#8c90a1'; e.currentTarget.style.background = 'transparent' }}>
+                className="p-1.5 rounded-lg transition-colors text-[#8c90a1] hover:text-red-400 hover:bg-red-500/[0.08]">
                 <LogOut className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -186,10 +179,8 @@ export default function Sidebar() {
 
         {/* Collapse toggle */}
         <button onClick={() => setCollapsed(!collapsed)}
-          className="hidden lg:flex items-center justify-center py-3 text-xs font-semibold gap-1.5 transition-all"
-          style={{ borderTop: '1px solid rgba(255,255,255,0.05)', color: '#8c90a1' }}
-          onMouseOver={e => (e.currentTarget.style.color = '#e5e2e1')}
-          onMouseOut={e => (e.currentTarget.style.color = '#8c90a1')}>
+          className="hidden lg:flex items-center justify-center py-3 text-xs font-semibold gap-1.5 transition-all text-[#8c90a1] hover:text-[#e5e2e1] hover:bg-white/[0.02]"
+          style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
           <ChevronsRight className={cn('w-3.5 h-3.5 transition-transform duration-300', collapsed ? '' : 'rotate-180')} />
           {!collapsed && 'Küçült'}
         </button>

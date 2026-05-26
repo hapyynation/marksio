@@ -1,7 +1,11 @@
 import { cn } from '@/lib/utils'
 
 function Bone({ className }: { className?: string }) {
-  return <div className={cn('bg-[#1a1a1a] rounded-lg animate-pulse', className)} />
+  return (
+    <div className={cn('relative overflow-hidden rounded-lg bg-[#1a1e2b] animate-pulse', className)}>
+      <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/[0.04] to-transparent" />
+    </div>
+  )
 }
 
 export function PageSkeleton() {
@@ -57,6 +61,47 @@ export function CardSkeleton({ count = 3 }: { count?: number }) {
             </div>
           </div>
         ))}
+      </div>
+    </div>
+  )
+}
+
+export function DashboardSkeleton() {
+  return (
+    <div className="flex-1 bg-[#11131c]">
+      {/* Tab bar */}
+      <div className="h-11 bg-[#1d1f28] border-b border-[#272a33] px-6 flex items-center gap-4">
+        <Bone className="h-4 w-24" />
+        <Bone className="h-4 w-24" />
+      </div>
+      <div className="p-4 lg:p-6 space-y-4">
+        {/* Welcome strip */}
+        <Bone className="h-16 w-full rounded-xl" />
+        {/* Filter bar */}
+        <div className="flex items-center justify-between">
+          <Bone className="h-9 w-48 rounded-xl" />
+          <Bone className="h-9 w-48 rounded-xl" />
+        </div>
+        {/* Metric cards */}
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+          {[...Array(4)].map((_, i) => <Bone key={i} className="h-24 rounded-xl" />)}
+        </div>
+        {/* Chart + insights */}
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+          <div className="xl:col-span-2">
+            <Bone className="h-72 rounded-xl" />
+          </div>
+          <Bone className="h-72 rounded-xl" />
+        </div>
+        {/* System log + channel panel */}
+        <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
+          <div className="xl:col-span-3">
+            <Bone className="h-48 rounded-xl" />
+          </div>
+          <div className="xl:col-span-2">
+            <Bone className="h-48 rounded-xl" />
+          </div>
+        </div>
       </div>
     </div>
   )
