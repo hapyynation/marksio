@@ -7,12 +7,25 @@ import {
   Loader2, Sparkles, Send, ChevronRight, ChevronLeft, Check,
   RefreshCw, Image as ImageIcon, X, ShoppingCart, Crown,
   Leaf, Tag, Zap, Rocket, Heart, RotateCcw, Monitor, Smartphone,
-  Mail, AlertTriangle, Users, Calendar, Info,
+  Mail, AlertTriangle, Users, Calendar, Info, Plus, Trash2,
+  Package, DollarSign, Globe, Brain, Wand2, Eye, Sun, Moon,
+  ArrowRight, Star, TrendingUp,
 } from 'lucide-react'
 import AppShell from '@/components/layout/AppShell'
 import { useSession } from 'next-auth/react'
 
 /* ── Types ──────────────────────────────────────────────────────────── */
+
+interface Product {
+  id: string
+  productName: string
+  productImage: string
+  price: string
+  compareAtPrice: string
+  description: string
+  category: string
+  productUrl: string
+}
 
 interface FormData {
   name: string
@@ -39,9 +52,22 @@ interface AiContent {
   personalizationVariables: string[]
   smsVariant: string
   whatsappVariant: string
+  visualDirection: string
 }
 
 interface Notif { id: number; type: 'success' | 'error' | 'info'; message: string }
+
+const EMPTY_PRODUCT: Omit<Product, 'id'> = {
+  productName: '', productImage: '', price: '', compareAtPrice: '',
+  description: '', category: 'Fashion', productUrl: '',
+}
+
+const EMPTY_AI: AiContent = {
+  subject: '', previewText: '', headline: '', body: '', ctaText: '',
+  imagePrompt: '', layoutStyle: '', recommendedSegment: '',
+  personalizationVariables: [], smsVariant: '', whatsappVariant: '',
+  visualDirection: '',
+}
 
 /* ── Constants ──────────────────────────────────────────────────────── */
 
@@ -64,26 +90,26 @@ const BRAND_TONES = [
   'Eğlenceli ve Yaratıcı',
 ]
 
+const PRODUCT_CATEGORIES = [
+  'Fashion', 'Skincare', 'Tech', 'Gaming', 'Furniture',
+  'Jewelry', 'Accessories', 'Sport', 'Food', 'Home', 'General',
+]
+
 const LAYOUT_STYLES = [
-  { value: 'default',      label: 'Varsayılan', desc: 'Mavi/lacivert klasik' },
-  { value: 'luxury',       label: 'Luxury',     desc: 'Siyah/altın premium' },
-  { value: 'minimal',      label: 'Minimal',    desc: 'Siyah/beyaz temiz' },
-  { value: 'black-friday', label: 'Black Friday', desc: 'Siyah/sarı bold' },
-  { value: 'skincare',     label: 'Skincare',   desc: 'Pembe/krem soft' },
-  { value: 'fashion',      label: 'Fashion',    desc: 'Editorial koyu' },
-  { value: 'tech',         label: 'Tech',       desc: 'Mavi/lacivert modern' },
-  { value: 'furniture',    label: 'Furniture',  desc: 'Ahşap/warm tones' },
-  { value: 'gaming',       label: 'Gaming',     desc: 'Mor/neon koyu' },
+  { value: 'default',      label: 'Varsayılan',  desc: 'Mavi/lacivert klasik' },
+  { value: 'luxury',       label: 'Luxury',      desc: 'Siyah/altın premium' },
+  { value: 'minimal',      label: 'Minimal',     desc: 'Siyah/beyaz temiz' },
+  { value: 'black-friday', label: 'Black Friday',desc: 'Siyah/sarı bold' },
+  { value: 'skincare',     label: 'Skincare',    desc: 'Pembe/krem soft' },
+  { value: 'fashion',      label: 'Fashion',     desc: 'Editorial koyu' },
+  { value: 'tech',         label: 'Tech',        desc: 'Mavi/lacivert modern' },
+  { value: 'furniture',    label: 'Furniture',   desc: 'Ahşap/warm tones' },
+  { value: 'gaming',       label: 'Gaming',      desc: 'Mor/neon koyu' },
 ]
 
 const CTA_PURPOSES = [
-  'Alışverişe Başla',
-  'İndirimi Al',
-  'Ürünü İncele',
-  'Websiteye Git',
-  'Koleksiyonu Keşfet',
-  'Hemen Satın Al',
-  'Teklifi Gör',
+  'Alışverişe Başla', 'İndirimi Al', 'Ürünü İncele',
+  'Websiteye Git', 'Koleksiyonu Keşfet', 'Hemen Satın Al', 'Teklifi Gör',
 ]
 
 const DEFAULT_SEGMENTS = [
@@ -95,15 +121,17 @@ const DEFAULT_SEGMENTS = [
   { value: 'cart_abandoned', label: 'Sepeti Terk Edenler' },
 ]
 
-const STEPS = ['Amaç', 'Detaylar', 'AI İçerik', 'Görsel', 'Önizleme', 'Gönder']
+const STEPS = ['Amaç', 'Ürünler', 'Detaylar', 'İçerik', 'Görsel', 'Önizleme', 'Gönder']
 
-const EMPTY_AI: AiContent = {
-  subject: '', previewText: '', headline: '', body: '', ctaText: '',
-  imagePrompt: '', layoutStyle: '', recommendedSegment: '',
-  personalizationVariables: [], smsVariant: '', whatsappVariant: '',
-}
+const AI_LOADING_PHASES = [
+  'Mağaza profili analiz ediliyor…',
+  'Ürünler değerlendiriliyor…',
+  'İçerik stratejisi oluşturuluyor…',
+  'Kampanya metni yazılıyor…',
+  'Optimizasyon uygulanıyor…',
+]
 
-const slide = { initial: { opacity: 0, x: 24 }, animate: { opacity: 1, x: 0 }, exit: { opacity: 0, x: -24 }, transition: { duration: 0.2 } }
+const slide = { initial: { opacity: 0, x: 24 }, animate: { opacity: 1, x: 0 }, exit: { opacity: 0, x: -24 }, transition: { duration: 0.22 } }
 
 /* ── Component ──────────────────────────────────────────────────────── */
 
@@ -112,9 +140,12 @@ export default function NewCampaignPage() {
   const { data: session } = useSession()
   const notifIdRef = useRef(0)
 
-  const [step,           setStep]           = useState(1)
-  const [purpose,        setPurpose]        = useState('')
-  const [form,           setForm]           = useState<FormData>({
+  const [step,            setStep]           = useState(1)
+  const [purpose,         setPurpose]        = useState('')
+  const [products,        setProducts]       = useState<Product[]>([])
+  const [productForm,     setProductForm]    = useState<Omit<Product, 'id'>>(EMPTY_PRODUCT)
+  const [showAddProduct,  setShowAddProduct] = useState(false)
+  const [form,            setForm]           = useState<FormData>({
     name: '', productDescription: '', discountRate: '',
     segment: 'all', brandTone: 'Profesyonel ve Güvenilir',
     brandColor: '', ctaPurpose: 'Alışverişe Başla',
@@ -122,19 +153,21 @@ export default function NewCampaignPage() {
     sendDate: new Date(Date.now() + 86_400_000).toISOString().slice(0, 16),
     sendNow: true,
   })
-  const [ai,             setAi]             = useState<AiContent>(EMPTY_AI)
-  const [imageUrl,       setImageUrl]       = useState('')
-  const [genContent,     setGenContent]     = useState(false)
-  const [genImage,       setGenImage]       = useState(false)
-  const [saving,         setSaving]         = useState(false)
-  const [sending,        setSending]        = useState(false)
-  const [sendingTest,    setSendingTest]    = useState(false)
-  const [campaignId,     setCampaignId]     = useState('')
-  const [segments,       setSegments]       = useState<Array<{ value: string; label: string }>>([])
-  const [recipientCount, setRecipientCount] = useState<number | null>(null)
-  const [showConfirm,    setShowConfirm]    = useState(false)
-  const [previewMode,    setPreviewMode]    = useState<'desktop' | 'mobile'>('desktop')
-  const [notifs,         setNotifs]         = useState<Notif[]>([])
+  const [ai,              setAi]             = useState<AiContent>(EMPTY_AI)
+  const [imageUrl,        setImageUrl]       = useState('')
+  const [genContent,      setGenContent]     = useState(false)
+  const [genImage,        setGenImage]       = useState(false)
+  const [saving,          setSaving]         = useState(false)
+  const [sending,         setSending]        = useState(false)
+  const [sendingTest,     setSendingTest]    = useState(false)
+  const [campaignId,      setCampaignId]     = useState('')
+  const [segments,        setSegments]       = useState<Array<{ value: string; label: string }>>([])
+  const [recipientCount,  setRecipientCount] = useState<number | null>(null)
+  const [showConfirm,     setShowConfirm]    = useState(false)
+  const [previewMode,     setPreviewMode]    = useState<'desktop' | 'mobile'>('desktop')
+  const [previewEnv,      setPreviewEnv]     = useState<'light' | 'dark'>('light')
+  const [aiPhase,         setAiPhase]        = useState(0)
+  const [notifs,          setNotifs]         = useState<Notif[]>([])
 
   /* ── Notifications ────────────────────────────────────────────────── */
 
@@ -143,6 +176,14 @@ export default function NewCampaignPage() {
     setNotifs(n => [...n, { id, type, message }])
     setTimeout(() => setNotifs(n => n.filter(x => x.id !== id)), 3600)
   }, [])
+
+  /* ── AI loading phase cycle ───────────────────────────────────────── */
+
+  useEffect(() => {
+    if (!genContent) { setAiPhase(0); return }
+    const t = setInterval(() => setAiPhase(p => (p + 1) % AI_LOADING_PHASES.length), 1400)
+    return () => clearInterval(t)
+  }, [genContent])
 
   /* ── Load segments ────────────────────────────────────────────────── */
 
@@ -162,10 +203,10 @@ export default function NewCampaignPage() {
 
   const allSegments = [...DEFAULT_SEGMENTS, ...segments]
 
-  /* ── Fetch recipient count on step 6 ─────────────────────────────── */
+  /* ── Recipient count on step 7 ────────────────────────────────────── */
 
   useEffect(() => {
-    if (step === 6) {
+    if (step === 7) {
       setRecipientCount(null)
       fetch(`/api/campaigns/recipients?segment=${form.segment}`)
         .then(r => r.json())
@@ -174,10 +215,18 @@ export default function NewCampaignPage() {
     }
   }, [step, form.segment])
 
-  /* ── Auto-generate on step 3 ─────────────────────────────────────── */
+  /* ── Auto-generate on step 4 ─────────────────────────────────────── */
 
   useEffect(() => {
-    if (step === 3 && !ai.subject) generateContent()
+    if (step === 4 && !ai.subject) generateContent()
+  }, [step]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* ── Auto-use product image on step 5 ───────────────────────────── */
+
+  useEffect(() => {
+    if (step === 5 && !imageUrl && products.length > 0 && products[0].productImage) {
+      setImageUrl(products[0].productImage)
+    }
   }, [step]) // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── AI content generation ────────────────────────────────────────── */
@@ -193,6 +242,13 @@ export default function NewCampaignPage() {
           purpose,
           name: form.name,
           productDescription: form.productDescription,
+          products: products.map(p => ({
+            productName: p.productName,
+            category: p.category,
+            price: p.price,
+            compareAtPrice: p.compareAtPrice,
+            description: p.description,
+          })),
           discountRate: form.discountRate,
           brandTone: form.brandTone,
           ctaPurpose: form.ctaPurpose,
@@ -202,11 +258,10 @@ export default function NewCampaignPage() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'İçerik üretilemedi')
-
       setAi(data)
       if (data.layoutStyle) setForm(f => ({ ...f, layoutStyle: data.layoutStyle }))
       if (data.recommendedSegment) setForm(f => ({ ...f, segment: data.recommendedSegment }))
-      notify('success', 'AI içerik hazır!')
+      notify('success', 'Kampanya içeriği hazır!')
     } catch (err) {
       notify('error', err instanceof Error ? err.message : 'İçerik üretilemedi')
     } finally {
@@ -228,7 +283,7 @@ export default function NewCampaignPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Görsel üretilemedi')
       setImageUrl(data.url)
-      notify('success', 'Görsel oluşturuldu!')
+      notify('success', 'Kampanya görseli oluşturuldu!')
     } catch (err) {
       notify('error', err instanceof Error ? err.message : 'Görsel üretilemedi')
     } finally {
@@ -254,6 +309,7 @@ export default function NewCampaignPage() {
           discountRate: form.discountRate || null,
           layoutStyle: form.layoutStyle,
           brandColor: form.brandColor || null,
+          products,
         }),
       })
       const data = await res.json()
@@ -290,6 +346,7 @@ export default function NewCampaignPage() {
           imagePrompt: ai.imagePrompt || null,
           layoutStyle: form.layoutStyle || null,
           brandColor: form.brandColor || null,
+          products,
           scheduledAt: form.sendNow ? null : form.sendDate,
         }),
       })
@@ -317,7 +374,6 @@ export default function NewCampaignPage() {
         if (!id) return
         cid = id
       }
-
       const res = await fetch(`/api/campaigns/${cid}/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -325,8 +381,7 @@ export default function NewCampaignPage() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Gönderim başarısız')
-
-      notify('success', `${data.sent} kişiye başarıyla gönderildi! ${data.failed ? `(${data.failed} başarısız)` : ''}`)
+      notify('success', `${data.sent} kişiye başarıyla gönderildi!${data.failed ? ` (${data.failed} başarısız)` : ''}`)
       setTimeout(() => router.push('/campaigns'), 1800)
     } catch (err) {
       notify('error', err instanceof Error ? err.message : 'Gönderim başarısız')
@@ -335,16 +390,34 @@ export default function NewCampaignPage() {
     }
   }
 
+  /* ── Product management ───────────────────────────────────────────── */
+
+  function addProduct() {
+    if (!productForm.productName.trim()) return
+    const newP: Product = { id: `p_${Date.now()}_${Math.random().toString(36).slice(2)}`, ...productForm }
+    setProducts(p => [...p, newP])
+    setProductForm(EMPTY_PRODUCT)
+    setShowAddProduct(false)
+    // Auto-update name and layout from first product
+    if (products.length === 0) {
+      setForm(f => ({ ...f, name: f.name || `${newP.productName} Kampanyası` }))
+    }
+  }
+
+  function removeProduct(id: string) {
+    setProducts(p => p.filter(x => x.id !== id))
+  }
+
   /* ── Navigation ───────────────────────────────────────────────────── */
 
   const canNext = () => {
     if (step === 1) return !!purpose
-    if (step === 2) return !!form.name.trim() && !!form.productDescription.trim()
-    if (step === 3) return !genContent && !!ai.subject
+    if (step === 3) return !!form.name.trim()
+    if (step === 4) return !genContent && !!ai.subject
     return true
   }
 
-  const next = () => { if (canNext()) setStep(s => Math.min(s + 1, 6)) }
+  const next = () => { if (canNext()) setStep(s => Math.min(s + 1, 7)) }
   const prev = () => setStep(s => Math.max(s - 1, 1))
 
   /* ── Render ───────────────────────────────────────────────────────── */
@@ -364,8 +437,7 @@ export default function NewCampaignPage() {
                 n.type === 'success' ? 'bg-emerald-950/95 border-emerald-500/30 text-emerald-300' :
                 n.type === 'error'   ? 'bg-red-950/95 border-red-500/30 text-red-300' :
                 'bg-blue-950/95 border-blue-500/30 text-blue-300'
-              }`}
-            >
+              }`}>
               {n.type === 'success' ? <Check size={14} /> : n.type === 'error' ? <X size={14} /> : <Info size={14} />}
               <span className="leading-snug">{n.message}</span>
             </motion.div>
@@ -376,16 +448,13 @@ export default function NewCampaignPage() {
       {/* Send confirmation modal */}
       <AnimatePresence>
         {showConfirm && (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4"
-            onClick={() => setShowConfirm(false)}
-          >
+            onClick={() => setShowConfirm(false)}>
             <motion.div
               initial={{ scale: 0.92, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.92, opacity: 0 }}
               onClick={e => e.stopPropagation()}
-              className="bg-[#111] border border-white/10 rounded-2xl p-6 w-full max-w-sm shadow-2xl"
-            >
+              className="bg-[#111] border border-white/10 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
               <div className="w-12 h-12 rounded-xl bg-[#b3c5ff]/10 flex items-center justify-center mb-4">
                 <Send size={22} className="text-[#b3c5ff]" />
               </div>
@@ -399,8 +468,114 @@ export default function NewCampaignPage() {
                 </p>
               )}
               <div className="flex gap-3">
-                <button onClick={() => setShowConfirm(false)} className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/60 text-sm font-medium hover:border-white/20 transition-all">İptal</button>
-                <button onClick={sendCampaign} className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-[#b3c5ff] to-[#7c9dff] text-[#050505] text-sm font-bold hover:opacity-90 transition-all">Gönder</button>
+                <button onClick={() => setShowConfirm(false)}
+                  className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/60 text-sm font-medium hover:border-white/20 transition-all">
+                  İptal
+                </button>
+                <button onClick={sendCampaign}
+                  className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-[#b3c5ff] to-[#7c9dff] text-[#050505] text-sm font-bold hover:opacity-90 transition-all">
+                  Gönder
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Add product modal */}
+      <AnimatePresence>
+        {showAddProduct && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4"
+            onClick={() => setShowAddProduct(false)}>
+            <motion.div
+              initial={{ scale: 0.92, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.92, opacity: 0, y: 20 }}
+              onClick={e => e.stopPropagation()}
+              className="bg-[#111] border border-white/10 rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-5">
+                <div>
+                  <h3 className="text-white font-bold text-base">Ürün Ekle</h3>
+                  <p className="text-white/35 text-xs mt-0.5">AI kampanya için ürün bilgilerini girin</p>
+                </div>
+                <button onClick={() => setShowAddProduct(false)} className="text-white/30 hover:text-white/60 transition-colors">
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="space-y-3.5">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="col-span-2">
+                    <label className="block text-xs font-medium text-white/45 mb-1.5">Ürün Adı *</label>
+                    <input value={productForm.productName}
+                      onChange={e => setProductForm(f => ({ ...f, productName: e.target.value }))}
+                      placeholder="Örn: Yazlık Elbise Koleksiyonu" className="inp" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-white/45 mb-1.5">Kategori</label>
+                    <select value={productForm.category}
+                      onChange={e => setProductForm(f => ({ ...f, category: e.target.value }))} className="inp">
+                      {PRODUCT_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-white/45 mb-1.5">Fiyat (₺)</label>
+                    <input type="number" value={productForm.price}
+                      onChange={e => setProductForm(f => ({ ...f, price: e.target.value }))}
+                      placeholder="299" className="inp" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-white/45 mb-1.5">Normal Fiyat (₺)</label>
+                    <input type="number" value={productForm.compareAtPrice}
+                      onChange={e => setProductForm(f => ({ ...f, compareAtPrice: e.target.value }))}
+                      placeholder="499" className="inp" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-white/45 mb-1.5">Ürün Görseli (URL)</label>
+                    <input value={productForm.productImage}
+                      onChange={e => setProductForm(f => ({ ...f, productImage: e.target.value }))}
+                      placeholder="https://..." className="inp" />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-xs font-medium text-white/45 mb-1.5">Kısa Açıklama</label>
+                    <input value={productForm.description}
+                      onChange={e => setProductForm(f => ({ ...f, description: e.target.value }))}
+                      placeholder="Ürün hakkında kısa bilgi…" className="inp" />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-xs font-medium text-white/45 mb-1.5">Ürün URL (opsiyonel)</label>
+                    <input value={productForm.productUrl}
+                      onChange={e => setProductForm(f => ({ ...f, productUrl: e.target.value }))}
+                      placeholder="https://maganiz.com/urun/..." className="inp" />
+                  </div>
+                </div>
+
+                {/* Preview */}
+                {(productForm.productName || productForm.productImage) && (
+                  <div className="mt-2 p-3 rounded-xl bg-white/3 border border-white/6 flex items-center gap-3">
+                    {productForm.productImage ? (
+                      <img src={productForm.productImage} alt="" className="w-12 h-12 rounded-lg object-cover border border-white/10" onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                    ) : (
+                      <div className="w-12 h-12 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
+                        <Package size={18} className="text-white/25" />
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-sm font-semibold text-white leading-tight">{productForm.productName || '—'}</p>
+                      <p className="text-xs text-white/40">{productForm.category} {productForm.price ? `· ${productForm.price} ₺` : ''}</p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex gap-3 pt-1">
+                  <button onClick={() => setShowAddProduct(false)}
+                    className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/50 text-sm font-medium hover:border-white/20 transition-all">
+                    İptal
+                  </button>
+                  <button onClick={addProduct} disabled={!productForm.productName.trim()}
+                    className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-[#b3c5ff] to-[#7c9dff] text-[#050505] text-sm font-bold hover:opacity-90 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+                    Ürünü Ekle
+                  </button>
+                </div>
               </div>
             </motion.div>
           </motion.div>
@@ -415,14 +590,15 @@ export default function NewCampaignPage() {
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg bg-[#b3c5ff]/15 flex items-center justify-center">
-                  <Sparkles size={15} className="text-[#b3c5ff]" />
+                  <Brain size={15} className="text-[#b3c5ff]" />
                 </div>
                 <div>
-                  <h1 className="text-sm font-semibold text-white">Yeni AI Kampanya</h1>
+                  <h1 className="text-sm font-semibold text-white">Marksio AI Kampanya</h1>
                   <p className="text-[11px] text-white/35">{STEPS[step - 1]} · Adım {step}/{STEPS.length}</p>
                 </div>
               </div>
-              <button onClick={() => router.push('/campaigns')} className="text-xs text-white/30 hover:text-white/60 transition-colors flex items-center gap-1.5">
+              <button onClick={() => router.push('/campaigns')}
+                className="text-xs text-white/30 hover:text-white/60 transition-colors flex items-center gap-1.5">
                 <X size={13} /> İptal
               </button>
             </div>
@@ -455,7 +631,7 @@ export default function NewCampaignPage() {
             {/* ── STEP 1: Purpose ────────────────────────────── */}
             {step === 1 && (
               <motion.div key="s1" {...slide}>
-                <StepHeader step={1} title="Kampanya amacını seç" sub="AI sana özel içerik üretmek için kampanyanın amacını bilmek istiyor" />
+                <StepHeader step={1} title="Kampanya amacını seç" sub="Marksio AI kampanya amacına göre içerik ve tasarım stratejisi oluşturur" />
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   {PURPOSES.map(p => {
                     const sel = purpose === p.id
@@ -464,8 +640,7 @@ export default function NewCampaignPage() {
                         className={`relative text-left p-4 rounded-2xl border transition-all duration-200 group ${
                           sel ? `bg-gradient-to-br ${p.from} to-transparent ${p.border.replace('/25', '/60')} scale-[1.02]`
                               : `bg-[#111] ${p.border} ${p.hov} border hover:scale-[1.01]`
-                        }`}
-                      >
+                        }`}>
                         {sel && <div className="absolute top-2.5 right-2.5 w-4 h-4 rounded-full bg-[#b3c5ff] flex items-center justify-center"><Check size={9} className="text-[#050505]" /></div>}
                         <p.Icon size={18} className={`mb-2.5 transition-colors ${sel ? 'text-white' : 'text-white/45 group-hover:text-white/65'}`} />
                         <div className="font-semibold text-xs text-white mb-1 leading-snug">{p.label}</div>
@@ -477,20 +652,93 @@ export default function NewCampaignPage() {
               </motion.div>
             )}
 
-            {/* ── STEP 2: Details ────────────────────────────── */}
+            {/* ── STEP 2: Products ───────────────────────────── */}
             {step === 2 && (
               <motion.div key="s2" {...slide}>
-                <StepHeader step={2} title="Kampanya detayları" sub="Bu bilgilerle AI sana özel e-posta içeriği üretecek" />
+                <StepHeader step={2} title="Ürünlerini ekle" sub="Marksio AI ürün bilgilerinle premium kampanya tasarlayacak — ürün ekleme zorunlu değil" />
+
+                {/* Shopify placeholder */}
+                <div className="mb-5 p-3.5 rounded-xl bg-[#0e1117] border border-white/6 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                      <ShoppingCart size={15} className="text-emerald-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-white/80">Shopify Mağazandan Çek</p>
+                      <p className="text-xs text-white/35">Entegrasyon kurulduktan sonra ürünlerini otomatik çekebilirsin</p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-semibold text-white/30 bg-white/5 border border-white/8 px-2.5 py-1 rounded-full shrink-0">YAKINDA</span>
+                </div>
+
+                {/* Product list */}
+                {products.length > 0 && (
+                  <div className="space-y-2.5 mb-4">
+                    {products.map(p => (
+                      <motion.div key={p.id}
+                        initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+                        className="flex items-center gap-3.5 p-3.5 rounded-xl bg-[#0f0f0f] border border-white/7 hover:border-white/12 transition-colors group">
+                        {p.productImage ? (
+                          <img src={p.productImage} alt={p.productName} className="w-12 h-12 rounded-lg object-cover border border-white/10 flex-shrink-0"
+                            onError={e => { (e.target as HTMLImageElement).src = '' }} />
+                        ) : (
+                          <div className="w-12 h-12 rounded-lg bg-white/5 border border-white/8 flex items-center justify-center flex-shrink-0">
+                            <Package size={18} className="text-white/25" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-white leading-tight truncate">{p.productName}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-xs text-white/35">{p.category}</span>
+                            {p.price && <><span className="text-white/15">·</span><span className="text-xs text-[#b3c5ff] font-medium">{p.price} ₺</span></>}
+                            {p.compareAtPrice && p.compareAtPrice !== p.price && (
+                              <span className="text-xs text-white/25 line-through">{p.compareAtPrice} ₺</span>
+                            )}
+                          </div>
+                        </div>
+                        <button onClick={() => removeProduct(p.id)}
+                          className="text-white/20 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-red-500/10">
+                          <Trash2 size={14} />
+                        </button>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Add product button */}
+                <button onClick={() => setShowAddProduct(true)}
+                  className="flex items-center gap-2.5 w-full p-4 rounded-2xl border border-dashed border-white/15 hover:border-[#b3c5ff]/40 text-white/40 hover:text-[#b3c5ff] transition-all group">
+                  <div className="w-8 h-8 rounded-lg bg-white/4 group-hover:bg-[#b3c5ff]/8 border border-white/8 group-hover:border-[#b3c5ff]/25 flex items-center justify-center transition-all">
+                    <Plus size={14} />
+                  </div>
+                  <span className="text-sm font-medium">Manuel Ürün Ekle</span>
+                </button>
+
+                {products.length > 0 && (
+                  <div className="mt-4 flex items-center gap-2 p-3.5 rounded-xl bg-[#b3c5ff]/5 border border-[#b3c5ff]/12">
+                    <Sparkles size={14} className="text-[#b3c5ff] shrink-0" />
+                    <p className="text-xs text-white/55">{products.length} ürün eklendi. Marksio AI bu ürünlere özel kampanya tasarlayacak.</p>
+                  </div>
+                )}
+              </motion.div>
+            )}
+
+            {/* ── STEP 3: Details ────────────────────────────── */}
+            {step === 3 && (
+              <motion.div key="s3" {...slide}>
+                <StepHeader step={3} title="Kampanya detayları" sub="Bu bilgilerle AI sana özel strateji ve içerik üretecek" />
                 <div className="max-w-2xl space-y-5">
                   <Field label="Kampanya Adı *">
                     <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                       placeholder="Yaz Sonu İndirim Kampanyası" className="inp" />
                   </Field>
 
-                  <Field label="Ürün / Hizmet Açıklaması *">
-                    <textarea value={form.productDescription} onChange={e => setForm(f => ({ ...f, productDescription: e.target.value }))}
-                      placeholder="Örn: Premium kadın giyim koleksiyonu — yazlık elbiseler ve plaj kıyafetleri" rows={3} className="inp resize-none" />
-                  </Field>
+                  {products.length === 0 && (
+                    <Field label="Ürün / Hizmet Açıklaması">
+                      <textarea value={form.productDescription} onChange={e => setForm(f => ({ ...f, productDescription: e.target.value }))}
+                        placeholder="Örn: Premium kadın giyim koleksiyonu — yazlık elbiseler ve plaj kıyafetleri" rows={3} className="inp resize-none" />
+                    </Field>
+                  )}
 
                   <div className="grid grid-cols-2 gap-4">
                     <Field label="İndirim Oranı (%)">
@@ -565,42 +813,68 @@ export default function NewCampaignPage() {
               </motion.div>
             )}
 
-            {/* ── STEP 3: AI Content ─────────────────────────── */}
-            {step === 3 && (
-              <motion.div key="s3" {...slide}>
+            {/* ── STEP 4: AI Content ─────────────────────────── */}
+            {step === 4 && (
+              <motion.div key="s4" {...slide}>
                 <div className="mb-8 flex items-start justify-between">
-                  <StepHeader step={3} title="AI İçerik" sub="Kampanya amacına özel içerik üretildi — dilediğin alanı düzenleyebilirsin" />
+                  <StepHeader step={4} title="Kampanya İçeriği" sub="Marksio AI kampanya amacına ve ürünlerine özel içerik oluşturdu — düzenleyebilirsin" />
                   {!genContent && ai.subject && (
-                    <button onClick={generateContent} className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#111] border border-white/8 hover:border-white/18 text-xs text-white/50 transition-all mt-1 shrink-0">
+                    <button onClick={generateContent}
+                      className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#111] border border-white/8 hover:border-white/18 text-xs text-white/50 transition-all mt-1 shrink-0">
                       <RefreshCw size={12} /> Yeniden
                     </button>
                   )}
                 </div>
 
                 {genContent ? (
-                  <div className="flex flex-col items-center justify-center py-28 gap-5">
+                  <div className="flex flex-col items-center justify-center py-24 gap-6">
                     <div className="relative">
-                      <div className="w-16 h-16 rounded-2xl bg-[#b3c5ff]/10 flex items-center justify-center">
-                        <Sparkles size={28} className="text-[#b3c5ff]" />
+                      <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-[#b3c5ff]/15 to-[#7c9dff]/8 flex items-center justify-center border border-[#b3c5ff]/15">
+                        <Brain size={32} className="text-[#b3c5ff]" />
                       </div>
-                      <motion.div className="absolute -inset-2 rounded-3xl border border-[#b3c5ff]/20"
-                        animate={{ scale: [1, 1.1, 1], opacity: [0.5, 1, 0.5] }}
-                        transition={{ duration: 1.8, repeat: Infinity }} />
+                      <motion.div className="absolute -inset-3 rounded-[28px] border border-[#b3c5ff]/15"
+                        animate={{ scale: [1, 1.08, 1], opacity: [0.4, 0.8, 0.4] }}
+                        transition={{ duration: 2, repeat: Infinity }} />
+                      <motion.div className="absolute -inset-6 rounded-[36px] border border-[#b3c5ff]/8"
+                        animate={{ scale: [1, 1.05, 1], opacity: [0.2, 0.5, 0.2] }}
+                        transition={{ duration: 2, repeat: Infinity, delay: 0.3 }} />
                     </div>
                     <div className="text-center">
-                      <p className="font-semibold text-white mb-1">Kampanya içeriği üretiliyor…</p>
-                      <p className="text-sm text-white/35">Groq AI analiz ediyor</p>
+                      <p className="font-bold text-white text-base mb-2">Marksio AI çalışıyor</p>
+                      <AnimatePresence mode="wait">
+                        <motion.p key={aiPhase}
+                          initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
+                          transition={{ duration: 0.3 }}
+                          className="text-sm text-white/40">
+                          {AI_LOADING_PHASES[aiPhase]}
+                        </motion.p>
+                      </AnimatePresence>
+                    </div>
+                    {/* Loading progress dots */}
+                    <div className="flex items-center gap-1.5">
+                      {AI_LOADING_PHASES.map((_, i) => (
+                        <motion.div key={i}
+                          className={`rounded-full transition-all ${i === aiPhase ? 'w-4 h-1.5 bg-[#b3c5ff]' : 'w-1.5 h-1.5 bg-white/15'}`}
+                          animate={i === aiPhase ? { opacity: [0.6, 1, 0.6] } : {}}
+                          transition={{ duration: 1.4, repeat: Infinity }} />
+                      ))}
                     </div>
                   </div>
                 ) : (
                   <div className="max-w-2xl space-y-3">
+                    {products.length > 0 && (
+                      <div className="mb-2 flex items-center gap-2 p-3 rounded-xl bg-[#b3c5ff]/5 border border-[#b3c5ff]/10">
+                        <Wand2 size={13} className="text-[#b3c5ff] shrink-0" />
+                        <p className="text-xs text-white/50">{products.length} ürün için optimize edilmiş içerik. Önerilen tema: <span className="text-[#b3c5ff] font-medium">{LAYOUT_STYLES.find(l => l.value === form.layoutStyle)?.label}</span></p>
+                      </div>
+                    )}
                     {([
-                      { key: 'subject',     label: 'Mail Konusu',            type: 'input',    ph: 'E-posta başlığı…' },
-                      { key: 'previewText', label: 'Önizleme Metni',         type: 'input',    ph: 'İnbox önizleme…' },
-                      { key: 'headline',    label: 'Başlık',                 type: 'input',    ph: 'Ana e-posta başlığı…' },
-                      { key: 'body',        label: 'Açıklama',               type: 'textarea', ph: 'E-posta gövde metni…', rows: 5 },
-                      { key: 'ctaText',     label: 'CTA Butonu',             type: 'input',    ph: 'Alışverişe Başla…' },
-                      { key: 'imagePrompt', label: 'Görsel Prompt (Fal.ai)', type: 'textarea', ph: 'Görsel açıklaması…', rows: 2 },
+                      { key: 'subject',     label: 'Mail Konusu',        type: 'input',    ph: 'E-posta başlığı…' },
+                      { key: 'previewText', label: 'Önizleme Metni',     type: 'input',    ph: 'İnbox önizleme metni…' },
+                      { key: 'headline',    label: 'Ana Başlık',         type: 'input',    ph: 'E-posta ana başlığı…' },
+                      { key: 'body',        label: 'Metin',              type: 'textarea', ph: 'E-posta gövde metni…', rows: 5 },
+                      { key: 'ctaText',     label: 'CTA Butonu',         type: 'input',    ph: 'Alışverişe Başla…' },
+                      { key: 'imagePrompt', label: 'Görsel Yönlendirme', type: 'textarea', ph: 'AI görsel için yönlendirme…', rows: 2 },
                     ] as const).map(f => (
                       <div key={f.key} className="bg-[#0f0f0f] rounded-2xl p-4 border border-white/5 hover:border-white/10 transition-colors group">
                         <label className="block text-[10px] font-semibold text-white/30 uppercase tracking-widest mb-2">{f.label}</label>
@@ -619,13 +893,13 @@ export default function NewCampaignPage() {
                       <div className="grid grid-cols-2 gap-3 pt-1">
                         {ai.smsVariant && (
                           <div className="bg-[#0f0f0f] rounded-2xl p-4 border border-white/5">
-                            <label className="block text-[10px] font-semibold text-white/30 uppercase tracking-widest mb-2">SMS Variant</label>
+                            <label className="block text-[10px] font-semibold text-white/30 uppercase tracking-widest mb-2">SMS Varyant</label>
                             <p className="text-xs text-white/60 leading-relaxed">{ai.smsVariant}</p>
                           </div>
                         )}
                         {ai.whatsappVariant && (
                           <div className="bg-[#0f0f0f] rounded-2xl p-4 border border-white/5">
-                            <label className="block text-[10px] font-semibold text-white/30 uppercase tracking-widest mb-2">WhatsApp Variant</label>
+                            <label className="block text-[10px] font-semibold text-white/30 uppercase tracking-widest mb-2">WhatsApp Varyant</label>
                             <p className="text-xs text-white/60 leading-relaxed">{ai.whatsappVariant}</p>
                           </div>
                         )}
@@ -636,11 +910,11 @@ export default function NewCampaignPage() {
               </motion.div>
             )}
 
-            {/* ── STEP 4: Image ──────────────────────────────── */}
-            {step === 4 && (
-              <motion.div key="s4" {...slide}>
+            {/* ── STEP 5: Visual ─────────────────────────────── */}
+            {step === 5 && (
+              <motion.div key="s5" {...slide}>
                 <div className="mb-8 flex items-start justify-between">
-                  <StepHeader step={4} title="Kampanya Görseli" sub="Fal.ai ile e-posta için özel hero görsel oluştur" />
+                  <StepHeader step={5} title="Kampanya Görseli" sub="Ürün görseli varsa otomatik kullanıldı — ya da AI ile premium görsel üret" />
                   {imageUrl && (
                     <button onClick={generateImage} disabled={genImage}
                       className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#111] border border-white/8 hover:border-white/18 text-xs text-white/50 transition-all mt-1 disabled:opacity-50 shrink-0">
@@ -650,20 +924,60 @@ export default function NewCampaignPage() {
                 </div>
 
                 <div className="max-w-xl space-y-4">
+                  {/* Product image quick-use row */}
+                  {products.filter(p => p.productImage).length > 0 && (
+                    <div>
+                      <p className="text-xs font-medium text-white/40 mb-2.5">Ürün Görselleri</p>
+                      <div className="flex gap-2.5 flex-wrap">
+                        {products.filter(p => p.productImage).map(p => (
+                          <button key={p.id} onClick={() => setImageUrl(p.productImage)}
+                            className={`relative rounded-xl overflow-hidden border-2 transition-all ${imageUrl === p.productImage ? 'border-[#b3c5ff] scale-[1.03]' : 'border-white/10 hover:border-white/25'}`}>
+                            <img src={p.productImage} alt={p.productName} className="w-16 h-16 object-cover" />
+                            {imageUrl === p.productImage && (
+                              <div className="absolute inset-0 bg-[#b3c5ff]/20 flex items-center justify-center">
+                                <Check size={16} className="text-white" />
+                              </div>
+                            )}
+                          </button>
+                        ))}
+                        <button onClick={() => setImageUrl('')}
+                          className={`w-16 h-16 rounded-xl border-2 flex flex-col items-center justify-center gap-1 transition-all ${!imageUrl ? 'border-[#b3c5ff]/40 bg-[#b3c5ff]/5 text-[#b3c5ff]' : 'border-white/10 text-white/25 hover:border-white/25'}`}>
+                          <ImageIcon size={14} />
+                          <span className="text-[9px] font-medium leading-none">AI ile</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="bg-[#0f0f0f] rounded-2xl p-4 border border-white/5">
-                    <label className="block text-[10px] font-semibold text-white/30 uppercase tracking-widest mb-2">Görsel Prompt</label>
+                    <label className="block text-[10px] font-semibold text-white/30 uppercase tracking-widest mb-2">Görsel Yönlendirme</label>
                     <textarea value={ai.imagePrompt} onChange={e => setAi(a => ({ ...a, imagePrompt: e.target.value }))}
-                      rows={3} className="w-full bg-transparent text-sm text-white/85 placeholder:text-white/18 focus:outline-none resize-none" placeholder="Görsel açıklaması…" />
+                      rows={3} className="w-full bg-transparent text-sm text-white/85 placeholder:text-white/18 focus:outline-none resize-none" placeholder="Görsel için AI yönlendirmesi…" />
                   </div>
 
                   {imageUrl ? (
                     <div className="rounded-2xl overflow-hidden border border-white/8 shadow-xl">
                       <img src={imageUrl} alt="Kampanya görseli" className="w-full h-auto block" />
+                      <div className="flex gap-2 p-3 bg-[#0f0f0f] border-t border-white/5">
+                        <button onClick={() => setImageUrl('')}
+                          className="flex-1 py-2 rounded-xl text-xs text-white/40 border border-white/8 hover:border-white/18 transition-all">
+                          Görseli Kaldır
+                        </button>
+                        <button onClick={generateImage} disabled={genImage || !ai.imagePrompt}
+                          className="flex-1 py-2 rounded-xl text-xs text-[#b3c5ff] border border-[#b3c5ff]/20 hover:border-[#b3c5ff]/40 transition-all flex items-center justify-center gap-1.5 disabled:opacity-40">
+                          {genImage ? <Loader2 size={11} className="animate-spin" /> : <Wand2 size={11} />}
+                          AI ile Değiştir
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     <button onClick={generateImage} disabled={genImage || !ai.imagePrompt}
                       className="w-full py-5 rounded-2xl border border-[#b3c5ff]/22 bg-[#b3c5ff]/5 hover:bg-[#b3c5ff]/8 hover:border-[#b3c5ff]/38 text-[#b3c5ff] font-semibold flex items-center justify-center gap-3 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
-                      {genImage ? <><Loader2 size={18} className="animate-spin" />Görsel oluşturuluyor…</> : <><ImageIcon size={18} />Görsel Oluştur</>}
+                      {genImage ? (
+                        <><Loader2 size={18} className="animate-spin" />Görsel oluşturuluyor…</>
+                      ) : (
+                        <><Wand2 size={18} />AI ile Premium Görsel Oluştur</>
+                      )}
                     </button>
                   )}
                   <p className="text-center text-xs text-white/22">Görseli atlamak istiyorsanız ileri tuşuna basın</p>
@@ -671,12 +985,12 @@ export default function NewCampaignPage() {
               </motion.div>
             )}
 
-            {/* ── STEP 5: Preview ────────────────────────────── */}
-            {step === 5 && (
-              <motion.div key="s5" {...slide}>
+            {/* ── STEP 6: Preview ────────────────────────────── */}
+            {step === 6 && (
+              <motion.div key="s6" {...slide}>
                 <div className="mb-6 flex items-start justify-between flex-wrap gap-3">
-                  <StepHeader step={5} title="E-posta Önizleme" sub="Müşterilerine ulaşacak mailin canlı önizlemesi" />
-                  <div className="flex items-center gap-2">
+                  <StepHeader step={6} title="E-posta Önizleme" sub="Müşterilerine ulaşacak e-postanın gerçek görünümü" />
+                  <div className="flex items-center gap-2 flex-wrap">
                     {/* Desktop/mobile toggle */}
                     <div className="flex items-center bg-[#111] border border-white/8 rounded-xl p-1 gap-1">
                       <button onClick={() => setPreviewMode('desktop')}
@@ -688,7 +1002,18 @@ export default function NewCampaignPage() {
                         <Smartphone size={13} /> Mobil
                       </button>
                     </div>
-                    {/* Test email button */}
+                    {/* Light/dark env toggle */}
+                    <div className="flex items-center bg-[#111] border border-white/8 rounded-xl p-1 gap-1">
+                      <button onClick={() => setPreviewEnv('light')}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${previewEnv === 'light' ? 'bg-white/10 text-white' : 'text-white/40 hover:text-white/60'}`}>
+                        <Sun size={13} /> Light
+                      </button>
+                      <button onClick={() => setPreviewEnv('dark')}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${previewEnv === 'dark' ? 'bg-white/10 text-white' : 'text-white/40 hover:text-white/60'}`}>
+                        <Moon size={13} /> Dark
+                      </button>
+                    </div>
+                    {/* Test email */}
                     <button onClick={sendTestEmail} disabled={sendingTest}
                       className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#111] border border-white/8 hover:border-white/18 text-xs text-white/60 transition-all disabled:opacity-50">
                       {sendingTest ? <Loader2 size={12} className="animate-spin" /> : <Mail size={12} />}
@@ -697,27 +1022,67 @@ export default function NewCampaignPage() {
                   </div>
                 </div>
 
-                <div className="flex justify-center">
-                  <div style={{ width: previewMode === 'mobile' ? 375 : 520, fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif' }}
-                    className="rounded-2xl overflow-hidden shadow-2xl border border-white/8 transition-all duration-300">
-                    <EmailPreview
-                      storeName="Marka Adı"
-                      headline={ai.headline}
-                      body={ai.body}
-                      ctaText={ai.ctaText}
-                      discountRate={form.discountRate}
-                      imageUrl={imageUrl}
-                      layoutStyle={form.layoutStyle}
-                    />
+                {/* Inbox simulation wrapper */}
+                <div style={{
+                  background: previewEnv === 'dark' ? '#1c1c1e' : '#f1f3f4',
+                  borderRadius: 20,
+                  padding: '16px',
+                  transition: 'background 0.25s',
+                }}>
+                  {/* Inbox preview header */}
+                  <div style={{
+                    background: previewEnv === 'dark' ? '#2c2c2e' : '#ffffff',
+                    borderRadius: 12,
+                    padding: '10px 14px',
+                    marginBottom: 12,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+                  }}>
+                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: previewEnv === 'dark' ? '#3a3a3c' : '#e9eef6', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: previewEnv === 'dark' ? '#a3a3a8' : '#4f6096' }}>M</span>
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ margin: 0, fontWeight: 600, fontSize: 13, color: previewEnv === 'dark' ? '#f2f2f7' : '#1d1d1f', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {form.name || 'Mağaza Adı'}
+                      </p>
+                      <p style={{ margin: 0, fontSize: 12, color: previewEnv === 'dark' ? '#8e8e93' : '#3c3c43', lineHeight: 1.4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {ai.subject || 'E-posta konusu burada görünecek…'}
+                      </p>
+                      {ai.previewText && (
+                        <p style={{ margin: 0, fontSize: 11, color: previewEnv === 'dark' ? '#636366' : '#8e8e93', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {ai.previewText}
+                        </p>
+                      )}
+                    </div>
+                    <span style={{ fontSize: 11, color: previewEnv === 'dark' ? '#636366' : '#8e8e93', flexShrink: 0 }}>Şimdi</span>
+                  </div>
+
+                  {/* Email preview */}
+                  <div className="flex justify-center">
+                    <div style={{ width: previewMode === 'mobile' ? 375 : 520, fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif' }}
+                      className="rounded-2xl overflow-hidden shadow-2xl border border-white/8 transition-all duration-300">
+                      <EmailPreview
+                        storeName={form.name || 'Marka Adı'}
+                        headline={ai.headline}
+                        body={ai.body}
+                        ctaText={ai.ctaText}
+                        discountRate={form.discountRate}
+                        imageUrl={imageUrl}
+                        layoutStyle={form.layoutStyle}
+                        products={products}
+                      />
+                    </div>
                   </div>
                 </div>
               </motion.div>
             )}
 
-            {/* ── STEP 6: Send ───────────────────────────────── */}
-            {step === 6 && (
-              <motion.div key="s6" {...slide}>
-                <StepHeader step={6} title="Kampanyayı Gönder" sub="Her şey hazır. Son onayını ver." />
+            {/* ── STEP 7: Send ───────────────────────────────── */}
+            {step === 7 && (
+              <motion.div key="s7" {...slide}>
+                <StepHeader step={7} title="Kampanyayı Gönder" sub="Her şey hazır. Son onayını ver." />
 
                 <div className="max-w-md space-y-4">
                   {/* Summary */}
@@ -727,6 +1092,7 @@ export default function NewCampaignPage() {
                       {[
                         { label: 'Kampanya',  value: form.name },
                         { label: 'Amaç',      value: PURPOSES.find(p => p.id === purpose)?.label ?? purpose },
+                        { label: 'Ürünler',   value: products.length > 0 ? `${products.length} ürün` : 'Ürün eklenmedi' },
                         { label: 'Segment',   value: allSegments.find(s => s.value === form.segment)?.label ?? form.segment },
                         { label: 'Tema',      value: LAYOUT_STYLES.find(l => l.value === form.layoutStyle)?.label ?? form.layoutStyle },
                         { label: 'Konu',      value: ai.subject },
@@ -748,7 +1114,10 @@ export default function NewCampaignPage() {
                     <div>
                       <p className="text-xs text-white/40">Tahmini alıcı sayısı</p>
                       {recipientCount === null ? (
-                        <div className="flex items-center gap-1.5 mt-0.5"><Loader2 size={12} className="animate-spin text-white/40" /><span className="text-xs text-white/40">Hesaplanıyor…</span></div>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <Loader2 size={12} className="animate-spin text-white/40" />
+                          <span className="text-xs text-white/40">Hesaplanıyor…</span>
+                        </div>
                       ) : (
                         <p className="text-lg font-bold text-white">{recipientCount.toLocaleString('tr')} <span className="text-xs font-normal text-white/40">kişi</span></p>
                       )}
@@ -774,7 +1143,9 @@ export default function NewCampaignPage() {
                     if (id) { notify('success', 'Taslak kaydedildi'); setTimeout(() => router.push('/campaigns'), 1000) }
                   }} disabled={saving}
                     className="w-full py-3 rounded-2xl bg-[#0f0f0f] border border-white/8 hover:border-white/15 text-white/40 text-xs font-medium transition-all disabled:opacity-40">
-                    {saving ? <span className="flex items-center justify-center gap-1.5"><Loader2 size={13} className="animate-spin" />Kaydediliyor…</span> : 'Taslak Olarak Kaydet'}
+                    {saving
+                      ? <span className="flex items-center justify-center gap-1.5"><Loader2 size={13} className="animate-spin" />Kaydediliyor…</span>
+                      : 'Taslak Olarak Kaydet'}
                   </button>
                 </div>
               </motion.div>
@@ -788,10 +1159,10 @@ export default function NewCampaignPage() {
               className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium border border-white/8 bg-[#0f0f0f] hover:border-white/18 text-white/55 transition-all ${step === 1 ? 'invisible' : ''}`}>
               <ChevronLeft size={15} /> Geri
             </button>
-            {step < 6 && (
+            {step < 7 && (
               <button onClick={next} disabled={!canNext()}
                 className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold bg-[#b3c5ff] text-[#050505] hover:bg-[#c5d3ff] active:scale-[0.98] transition-all disabled:opacity-35 disabled:cursor-not-allowed">
-                {step === 5 ? 'Gönderiye Geç' : 'Devam Et'} <ChevronRight size={15} />
+                {step === 6 ? 'Gönderiye Geç' : 'Devam Et'} <ChevronRight size={15} />
               </button>
             )}
           </div>
@@ -830,25 +1201,26 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   )
 }
 
-const PREVIEW_THEMES: Record<string, { headerBg: string; ctaBg: string; ctaColor: string; badgeBg: string }> = {
-  luxury:        { headerBg: '#0a0a0a', ctaBg: '#c9a84c', ctaColor: '#000', badgeBg: '#c9a84c' },
-  minimal:       { headerBg: '#fff', ctaBg: '#111', ctaColor: '#fff', badgeBg: '#111' },
-  'black-friday':{ headerBg: '#000', ctaBg: '#facc15', ctaColor: '#000', badgeBg: '#facc15' },
-  skincare:      { headerBg: '#f9f0e8', ctaBg: '#c4806a', ctaColor: '#fff', badgeBg: '#c4806a' },
-  fashion:       { headerBg: '#0d0d0d', ctaBg: '#fff', ctaColor: '#000', badgeBg: '#fff' },
-  tech:          { headerBg: '#0f172a', ctaBg: '#3b82f6', ctaColor: '#fff', badgeBg: '#3b82f6' },
-  furniture:     { headerBg: '#3d2b1f', ctaBg: '#8b6f47', ctaColor: '#fff', badgeBg: '#8b6f47' },
-  gaming:        { headerBg: '#0a0a0f', ctaBg: '#7c3aed', ctaColor: '#fff', badgeBg: '#7c3aed' },
-  default:       { headerBg: '#0f172a', ctaBg: '#2563eb', ctaColor: '#fff', badgeBg: '#ef4444' },
+const PREVIEW_THEMES: Record<string, { headerBg: string; ctaBg: string; ctaColor: string; badgeBg: string; cardBg: string; cardBorder: string }> = {
+  luxury:        { headerBg: '#0a0a0a', ctaBg: '#c9a84c', ctaColor: '#000', badgeBg: '#c9a84c', cardBg: '#fafaf7', cardBorder: '#e8d99a' },
+  minimal:       { headerBg: '#fff', ctaBg: '#111', ctaColor: '#fff', badgeBg: '#111', cardBg: '#fafafa', cardBorder: '#e5e5e5' },
+  'black-friday':{ headerBg: '#000', ctaBg: '#facc15', ctaColor: '#000', badgeBg: '#facc15', cardBg: '#111', cardBorder: '#facc15' },
+  skincare:      { headerBg: '#f9f0e8', ctaBg: '#c4806a', ctaColor: '#fff', badgeBg: '#c4806a', cardBg: '#fff9f5', cardBorder: '#f0cfc0' },
+  fashion:       { headerBg: '#0d0d0d', ctaBg: '#fff', ctaColor: '#000', badgeBg: '#fff', cardBg: '#fafafa', cardBorder: '#e8e8e8' },
+  tech:          { headerBg: '#0f172a', ctaBg: '#3b82f6', ctaColor: '#fff', badgeBg: '#3b82f6', cardBg: '#f0f4ff', cardBorder: '#93c5fd' },
+  furniture:     { headerBg: '#3d2b1f', ctaBg: '#8b6f47', ctaColor: '#fff', badgeBg: '#8b6f47', cardBg: '#fdf8f0', cardBorder: '#d4b896' },
+  gaming:        { headerBg: '#0a0a0f', ctaBg: '#7c3aed', ctaColor: '#fff', badgeBg: '#7c3aed', cardBg: '#0f0a1a', cardBorder: '#7c3aed' },
+  default:       { headerBg: '#0f172a', ctaBg: '#2563eb', ctaColor: '#fff', badgeBg: '#ef4444', cardBg: '#f0f4ff', cardBorder: '#bfdbfe' },
 }
 
-function EmailPreview({ storeName, headline, body, ctaText, discountRate, imageUrl, layoutStyle }:
-  { storeName: string; headline: string; body: string; ctaText: string; discountRate: string; imageUrl: string; layoutStyle: string }) {
+function EmailPreview({ storeName, headline, body, ctaText, discountRate, imageUrl, layoutStyle, products }:
+  { storeName: string; headline: string; body: string; ctaText: string; discountRate: string; imageUrl: string; layoutStyle: string; products: Product[] }) {
   const t = PREVIEW_THEMES[layoutStyle] ?? PREVIEW_THEMES.default
   const isLight = ['minimal', 'skincare'].includes(layoutStyle)
+  const darkCard = layoutStyle === 'gaming' || layoutStyle === 'black-friday'
 
   return (
-    <div style={{ background: '#fff' }}>
+    <div style={{ background: '#fff', fontFamily: '-apple-system,BlinkMacSystemFont,Arial,sans-serif' }}>
       {/* Header */}
       <div style={{ background: t.headerBg, padding: '20px 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span style={{ color: isLight ? '#111' : '#fff', fontSize: '17px', fontWeight: 800 }}>{storeName}</span>
@@ -863,7 +1235,7 @@ function EmailPreview({ storeName, headline, body, ctaText, discountRate, imageU
       {imageUrl && <img src={imageUrl} alt="" style={{ width: '100%', display: 'block' }} />}
 
       {/* Content */}
-      <div style={{ padding: '32px 28px', background: '#fff' }}>
+      <div style={{ padding: '32px 28px 20px', background: '#fff' }}>
         <h1 style={{ margin: '0 0 12px', fontSize: '22px', fontWeight: 800, color: '#0f172a', lineHeight: 1.2 }}>
           {headline || 'Kampanya Başlığı'}
         </h1>
@@ -884,6 +1256,31 @@ function EmailPreview({ storeName, headline, body, ctaText, discountRate, imageU
           </span>
         </div>
       </div>
+
+      {/* Product cards */}
+      {products.length > 0 && (
+        <div style={{ padding: '0 28px 28px' }}>
+          <p style={{ margin: '0 0 12px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1.5px', color: '#94a3b8' }}>Öne Çıkan Ürünler</p>
+          <div style={{ display: 'grid', gridTemplateColumns: products.length === 1 ? '1fr' : '1fr 1fr', gap: 12 }}>
+            {products.slice(0, 4).map(p => (
+              <div key={p.id} style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 12, overflow: 'hidden' }}>
+                {p.productImage && (
+                  <img src={p.productImage} alt={p.productName}
+                    style={{ width: '100%', height: 120, objectFit: 'cover', display: 'block' }}
+                    onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                )}
+                <div style={{ padding: '10px 12px' }}>
+                  <p style={{ margin: '0 0 3px', fontSize: 12, fontWeight: 700, color: darkCard ? '#e2e8f0' : '#111', lineHeight: 1.3 }}>{p.productName}</p>
+                  {p.price && <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: t.ctaBg.startsWith('#') ? t.ctaBg : '#2563eb' }}>{p.price} ₺</p>}
+                  {p.compareAtPrice && p.compareAtPrice !== p.price && (
+                    <p style={{ margin: 0, fontSize: 11, color: '#94a3b8', textDecoration: 'line-through' }}>{p.compareAtPrice} ₺</p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <div style={{ background: '#f8fafc', padding: '14px 28px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between' }}>

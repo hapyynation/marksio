@@ -49,6 +49,7 @@ export async function POST(req: NextRequest) {
         ctaText: body.ctaText,
         layoutStyle: body.layoutStyle,
         brandColor: body.brandColor,
+        productsJson: JSON.stringify(body.products ?? []),
         scheduledAt: body.scheduledAt ? new Date(body.scheduledAt) : null,
       },
     })

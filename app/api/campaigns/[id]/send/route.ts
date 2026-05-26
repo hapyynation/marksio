@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth-options'
 import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
 import { sendWhatsAppMessage } from '@/lib/whatsapp'
-import { buildEmailHtml, personalize, type LayoutStyle } from '@/lib/email-campaign-template'
+import { buildEmailHtml, personalize, type LayoutStyle, type Product } from '@/lib/email-campaign-template'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 const BASE_URL = process.env.NEXTAUTH_URL || 'http://localhost:3000'
@@ -44,6 +44,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const fromEmail = emailDomain
       ? `${storeName} <kampanya@${emailDomain.domain}>`
       : `${storeName} <onboarding@resend.dev>`
+
+    let campaignProducts: Product[] = []
+    try { campaignProducts = JSON.parse((campaign as { productsJson?: string }).productsJson ?? '[]') } catch { campaignProducts = [] }
 
     const segmentFilter =
       campaign.segment && campaign.segment !== 'all'
@@ -111,6 +114,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
               trackingPixelUrl,
               layoutStyle: (campaign.layoutStyle as LayoutStyle) ?? 'default',
               brandColor: campaign.brandColor ?? undefined,
+              products: campaignProducts,
             })
 
             const { data: resendData, error } = await resend.emails.send({

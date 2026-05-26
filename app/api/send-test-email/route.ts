@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth-options'
 import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
-import { buildEmailHtml, type LayoutStyle } from '@/lib/email-campaign-template'
+import { buildEmailHtml, type LayoutStyle, type Product } from '@/lib/email-campaign-template'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 const BASE_URL = process.env.NEXTAUTH_URL || 'http://localhost:3000'
@@ -27,6 +27,7 @@ export async function POST(req: NextRequest) {
     layoutStyle,
     brandColor,
     storeName: storeNameOverride,
+    products,
   } = await req.json()
 
   const targetEmail = toEmail || user.email
@@ -57,6 +58,7 @@ export async function POST(req: NextRequest) {
       trackingPixelUrl: `${BASE_URL}/api/track/open?c=test&u=test`,
       layoutStyle: (layoutStyle as LayoutStyle) ?? 'default',
       brandColor: brandColor || undefined,
+      products: (products as Product[]) || [],
     })
 
     const { error } = await resend.emails.send({
