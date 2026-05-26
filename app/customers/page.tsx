@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import {
   Users, Search, Star, AlertTriangle, UserPlus, Clock,
-  Mail, Phone, MessageSquare, Sparkles, Upload, X, CheckCircle, Loader2,
+  Mail, MessageSquare, Sparkles, Upload, X, CheckCircle, Loader2, AlertCircle,
 } from 'lucide-react'
 import Link from 'next/link'
 import AppShell from '@/components/layout/AppShell'
@@ -33,34 +33,48 @@ interface Customer {
 }
 
 function ImportModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (n: number) => void }) {
-  const [csv, setCsv] = useState('')
+  const [text, setText] = useState('')
+  const [fileName, setFileName] = useState('')
   const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState<{ imported: number; skipped: number } | null>(null)
+  const [result, setResult] = useState<{
+    imported: number; skipped: number
+    preview: Array<{ name: string; email?: string; phone?: string }>
+  } | null>(null)
   const [error, setError] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
 
   function handleFile(file: File) {
+    setFileName(file.name)
+    setError('')
     const reader = new FileReader()
-    reader.onload = e => setCsv(e.target?.result as string)
+    reader.onload = e => setText(e.target?.result as string ?? '')
     reader.readAsText(file, 'UTF-8')
   }
 
   async function handleImport() {
-    if (!csv.trim()) { setError('CSV içeriği boş'); return }
+    if (!text.trim()) { setError('Dosya içeriği boş'); return }
     setLoading(true)
     setError('')
     try {
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 60000)
       const res = await fetch('/api/customers/import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ csv }),
+        body: JSON.stringify({ csv: text }),
+        signal: controller.signal,
       })
+      clearTimeout(timeout)
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
+      if (!res.ok) throw new Error(data.error ?? `Sunucu hatası (${res.status})`)
       setResult(data)
-      onSuccess(data.imported)
+      // onSuccess'i burada değil, kullanıcı "Tamam"a basınca çağır
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Import başarısız')
+      if ((e as Error).name === 'AbortError') {
+        setError('İstek zaman aşımına uğradı (60s). Daha kısa bir metin deneyin.')
+      } else {
+        setError(e instanceof Error ? e.message : 'İçe aktarma başarısız')
+      }
     } finally {
       setLoading(false)
     }
@@ -69,68 +83,155 @@ function ImportModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-[#111] border border-[#1e1e1e] rounded-2xl shadow-2xl w-full max-w-lg">
+        {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#1e1e1e]">
-          <h3 className="font-semibold text-white">CSV ile Müşteri İçe Aktar</h3>
-          <button onClick={onClose} className="text-gray-600 hover:text-gray-300 transition-colors"><X className="w-5 h-5" /></button>
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+              <Sparkles className="w-3.5 h-3.5 text-blue-400" />
+            </div>
+            <h3 className="font-semibold text-white">AI ile Müşteri İçe Aktar</h3>
+          </div>
+          <button onClick={onClose} className="text-gray-600 hover:text-gray-300 transition-colors">
+            <X className="w-5 h-5" />
+          </button>
         </div>
+
         <div className="p-6 space-y-4">
           {result ? (
+            /* ── Başarı ekranı ── */
             <div className="text-center py-4">
               <div className="w-16 h-16 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <CheckCircle className="w-8 h-8 text-emerald-400" />
               </div>
-              <p className="text-lg font-semibold text-white">{result.imported} müşteri aktarıldı</p>
-              {result.skipped > 0 && <p className="text-sm text-gray-500 mt-1">{result.skipped} satır atlandı</p>}
-              <button onClick={onClose} className="mt-5 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors">Tamam</button>
-            </div>
-          ) : (
-            <>
-              <div className="bg-[#0d0d0d] border border-[#1e1e1e] rounded-xl p-4 text-xs text-gray-500 space-y-1.5">
-                <p className="font-semibold text-gray-400">CSV formatı:</p>
-                <p>İlk satır başlık olmalı. Zorunlu sütun: <code className="bg-[#1e1e1e] text-blue-400 px-1 rounded">email</code></p>
-                <p>İsteğe bağlı: <code className="bg-[#1e1e1e] text-blue-400 px-1 rounded">name</code>, <code className="bg-[#1e1e1e] text-blue-400 px-1 rounded">phone</code>, <code className="bg-[#1e1e1e] text-blue-400 px-1 rounded">segment</code></p>
-                <p className="text-gray-600 mt-1.5">Örnek: name,email,phone,segment</p>
-                <p className="text-gray-700">Ahmet Yılmaz,ahmet@ornek.com,05551234567,vip</p>
-              </div>
+              <p className="text-lg font-bold text-white">{result.imported} müşteri aktarıldı</p>
+              {result.skipped > 0 && (
+                <p className="text-xs text-gray-500 mt-1">{result.skipped} kayıt atlandı (geçersiz/tekrar)</p>
+              )}
 
-              <div
-                className="border-2 border-dashed border-[#2a2a2a] rounded-xl p-8 text-center cursor-pointer hover:border-blue-500/30 hover:bg-blue-500/5 transition-all"
-                onClick={() => fileRef.current?.click()}
-                onDragOver={e => e.preventDefault()}
-                onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleFile(f) }}
-              >
-                <Upload className="w-8 h-8 text-gray-600 mx-auto mb-2" />
-                <p className="text-sm font-medium text-gray-400">CSV dosyası sürükle veya tıkla</p>
-                <p className="text-xs text-gray-700 mt-1">.csv formatında</p>
-                <input ref={fileRef} type="file" accept=".csv,text/csv" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }} />
-              </div>
-
-              {csv && (
-                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2.5 text-xs text-emerald-400 flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 shrink-0" />
-                  Dosya yüklendi — {csv.split('\n').length - 1} satır bulundu
+              {/* Preview */}
+              {result.preview?.length > 0 && (
+                <div className="mt-4 text-left bg-[#0d0d0d] border border-[#1e1e1e] rounded-xl overflow-hidden">
+                  <p className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider px-4 py-2 border-b border-[#1e1e1e]">
+                    Aktarılan Örnekler
+                  </p>
+                  {result.preview.map((c, i) => (
+                    <div key={i} className="flex items-center gap-3 px-4 py-2.5 border-b border-[#1a1a1a] last:border-0">
+                      <div className="w-7 h-7 rounded-full bg-blue-500/10 flex items-center justify-center text-xs font-bold text-blue-400 shrink-0">
+                        {c.name?.[0]?.toUpperCase() ?? '?'}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-gray-300 truncate">{c.name}</p>
+                        <p className="text-[11px] text-gray-600 truncate">
+                          {c.email && <span>{c.email}</span>}
+                          {c.email && c.phone && <span className="mx-1">·</span>}
+                          {c.phone && <span>{c.phone}</span>}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
 
-              <div className="space-y-1.5">
-                <p className="text-xs font-medium text-gray-600">Ya da CSV içeriğini yapıştır:</p>
-                <textarea
-                  value={csv}
-                  onChange={e => setCsv(e.target.value)}
-                  placeholder="name,email,phone&#10;Ahmet,ahmet@test.com,0555..."
-                  rows={4}
-                  className="w-full text-xs border border-[#2a2a2a] bg-[#0d0d0d] text-gray-300 rounded-xl px-3 py-2 font-mono placeholder:text-gray-700 focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 resize-none"
+              <button
+                onClick={() => { onSuccess(result?.imported ?? 0); onClose() }}
+                className="mt-5 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors"
+              >
+                Tamam
+              </button>
+            </div>
+          ) : (
+            /* ── Upload ekranı ── */
+            <>
+              {/* AI badge */}
+              <div className="bg-blue-500/5 border border-blue-500/15 rounded-xl px-4 py-3 flex items-start gap-3">
+                <Sparkles className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+                <div className="text-xs text-blue-400/80 leading-relaxed">
+                  <span className="font-semibold text-blue-400">AI destekli içe aktarma.</span>{' '}
+                  Herhangi bir dosya ya da metin yükleyin — format önemli değil.
+                  AI email adreslerini ve telefon numaralarını otomatik bulur.
+                </div>
+              </div>
+
+              {/* Drop zone */}
+              <div
+                className={cn(
+                  'border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all',
+                  text
+                    ? 'border-emerald-500/30 bg-emerald-500/5'
+                    : 'border-[#2a2a2a] hover:border-blue-500/30 hover:bg-blue-500/5'
+                )}
+                onClick={() => fileRef.current?.click()}
+                onDragOver={e => e.preventDefault()}
+                onDrop={e => {
+                  e.preventDefault()
+                  const f = e.dataTransfer.files[0]
+                  if (f) handleFile(f)
+                }}
+              >
+                {text ? (
+                  <>
+                    <CheckCircle className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
+                    <p className="text-sm font-medium text-emerald-400">{fileName || 'Metin yapıştırıldı'}</p>
+                    <p className="text-xs text-emerald-500/60 mt-1">{text.split('\n').length} satır yüklendi</p>
+                    <button
+                      onClick={e => { e.stopPropagation(); setText(''); setFileName('') }}
+                      className="mt-2 text-xs text-gray-600 hover:text-gray-400 underline"
+                    >
+                      Temizle
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-8 h-8 text-gray-600 mx-auto mb-2" />
+                    <p className="text-sm font-medium text-gray-400">Dosyayı sürükle veya tıkla</p>
+                    <p className="text-xs text-gray-600 mt-1">CSV, TXT, veya herhangi bir metin dosyası</p>
+                  </>
+                )}
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept=".csv,.txt,.tsv,.xls,text/csv,text/plain"
+                  className="hidden"
+                  onClick={e => e.stopPropagation()}
+                  onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }}
                 />
               </div>
 
-              {error && <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
+              {/* Paste area */}
+              <div className="space-y-1.5">
+                <p className="text-xs font-medium text-gray-600">Ya da metin yapıştır:</p>
+                <textarea
+                  value={text}
+                  onChange={e => { setText(e.target.value); setFileName('') }}
+                  placeholder={`Ahmet Yılmaz - ahmet@example.com - 0532 123 45 67\nMehmet Kaya, mehmet@site.com, +90 533 987 65 43\nvb. herhangi bir formatta...`}
+                  rows={4}
+                  className="w-full text-xs border border-[#2a2a2a] bg-[#0d0d0d] text-gray-300 rounded-xl px-3 py-2.5 font-mono placeholder:text-gray-700 focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 resize-none"
+                />
+              </div>
+
+              {error && (
+                <div className="flex items-start gap-2 text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2.5">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  {error}
+                </div>
+              )}
 
               <button
                 onClick={handleImport}
-                disabled={loading || !csv.trim()}
-                className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-sm font-semibold rounded-xl transition-colors"
+                disabled={loading || !text.trim()}
+                className="w-full flex items-center justify-center gap-2 py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-sm font-semibold rounded-xl transition-colors"
               >
-                {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> İçe aktarılıyor...</> : <><Upload className="w-4 h-4" /> İçe Aktar</>}
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    AI analiz ediyor...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4" />
+                    AI ile İçe Aktar
+                  </>
+                )}
               </button>
             </>
           )}
@@ -154,7 +255,7 @@ export default function CustomersPage() {
       if (activeSegment !== 'all') params.set('segment', activeSegment)
       const res = await fetch(`/api/customers?${params}`)
       const data = await res.json()
-      setCustomers(data.customers ?? [])
+      setCustomers(Array.isArray(data) ? data : (data.customers ?? []))
     } catch { /* ignore */ }
     finally { setLoading(false) }
   }
@@ -177,7 +278,7 @@ export default function CustomersPage() {
       {showImport && (
         <ImportModal
           onClose={() => setShowImport(false)}
-          onSuccess={() => { setShowImport(false); fetchCustomers() }}
+          onSuccess={() => fetchCustomers()}
         />
       )}
 
@@ -262,7 +363,7 @@ export default function CustomersPage() {
               onClick={() => setShowImport(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1a1a1a] hover:bg-[#222] border border-[#2a2a2a] text-gray-400 hover:text-gray-200 text-xs font-medium rounded-xl transition-all ml-auto"
             >
-              <Upload className="w-3.5 h-3.5" /> CSV İçe Aktar
+              <Upload className="w-3.5 h-3.5" /> Müşteri Verisi İçe Aktar
             </button>
           </div>
 
@@ -278,7 +379,7 @@ export default function CustomersPage() {
               <p className="text-sm font-medium text-gray-400">Müşteri bulunamadı</p>
               <p className="text-xs text-gray-700 mt-1">CSV ile içe aktarabilirsiniz</p>
               <button onClick={() => setShowImport(true)} className="mt-4 flex items-center gap-1.5 mx-auto px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl transition-colors">
-                <Upload className="w-3.5 h-3.5" /> CSV İçe Aktar
+                <Upload className="w-3.5 h-3.5" /> Müşteri Verisi İçe Aktar
               </button>
             </div>
           ) : (
@@ -323,7 +424,6 @@ export default function CustomersPage() {
                         <div className="flex items-center gap-1">
                           <button className="p-1.5 rounded-lg hover:bg-blue-500/10 text-gray-700 hover:text-blue-400 transition-all" title="Email"><Mail className="w-3.5 h-3.5" /></button>
                           <button className="p-1.5 rounded-lg hover:bg-teal-500/10 text-gray-700 hover:text-teal-400 transition-all" title="WhatsApp"><MessageSquare className="w-3.5 h-3.5" /></button>
-                          <button className="p-1.5 rounded-lg hover:bg-emerald-500/10 text-gray-700 hover:text-emerald-400 transition-all" title="SMS"><Phone className="w-3.5 h-3.5" /></button>
                         </div>
                       </td>
                     </tr>

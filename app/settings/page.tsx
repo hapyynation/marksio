@@ -2,31 +2,71 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import {
-  Key, Store, Bell, Shield, Check, Eye, EyeOff,
-  Sparkles, Mail, Phone, MessageSquare, Link2, Link2Off,
+  Key, Store, Bell, Shield, Check, Eye, EyeOff, Copy,
+  Mail, MessageSquare, Link2, Link2Off,
   RefreshCw, Loader2, AlertCircle, ShoppingBag, Globe,
-  Zap, ChevronRight, Package,
+  ChevronRight, Package, X, Settings, Trash2, Globe2,
+  CheckCircle2, Clock, AlertTriangle, Plus,
 } from 'lucide-react'
 import AppShell from '@/components/layout/AppShell'
 import Header from '@/components/layout/Header'
 import { cn } from '@/lib/utils'
 
-type Tab = 'integrations' | 'store' | 'api' | 'notifications' | 'billing'
+type Tab = 'integrations' | 'maildomain' | 'store' | 'api' | 'notifications' | 'billing'
 
 const tabs: Array<{ key: Tab; label: string; icon: React.ElementType }> = [
-  { key: 'integrations',  label: 'Entegrasyonlar',  icon: Link2    },
-  { key: 'store',         label: 'Mağaza',           icon: Store    },
-  { key: 'api',           label: 'API Anahtarları',  icon: Key      },
-  { key: 'notifications', label: 'Bildirimler',      icon: Bell     },
-  { key: 'billing',       label: 'Plan & Ödeme',     icon: Shield   },
+  { key: 'integrations', label: 'Entegrasyonlar', icon: Link2 },
+  { key: 'maildomain',   label: 'Mail Domain',    icon: Mail  },
+  { key: 'store',        label: 'Mağaza',          icon: Store },
+  { key: 'api',          label: 'API Anahtarları', icon: Key   },
+  { key: 'notifications',label: 'Bildirimler',     icon: Bell  },
+  { key: 'billing',      label: 'Plan & Ödeme',    icon: Shield},
 ]
 
 interface Integration {
-  id: string
-  platform: string
-  shopDomain?: string
-  status: string
-  lastSyncAt?: string
+  id: string; platform: string; shopDomain?: string; status: string; lastSyncAt?: string
+}
+
+interface EmailDomain {
+  id: string; domain: string; status: string; dnsRecords: string; fromEmail?: string; createdAt: string
+}
+
+interface DnsRecord {
+  type: string; name: string; value: string; status?: string; priority?: number
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function StatusBadge({ status }: { status: string }) {
+  if (status === 'verified') return (
+    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+      <CheckCircle2 className="w-3 h-3" /> Doğrulandı
+    </span>
+  )
+  if (status === 'failed') return (
+    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-red-400 bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded-full">
+      <AlertCircle className="w-3 h-3" /> Hata
+    </span>
+  )
+  return (
+    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full">
+      <Clock className="w-3 h-3" /> Bekliyor
+    </span>
+  )
+}
+
+function CopyButton({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false)
+  function copy() {
+    navigator.clipboard.writeText(value)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
+  return (
+    <button onClick={copy} className="shrink-0 p-1.5 rounded-lg bg-[#1a1a1a] hover:bg-[#252525] border border-[#2a2a2a] transition-all text-gray-500 hover:text-gray-300">
+      {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+    </button>
+  )
 }
 
 function SettingRow({ label, desc, children }: { label: string; desc?: string; children: React.ReactNode }) {
@@ -41,250 +81,102 @@ function SettingRow({ label, desc, children }: { label: string; desc?: string; c
   )
 }
 
-function Toggle({ defaultChecked = true }: { defaultChecked?: boolean }) {
-  const [on, setOn] = useState(defaultChecked)
+function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <button
-      onClick={() => setOn(!on)}
-      className={cn('relative inline-flex rounded-full transition-colors', on ? 'bg-blue-600' : 'bg-[#2a2a2a]')}
+      onClick={() => onChange(!checked)}
+      className={cn('relative inline-flex rounded-full transition-colors', checked ? 'bg-blue-600' : 'bg-[#2a2a2a]')}
       style={{ height: '22px', width: '40px' }}
     >
-      <span className={cn('absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform', on ? 'translate-x-[18px]' : 'translate-x-0')} />
+      <span className={cn('absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform', checked ? 'translate-x-[18px]' : 'translate-x-0')} />
     </button>
   )
 }
 
-function ShopifyCard({ integration, onConnected }: {
-  integration?: Integration
-  onConnected: () => void
-}) {
-  const isConnected = integration?.status === 'active'
-  const [domain, setDomain] = useState('')
-  const [syncing, setSyncing] = useState(false)
-  const [syncResult, setSyncResult] = useState('')
-  const [error, setError] = useState('')
-  const [expanded, setExpanded] = useState(!isConnected)
+// ─── Integration Modal ────────────────────────────────────────────────────────
 
-  function handleConnect() {
-    if (!domain) return
-    const shop = domain.replace('https://', '').replace('http://', '').replace(/\/$/, '')
-    window.location.href = `/api/integrations/shopify/auth?shop=${encodeURIComponent(shop)}`
-  }
+interface ModalField { key: string; label: string; placeholder: string; secret?: boolean; hint?: string }
 
-  async function handleSync() {
-    setSyncing(true); setSyncResult('')
-    try {
-      const res = await fetch('/api/integrations/shopify/sync', { method: 'POST' })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
-      setSyncResult(data.message); onConnected()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Senkronizasyon hatası')
-    } finally { setSyncing(false) }
-  }
-
-  async function handleDisconnect() {
-    await fetch('/api/integrations/shopify/disconnect', { method: 'POST' })
-    onConnected(); setExpanded(true); setDomain('')
-  }
-
-  return (
-    <div className={cn('rounded-2xl border-2 overflow-hidden transition-all', isConnected ? 'border-emerald-500/30' : 'border-[#1e1e1e]')}>
-      <div className="px-5 py-4 flex items-center gap-4 bg-[#111]">
-        <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border', isConnected ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-[#1a1a1a] border-[#2a2a2a]')}>
-          <ShoppingBag className={cn('w-5 h-5', isConnected ? 'text-emerald-400' : 'text-gray-600')} />
-        </div>
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
-            <p className="text-sm font-semibold text-white">Shopify</p>
-            {isConnected && (
-              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse" /> Bağlı
-              </span>
-            )}
-          </div>
-          <p className="text-xs text-gray-600">{isConnected ? integration?.shopDomain : 'Sipariş, müşteri ve sepet verilerini çek'}</p>
-          {integration?.lastSyncAt && (
-            <p className="text-[11px] text-gray-700 mt-0.5">Son sync: {new Date(integration.lastSyncAt).toLocaleString('tr-TR')}</p>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          {isConnected && (
-            <button onClick={handleSync} disabled={syncing}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 rounded-lg transition-all">
-              {syncing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-              Senkronize Et
-            </button>
-          )}
-          <button onClick={() => setExpanded(!expanded)} className="text-gray-600 hover:text-gray-300 transition-colors p-1">
-            <ChevronRight className={cn('w-4 h-4 transition-transform', expanded && 'rotate-90')} />
-          </button>
-        </div>
-      </div>
-
-      {syncResult && (
-        <div className="px-5 pb-3 bg-[#111]">
-          <p className="text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2">✓ {syncResult}</p>
-        </div>
-      )}
-
-      {expanded && (
-        <div className="px-5 pb-5 pt-4 border-t border-[#1e1e1e] bg-[#0d0d0d] space-y-4">
-          <div className="bg-blue-500/5 border border-blue-500/15 rounded-xl px-4 py-3 text-xs text-blue-400">
-            <p className="font-semibold mb-1">Nasıl çalışır?</p>
-            <p className="text-blue-500/80">Mağaza adresini gir → Shopify izin sayfasına yönlendirilirsin → İzin ver → Otomatik bağlanır.</p>
-          </div>
-          <div>
-            <label className="text-xs font-medium text-gray-600 mb-1.5 block uppercase tracking-wider">Mağaza Domain</label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={domain}
-                onChange={e => setDomain(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleConnect()}
-                placeholder="magazaniz.myshopify.com"
-                className="flex-1 px-3 py-2.5 text-sm border border-[#2a2a2a] bg-[#111] text-gray-300 placeholder:text-gray-700 rounded-xl focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20"
-              />
-              <button
-                onClick={handleConnect}
-                disabled={!domain}
-                className="flex items-center gap-2 px-4 py-2 bg-[#96bf48] hover:bg-[#7ea33a] disabled:opacity-40 text-white text-sm font-semibold rounded-xl transition-all whitespace-nowrap"
-              >
-                <ShoppingBag className="w-3.5 h-3.5" />
-                Shopify ile Bağlan
-              </button>
-            </div>
-            <p className="text-[11px] text-gray-700 mt-1.5">Örnek: gqcdmn-9j.myshopify.com</p>
-          </div>
-          {error && (
-            <div className="flex items-center gap-2 text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2">
-              <AlertCircle className="w-3.5 h-3.5 shrink-0" />{error}
-            </div>
-          )}
-          {isConnected && (
-            <button onClick={handleDisconnect} className="flex items-center gap-1.5 text-xs text-red-400 hover:text-red-300 transition-colors">
-              <Link2Off className="w-3.5 h-3.5" /> Bağlantıyı Kes
-            </button>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function PlatformCard({
-  icon: Icon, name, desc, iconBg, integration, onConnected,
-  fields, connectUrl, syncUrl, disconnectUrl,
+function IntegrationModal({
+  name, fields, connectUrl, syncUrl, disconnectUrl,
+  integration, onClose, onSuccess,
 }: {
-  icon: React.ElementType; name: string; desc: string; iconBg: string
-  integration?: Integration; onConnected: () => void
-  fields: Array<{ key: string; label: string; placeholder: string; secret?: boolean }>
-  connectUrl: string; syncUrl: string; disconnectUrl: string
+  name: string; fields: ModalField[]
+  connectUrl: string; syncUrl?: string; disconnectUrl: string
+  integration?: Integration; onClose: () => void; onSuccess: () => void
 }) {
   const isConnected = integration?.status === 'active'
   const [values, setValues] = useState<Record<string, string>>({})
   const [show, setShow] = useState<Record<string, boolean>>({})
-  const [connecting, setConnecting] = useState(false)
+  const [loading, setLoading] = useState(false)
   const [syncing, setSyncing] = useState(false)
-  const [syncResult, setSyncResult] = useState('')
   const [error, setError] = useState('')
-  const [expanded, setExpanded] = useState(!isConnected)
+  const [syncResult, setSyncResult] = useState('')
 
   async function handleConnect() {
-    const missing = fields.find(f => !values[f.key])
-    if (missing) return
-    setConnecting(true); setError('')
+    setLoading(true); setError('')
     try {
-      const res = await fetch(connectUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(values),
-      })
+      const res = await fetch(connectUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(values) })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
-      onConnected(); setExpanded(false)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Bağlantı hatası')
-    } finally { setConnecting(false) }
+      onSuccess(); onClose()
+    } catch (e) { setError(e instanceof Error ? e.message : 'Bağlantı hatası') }
+    finally { setLoading(false) }
   }
 
   async function handleSync() {
-    setSyncing(true); setSyncResult('')
+    if (!syncUrl) return
+    setSyncing(true)
     try {
       const res = await fetch(syncUrl, { method: 'POST' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
-      setSyncResult(data.message); onConnected()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Sync hatası')
-    } finally { setSyncing(false) }
+      setSyncResult(data.message); onSuccess()
+    } catch (e) { setError(e instanceof Error ? e.message : 'Sync hatası') }
+    finally { setSyncing(false) }
   }
 
   async function handleDisconnect() {
-    await fetch(disconnectUrl, { method: 'POST' })
-    onConnected(); setExpanded(true); setValues({})
+    await fetch(disconnectUrl, { method: 'POST' }); onSuccess(); onClose()
   }
 
   return (
-    <div className={cn('rounded-2xl border-2 overflow-hidden transition-all', isConnected ? 'border-emerald-500/30' : 'border-[#1e1e1e]')}>
-      <div className="px-5 py-4 flex items-center gap-4 bg-[#111]">
-        <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center shrink-0', iconBg)}>
-          <Icon className="w-5 h-5 text-white" />
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-[#111] border border-[#1e1e1e] rounded-2xl shadow-2xl w-full max-w-md">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#1e1e1e]">
+          <h3 className="font-semibold text-white">{name} Ayarları</h3>
+          <button onClick={onClose} className="text-gray-600 hover:text-gray-300 transition-colors"><X className="w-5 h-5" /></button>
         </div>
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
-            <p className="text-sm font-semibold text-white">{name}</p>
-            {isConnected && (
-              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse" /> Bağlı
-              </span>
-            )}
-          </div>
-          <p className="text-xs text-gray-600">{isConnected ? integration?.shopDomain : desc}</p>
-          {integration?.lastSyncAt && (
-            <p className="text-[11px] text-gray-700 mt-0.5">Son sync: {new Date(integration.lastSyncAt).toLocaleString('tr-TR')}</p>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
+        <div className="p-6 space-y-4">
           {isConnected && (
-            <button onClick={handleSync} disabled={syncing}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 rounded-lg transition-all">
-              {syncing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-              Senkronize Et
-            </button>
+            <div className="flex items-center gap-3 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
+              <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+              <div className="text-xs text-emerald-400">
+                <p className="font-semibold">{name} Bağlı</p>
+                {integration?.lastSyncAt && <p className="text-emerald-500/70">Son sync: {new Date(integration.lastSyncAt).toLocaleString('tr-TR')}</p>}
+              </div>
+            </div>
           )}
-          <button onClick={() => setExpanded(!expanded)} className="text-gray-600 hover:text-gray-300 transition-colors p-1">
-            <ChevronRight className={cn('w-4 h-4 transition-transform', expanded && 'rotate-90')} />
-          </button>
-        </div>
-      </div>
 
-      {syncResult && (
-        <div className="px-5 pb-3 bg-[#111]">
-          <p className="text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2">✓ {syncResult}</p>
-        </div>
-      )}
-
-      {expanded && (
-        <div className="px-5 pb-5 pt-4 border-t border-[#1e1e1e] bg-[#0d0d0d] space-y-3">
           {fields.map(f => (
             <div key={f.key}>
-              <label className="text-xs font-medium text-gray-600 mb-1.5 block uppercase tracking-wider">{f.label}</label>
+              <label className="text-xs font-medium text-gray-500 mb-1.5 block uppercase tracking-wider">{f.label}</label>
               <div className="relative">
                 <input
                   type={f.secret && !show[f.key] ? 'password' : 'text'}
                   value={values[f.key] ?? ''}
                   onChange={e => setValues(v => ({ ...v, [f.key]: e.target.value }))}
                   placeholder={f.placeholder}
-                  className="w-full px-3 py-2.5 text-sm border border-[#2a2a2a] bg-[#111] text-gray-300 placeholder:text-gray-700 rounded-xl focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 pr-9"
+                  className="w-full px-3 py-2.5 text-sm border border-[#2a2a2a] bg-[#0d0d0d] text-gray-300 placeholder:text-gray-700 rounded-xl focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 pr-9"
                 />
                 {f.secret && (
                   <button type="button" onClick={() => setShow(s => ({ ...s, [f.key]: !s[f.key] }))}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-600 hover:text-gray-400 transition-colors">
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-600 hover:text-gray-400">
                     {show[f.key] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                   </button>
                 )}
               </div>
+              {f.hint && <p className="text-[11px] text-gray-700 mt-1">{f.hint}</p>}
             </div>
           ))}
 
@@ -293,225 +185,491 @@ function PlatformCard({
               <AlertCircle className="w-3.5 h-3.5 shrink-0" />{error}
             </div>
           )}
+          {syncResult && (
+            <div className="text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-3 py-2">✓ {syncResult}</div>
+          )}
 
-          <div className="flex items-center gap-3 pt-1">
-            <button onClick={handleConnect} disabled={connecting || fields.some(f => !values[f.key])}
-              className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-sm font-semibold rounded-xl transition-all">
-              {connecting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Link2 className="w-3.5 h-3.5" />}
-              {connecting ? 'Bağlanıyor...' : 'Bağla ve Test Et'}
+          <div className="flex items-center gap-3 pt-2">
+            <button onClick={handleConnect} disabled={loading}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-sm font-semibold rounded-xl transition-all">
+              {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Link2 className="w-3.5 h-3.5" />}
+              {isConnected ? 'Güncelle' : 'Bağla'}
             </button>
+            {isConnected && syncUrl && (
+              <button onClick={handleSync} disabled={syncing}
+                className="flex items-center gap-1.5 px-3 py-2.5 text-xs font-medium text-gray-400 bg-[#1a1a1a] hover:bg-[#222] border border-[#2a2a2a] rounded-xl transition-all">
+                {syncing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                Sync
+              </button>
+            )}
             {isConnected && (
-              <button onClick={handleDisconnect} className="flex items-center gap-1.5 text-xs text-red-400 hover:text-red-300 transition-colors">
-                <Link2Off className="w-3.5 h-3.5" /> Bağlantıyı Kes
+              <button onClick={handleDisconnect} className="flex items-center gap-1.5 px-3 py-2.5 text-xs font-medium text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/15 border border-red-500/20 rounded-xl transition-all">
+                <Link2Off className="w-3.5 h-3.5" /> Kes
               </button>
             )}
           </div>
         </div>
-      )}
+      </div>
     </div>
   )
 }
 
-function WhatsAppChatbotCard({ integration, onConnected }: { integration?: Integration; onConnected: () => void }) {
+// ─── Integration Card ─────────────────────────────────────────────────────────
+
+function IntegrationCard({
+  icon: Icon, name, desc, iconBg, badge, integration,
+  modalFields, connectUrl, syncUrl, disconnectUrl, onConnected, comingSoon,
+}: {
+  icon: React.ElementType; name: string; desc: string; iconBg: string; badge?: string
+  integration?: Integration; modalFields: ModalField[]
+  connectUrl: string; syncUrl?: string; disconnectUrl: string
+  onConnected: () => void; comingSoon?: boolean
+}) {
+  const [showModal, setShowModal] = useState(false)
   const isConnected = integration?.status === 'active'
-  const [phoneNumberId, setPhoneNumberId] = useState('')
-  const [accessToken, setAccessToken]     = useState('')
-  const [showToken, setShowToken]         = useState(false)
-  const [connecting, setConnecting]       = useState(false)
-  const [error, setError]                 = useState('')
-  const [expanded, setExpanded]           = useState(!isConnected)
 
-  const webhookUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}/api/whatsapp/webhook`
-    : 'https://app.marksio.com/api/whatsapp/webhook'
-
-  async function handleConnect() {
-    if (!phoneNumberId || !accessToken) return
-    setConnecting(true); setError('')
-    try {
-      const res = await fetch('/api/integrations/whatsapp/connect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phoneNumberId, accessToken }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
-      onConnected(); setExpanded(false)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Bağlantı hatası')
-    } finally { setConnecting(false) }
-  }
-
-  async function handleDisconnect() {
-    await fetch('/api/integrations/whatsapp/disconnect', { method: 'POST' })
-    onConnected(); setExpanded(true)
+  if (comingSoon) {
+    return (
+      <div className="flex items-center gap-4 px-5 py-4 bg-[#0d0d0d] border border-[#1a1a1a] rounded-2xl opacity-40">
+        <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center shrink-0', iconBg)}>
+          <Icon className="w-5 h-5 text-white" />
+        </div>
+        <div className="flex-1">
+          <p className="text-sm font-semibold text-white">{name}</p>
+          <p className="text-xs text-gray-600">{desc}</p>
+        </div>
+        <span className="text-[11px] font-semibold text-gray-600 bg-[#1a1a1a] border border-[#2a2a2a] px-2.5 py-1 rounded-full">Yakında</span>
+      </div>
+    )
   }
 
   return (
-    <div className={cn(
-      'rounded-2xl border-2 overflow-hidden transition-all',
-      isConnected ? 'border-green-500/40' : 'border-green-500/20 bg-gradient-to-b from-green-500/5 to-transparent'
-    )}>
-      {/* Header */}
-      <div className="px-5 py-4 flex items-center gap-4 bg-[#111]">
-        <div className={cn(
-          'w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border',
-          isConnected ? 'bg-green-500/10 border-green-500/20' : 'bg-green-500/10 border-green-500/20'
-        )}>
-          <MessageSquare className="w-5 h-5 text-green-400" />
+    <>
+      <div className={cn(
+        'flex items-center gap-4 px-5 py-4 rounded-2xl border-2 transition-all',
+        isConnected ? 'bg-[#0d0d0d] border-emerald-500/25' : 'bg-[#0d0d0d] border-[#1a1a1a]'
+      )}>
+        <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center shrink-0', iconBg)}>
+          <Icon className="w-5 h-5 text-white" />
         </div>
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <p className="text-sm font-semibold text-white">WhatsApp AI Chatbot</p>
-            <span className="text-[10px] font-bold text-green-400 bg-green-500/10 border border-green-500/20 px-2 py-0.5 rounded-full uppercase tracking-wide">
-              Premium Özellik
-            </span>
+            <p className="text-sm font-semibold text-white">{name}</p>
+            {badge && (
+              <span className="text-[10px] font-bold text-violet-400 bg-violet-500/10 border border-violet-500/20 px-2 py-0.5 rounded-full uppercase tracking-wide">{badge}</span>
+            )}
             {isConnected && (
               <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse" /> Aktif
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse" /> Bağlı
               </span>
             )}
           </div>
-          <p className="text-xs text-gray-500 mt-0.5">
-            {isConnected ? integration?.shopDomain : 'Müşteriler mağazanla WhatsApp\'tan konuşur — AI otomatik yanıtlar'}
-          </p>
+          <p className="text-xs text-gray-600 truncate">{isConnected && integration?.shopDomain ? integration.shopDomain : desc}</p>
         </div>
-        <button onClick={() => setExpanded(!expanded)} className="text-gray-600 hover:text-gray-300 transition-colors p-1">
-          <ChevronRight className={cn('w-4 h-4 transition-transform', expanded && 'rotate-90')} />
+        <button
+          onClick={() => setShowModal(true)}
+          className="p-2 rounded-xl text-gray-600 hover:text-gray-300 hover:bg-[#1a1a1a] transition-all border border-[#2a2a2a]"
+        >
+          <Settings className="w-4 h-4" />
         </button>
       </div>
 
-      {/* Feature highlights */}
-      {!isConnected && !expanded && (
-        <div className="px-5 pb-4 bg-[#111]">
-          <div className="flex items-center gap-6">
-            {['Stok & fiyat bilir', 'Sipariş sorgular', 'Türkçe konuşur'].map(f => (
-              <div key={f} className="flex items-center gap-1.5 text-xs text-gray-500">
-                <Check className="w-3 h-3 text-green-400" /> {f}
+      {showModal && (
+        <IntegrationModal
+          name={name} fields={modalFields}
+          connectUrl={connectUrl} syncUrl={syncUrl} disconnectUrl={disconnectUrl}
+          integration={integration}
+          onClose={() => setShowModal(false)}
+          onSuccess={() => { onConnected(); setShowModal(false) }}
+        />
+      )}
+    </>
+  )
+}
+
+// ─── Mail Domain Section ──────────────────────────────────────────────────────
+
+function DnsRecordRow({ record }: { record: DnsRecord }) {
+  const statusColor = record.status === 'verified' ? 'text-emerald-400' : record.status === 'not_started' ? 'text-gray-600' : 'text-amber-400'
+  return (
+    <div className="grid grid-cols-[100px_1fr_1fr_80px] gap-3 items-center py-3 border-b border-[#1a1a1a] last:border-0">
+      <span className="text-xs font-mono font-bold text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2 py-1 rounded-lg text-center">{record.type}</span>
+      <div className="min-w-0">
+        <p className="text-xs font-mono text-gray-400 truncate">{record.name}</p>
+      </div>
+      <div className="flex items-center gap-1.5 min-w-0">
+        <p className="text-xs font-mono text-gray-500 truncate flex-1">{record.value}</p>
+        <CopyButton value={record.value} />
+      </div>
+      <div className="flex justify-end">
+        {record.status ? (
+          <span className={cn('text-[11px] font-semibold', statusColor)}>
+            {record.status === 'verified' ? '✓ OK' : record.status === 'not_started' ? '— Bekliyor' : '⏳ Kontrol...'}
+          </span>
+        ) : (
+          <span className="text-[11px] text-gray-600">—</span>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function MailDomainSection() {
+  const [domains, setDomains] = useState<EmailDomain[]>([])
+  const [newDomain, setNewDomain] = useState('')
+  const [creating, setCreating] = useState(false)
+  const [verifying, setVerifying] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState<string | null>(null)
+  const [error, setError] = useState('')
+  const [showAdd, setShowAdd] = useState(false)
+
+  const loadDomains = useCallback(async () => {
+    try {
+      const res = await fetch('/api/email/domain')
+      const data = await res.json()
+      setDomains(data.domains ?? [])
+    } catch {}
+  }, [])
+
+  useEffect(() => { loadDomains() }, [loadDomains])
+
+  async function handleCreate() {
+    if (!newDomain.trim()) return
+    setCreating(true); setError('')
+    try {
+      const res = await fetch('/api/email/domain', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ domain: newDomain.trim() }),
+      })
+      const text = await res.text()
+      const data = text ? JSON.parse(text) : {}
+      if (!res.ok) throw new Error(data.error ?? `Sunucu hatası (${res.status})`)
+      await loadDomains()
+      setNewDomain(''); setShowAdd(false)
+    } catch (e) { setError(e instanceof Error ? e.message : 'Beklenmeyen hata') }
+    finally { setCreating(false) }
+  }
+
+  async function handleVerify(domainId: string) {
+    setVerifying(domainId)
+    try {
+      const res = await fetch('/api/email/domain/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ domainId }),
+      })
+      const text = await res.text()
+      const data = text ? JSON.parse(text) : {}
+      if (!res.ok) { setError(data.error ?? 'Doğrulama başarısız'); return }
+      await loadDomains()
+    } catch (e) { setError(e instanceof Error ? e.message : 'Hata') }
+    finally { setVerifying(null) }
+  }
+
+  async function handleDelete(domainId: string) {
+    setDeleting(domainId)
+    try {
+      await fetch(`/api/email/domain/${domainId}`, { method: 'DELETE' })
+      await loadDomains()
+    } finally { setDeleting(null) }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-start justify-between">
+        <div>
+          <h3 className="text-base font-bold text-white">Mail Domain</h3>
+          <p className="text-sm text-gray-600 mt-1">Kendi domaininizden kampanya maili gönderin (kampanya@markaniz.com)</p>
+        </div>
+        <button
+          onClick={() => setShowAdd(true)}
+          className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-blue-400 bg-blue-500/10 hover:bg-blue-500/15 border border-blue-500/20 rounded-xl transition-all"
+        >
+          <Plus className="w-4 h-4" /> Domain Ekle
+        </button>
+      </div>
+
+      {/* Nasıl çalışır */}
+      <div className="bg-[#0d0d0d] border border-[#1a1a1a] rounded-2xl p-5">
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">Kurulum Adımları</p>
+        <div className="grid grid-cols-4 gap-3">
+          {[
+            { n: '1', title: 'Domain Ekle', desc: 'Marka domaininizi girin' },
+            { n: '2', title: 'DNS Kayıtları', desc: 'SPF, DKIM, DMARC kayıtlarını kopyalayın' },
+            { n: '3', title: 'Sağlayıcıya Ekle', desc: 'GoDaddy, Namecheap veya Cloudflare\'e ekleyin' },
+            { n: '4', title: 'Doğrula', desc: 'Verify butonuna basın' },
+          ].map(s => (
+            <div key={s.n} className="flex gap-3">
+              <div className="w-6 h-6 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-[11px] font-bold text-blue-400 shrink-0 mt-0.5">{s.n}</div>
+              <div>
+                <p className="text-xs font-semibold text-gray-300">{s.title}</p>
+                <p className="text-[11px] text-gray-600 mt-0.5">{s.desc}</p>
               </div>
-            ))}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Add domain form */}
+      {showAdd && (
+        <div className="bg-[#0d0d0d] border border-blue-500/20 rounded-2xl p-5 space-y-3">
+          <p className="text-sm font-semibold text-white">Yeni Domain Ekle</p>
+          <div className="flex gap-2">
+            <input
+              value={newDomain}
+              onChange={e => setNewDomain(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleCreate()}
+              placeholder="markaniz.com"
+              className="flex-1 px-3 py-2.5 text-sm border border-[#2a2a2a] bg-[#111] text-gray-300 placeholder:text-gray-700 rounded-xl focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20"
+            />
+            <button
+              onClick={handleCreate} disabled={creating || !newDomain.trim()}
+              className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-sm font-semibold rounded-xl transition-all"
+            >
+              {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+              {creating ? 'Oluşturuluyor...' : 'Oluştur'}
+            </button>
+            <button onClick={() => setShowAdd(false)} className="p-2.5 text-gray-600 hover:text-gray-300 border border-[#2a2a2a] rounded-xl transition-colors">
+              <X className="w-4 h-4" />
+            </button>
           </div>
+          {error && (
+            <div className="flex items-center gap-2 text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2">
+              <AlertCircle className="w-3.5 h-3.5 shrink-0" />{error}
+            </div>
+          )}
         </div>
       )}
 
-      {expanded && (
-        <div className="border-t border-[#1e1e1e] bg-[#0d0d0d]">
-          {/* Nasıl çalışır */}
-          <div className="px-5 pt-5 pb-4">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Nasıl çalışır?</p>
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { step: '1', title: 'Meta Hesap', desc: 'Meta Business + WhatsApp Business API' },
-                { step: '2', title: 'API Bilgileri', desc: 'Phone Number ID ve Access Token gir' },
-                { step: '3', title: 'Webhook Kur', desc: 'Meta\'ya webhook URL\'ini ekle' },
-              ].map(s => (
-                <div key={s.step} className="bg-[#111] border border-[#1e1e1e] rounded-xl p-3">
-                  <div className="w-6 h-6 rounded-full bg-green-500/10 border border-green-500/20 flex items-center justify-center text-[11px] font-bold text-green-400 mb-2">
-                    {s.step}
-                  </div>
-                  <p className="text-xs font-medium text-gray-300">{s.title}</p>
-                  <p className="text-[11px] text-gray-600 mt-0.5">{s.desc}</p>
+      {/* Domain list */}
+      {domains.length === 0 && !showAdd && (
+        <div className="text-center py-10 bg-[#0d0d0d] border border-dashed border-[#2a2a2a] rounded-2xl">
+          <Globe2 className="w-8 h-8 text-gray-700 mx-auto mb-3" />
+          <p className="text-sm font-medium text-gray-500">Henüz domain eklenmedi</p>
+          <p className="text-xs text-gray-700 mt-1">Kendi domaininizden mail göndermek için domain ekleyin</p>
+        </div>
+      )}
+
+      {domains.map(d => {
+        let records: DnsRecord[] = []
+        try { records = JSON.parse(d.dnsRecords) } catch {}
+
+        return (
+          <div key={d.id} className={cn(
+            'bg-[#0d0d0d] border rounded-2xl overflow-hidden',
+            d.status === 'verified' ? 'border-emerald-500/25' : 'border-[#1a1a1a]'
+          )}>
+            {/* Domain header */}
+            <div className="px-5 py-4 flex items-center gap-4 border-b border-[#1a1a1a]">
+              <div className={cn(
+                'w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border',
+                d.status === 'verified' ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-[#111] border-[#2a2a2a]'
+              )}>
+                <Globe2 className={cn('w-5 h-5', d.status === 'verified' ? 'text-emerald-400' : 'text-gray-600')} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-bold text-white">{d.domain}</p>
+                  <StatusBadge status={d.status} />
                 </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Form */}
-          <div className="px-5 pb-5 space-y-3">
-            <div>
-              <label className="text-xs font-medium text-gray-600 mb-1.5 block uppercase tracking-wider">Phone Number ID</label>
-              <input
-                type="text"
-                value={phoneNumberId}
-                onChange={e => setPhoneNumberId(e.target.value)}
-                placeholder="1234567890123456"
-                className="w-full px-3 py-2.5 text-sm border border-[#2a2a2a] bg-[#111] text-gray-300 placeholder:text-gray-700 rounded-xl focus:outline-none focus:border-green-500/50 focus:ring-2 focus:ring-green-500/20"
-              />
-              <p className="text-[11px] text-gray-700 mt-1">Meta for Developers → App → WhatsApp → API Setup → Phone Number ID</p>
-            </div>
-
-            <div>
-              <label className="text-xs font-medium text-gray-600 mb-1.5 block uppercase tracking-wider">Permanent Access Token</label>
-              <div className="relative">
-                <input
-                  type={showToken ? 'text' : 'password'}
-                  value={accessToken}
-                  onChange={e => setAccessToken(e.target.value)}
-                  placeholder="EAAxxxxxx..."
-                  className="w-full px-3 py-2.5 pr-9 text-sm border border-[#2a2a2a] bg-[#111] text-gray-300 placeholder:text-gray-700 rounded-xl focus:outline-none focus:border-green-500/50 focus:ring-2 focus:ring-green-500/20"
-                />
-                <button type="button" onClick={() => setShowToken(!showToken)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-600 hover:text-gray-400 transition-colors">
-                  {showToken ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                {d.fromEmail && (
+                  <p className="text-xs text-gray-600 mt-0.5">Gönderici: <span className="text-gray-400 font-mono">{d.fromEmail}</span></p>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {d.status !== 'verified' && (
+                  <button
+                    onClick={() => handleVerify(d.id)}
+                    disabled={verifying === d.id}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-400 bg-blue-500/10 hover:bg-blue-500/15 border border-blue-500/20 rounded-lg transition-all"
+                  >
+                    {verifying === d.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                    Verify Domain
+                  </button>
+                )}
+                <button
+                  onClick={() => handleDelete(d.id)}
+                  disabled={deleting === d.id}
+                  className="p-1.5 text-gray-700 hover:text-red-400 transition-colors"
+                >
+                  {deleting === d.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                 </button>
               </div>
-              <p className="text-[11px] text-gray-700 mt-1">System User Access Token — Meta Business Manager&apos;dan al</p>
             </div>
 
-            {/* Webhook URL */}
-            <div className="bg-green-500/5 border border-green-500/15 rounded-xl px-4 py-3">
-              <p className="text-xs font-semibold text-green-400 mb-1">Webhook URL (Meta&apos;ya ekle)</p>
-              <code className="text-[11px] text-green-300/80 font-mono break-all">{webhookUrl}</code>
-              <div className="flex items-center gap-4 mt-2">
-                <div>
-                  <p className="text-[10px] text-gray-600">Verify Token</p>
-                  <code className="text-[11px] text-gray-400 font-mono">marksio-whatsapp-verify-2024</code>
+            {/* DNS Records */}
+            {records.length > 0 && (
+              <div className="px-5 pb-2">
+                <div className="grid grid-cols-[100px_1fr_1fr_80px] gap-3 py-2 border-b border-[#1a1a1a]">
+                  <p className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider">Tip</p>
+                  <p className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider">İsim</p>
+                  <p className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider">Değer</p>
+                  <p className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider text-right">Durum</p>
                 </div>
-                <div>
-                  <p className="text-[10px] text-gray-600">Subscribed Fields</p>
-                  <code className="text-[11px] text-gray-400 font-mono">messages</code>
-                </div>
-              </div>
-            </div>
-
-            {error && (
-              <div className="flex items-center gap-2 text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2">
-                <AlertCircle className="w-3.5 h-3.5 shrink-0" />{error}
+                {records.map((rec, i) => (
+                  <DnsRecordRow key={i} record={rec} />
+                ))}
               </div>
             )}
 
-            <div className="flex items-center gap-3 pt-1">
-              <button
-                onClick={handleConnect}
-                disabled={connecting || !phoneNumberId || !accessToken}
-                className="flex items-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 disabled:opacity-40 text-white text-sm font-semibold rounded-xl transition-all"
-              >
-                {connecting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MessageSquare className="w-3.5 h-3.5" />}
-                {connecting ? 'Doğrulanıyor...' : 'WhatsApp\'ı Bağla'}
-              </button>
-              {isConnected && (
-                <button onClick={handleDisconnect} className="flex items-center gap-1.5 text-xs text-red-400 hover:text-red-300 transition-colors">
-                  <Link2Off className="w-3.5 h-3.5" /> Bağlantıyı Kes
-                </button>
-              )}
-            </div>
+            {d.status !== 'verified' && records.length > 0 && (
+              <div className="px-5 py-3 bg-amber-500/5 border-t border-amber-500/10">
+                <p className="text-xs text-amber-500/80">
+                  Bu DNS kayıtlarını domain sağlayıcınıza (GoDaddy, Namecheap, Cloudflare vb.) ekleyin, ardından &quot;Verify Domain&quot; butonuna basın. DNS yayılması 5-60 dakika sürebilir.
+                </p>
+              </div>
+            )}
+
+            {d.status === 'verified' && (
+              <div className="px-5 py-3 bg-emerald-500/5 border-t border-emerald-500/10">
+                <p className="text-xs text-emerald-400">
+                  Domain doğrulandı. Kampanyalarınızda <strong className="font-mono">{d.fromEmail}</strong> adresini kullanabilirsiniz.
+                </p>
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        )
+      })}
     </div>
   )
 }
 
-function ComingSoonCard({ icon: Icon, name, desc, iconBg }: {
-  icon: React.ElementType; name: string; desc: string; iconBg: string
-}) {
+// ─── Store Settings ───────────────────────────────────────────────────────────
+
+function StoreSettings() {
+  const [storeName, setStoreName] = useState('')
+  const [currency, setCurrency]   = useState('TRY')
+  const [language, setLanguage]   = useState('tr')
+  const [timezone, setTimezone]   = useState('Europe/Istanbul')
+  const [saving, setSaving]       = useState(false)
+  const [saved, setSaved]         = useState(false)
+  const [loaded, setLoaded]       = useState(false)
+
+  useEffect(() => {
+    fetch('/api/settings/store').then(r => r.json()).then(d => {
+      if (d.storeName) setStoreName(d.storeName)
+      if (d.currency)  setCurrency(d.currency)
+      if (d.language)  setLanguage(d.language)
+      if (d.timezone)  setTimezone(d.timezone)
+      setLoaded(true)
+    }).catch(() => setLoaded(true))
+  }, [])
+
+  async function handleSave() {
+    setSaving(true)
+    try {
+      await fetch('/api/settings/store', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ storeName, currency, language, timezone }),
+      })
+      setSaved(true); setTimeout(() => setSaved(false), 2500)
+    } finally { setSaving(false) }
+  }
+
+  if (!loaded) return <div className="flex items-center justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-gray-600" /></div>
+
   return (
-    <div className="bg-[#111] rounded-2xl border border-[#1e1e1e] px-5 py-4 flex items-center gap-4 opacity-50">
-      <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center shrink-0', iconBg)}>
-        <Icon className="w-5 h-5 text-white" />
+    <div className="bg-[#0d0d0d] border border-[#1a1a1a] rounded-2xl p-6">
+      <h3 className="text-sm font-semibold text-white mb-5">Mağaza Bilgileri</h3>
+      <SettingRow label="Mağaza Adı" desc="Müşterilerinize gösterilen isim">
+        <input
+          value={storeName}
+          onChange={e => setStoreName(e.target.value)}
+          className="px-3 py-2.5 text-sm border border-[#2a2a2a] bg-[#111] text-white rounded-xl focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 w-52"
+        />
+      </SettingRow>
+      <SettingRow label="Para Birimi">
+        <select value={currency} onChange={e => setCurrency(e.target.value)}
+          className="px-3 py-2.5 text-sm border border-[#2a2a2a] bg-[#111] text-gray-300 rounded-xl focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 w-36">
+          <option value="TRY">TRY (₺)</option>
+          <option value="USD">USD ($)</option>
+          <option value="EUR">EUR (€)</option>
+        </select>
+      </SettingRow>
+      <SettingRow label="Dil">
+        <select value={language} onChange={e => setLanguage(e.target.value)}
+          className="px-3 py-2.5 text-sm border border-[#2a2a2a] bg-[#111] text-gray-300 rounded-xl focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 w-36">
+          <option value="tr">Türkçe</option>
+          <option value="en">English</option>
+        </select>
+      </SettingRow>
+      <SettingRow label="Zaman Dilimi">
+        <select value={timezone} onChange={e => setTimezone(e.target.value)}
+          className="px-3 py-2.5 text-sm border border-[#2a2a2a] bg-[#111] text-gray-300 rounded-xl focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 w-52">
+          <option value="Europe/Istanbul">Europe/Istanbul (UTC+3)</option>
+          <option value="UTC">UTC</option>
+        </select>
+      </SettingRow>
+      <div className="pt-5">
+        <button
+          onClick={handleSave} disabled={saving}
+          className={cn(
+            'flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white rounded-xl transition-all',
+            saved ? 'bg-emerald-600' : 'bg-blue-600 hover:bg-blue-700',
+            saving && 'opacity-60'
+          )}
+        >
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : saved ? <Check className="w-4 h-4" /> : null}
+          {saving ? 'Kaydediliyor...' : saved ? 'Kaydedildi' : 'Değişiklikleri Kaydet'}
+        </button>
       </div>
-      <div className="flex-1">
-        <p className="text-sm font-semibold text-white">{name}</p>
-        <p className="text-xs text-gray-600">{desc}</p>
-      </div>
-      <span className="text-[11px] font-semibold text-gray-600 bg-[#1a1a1a] border border-[#2a2a2a] px-2.5 py-1 rounded-full">Yakında</span>
     </div>
   )
 }
+
+// ─── Notifications ────────────────────────────────────────────────────────────
+
+function NotificationsSection() {
+  const [prefs, setPrefs] = useState({
+    campaignDone: true,
+    cartAbandoned: false,
+    weeklyReport: true,
+    newCustomer: false,
+  })
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved]   = useState(false)
+
+  function toggle(key: keyof typeof prefs) { setPrefs(p => ({ ...p, [key]: !p[key] })) }
+
+  async function handleSave() {
+    setSaving(true)
+    await new Promise(r => setTimeout(r, 600))
+    setSaved(true); setSaving(false)
+    setTimeout(() => setSaved(false), 2500)
+  }
+
+  return (
+    <div className="bg-[#0d0d0d] border border-[#1a1a1a] rounded-2xl p-6">
+      <h3 className="text-sm font-semibold text-white mb-4">Bildirim Tercihleri</h3>
+      <SettingRow label="Kampanya tamamlandığında" desc="Kampanya gönderimi bitince bildir">
+        <Toggle checked={prefs.campaignDone} onChange={() => toggle('campaignDone')} />
+      </SettingRow>
+      <SettingRow label="Sepet terk tespit edildiğinde" desc="Gerçek zamanlı sepet terk bildirimleri">
+        <Toggle checked={prefs.cartAbandoned} onChange={() => toggle('cartAbandoned')} />
+      </SettingRow>
+      <SettingRow label="Haftalık performans raporu" desc="Her Pazartesi email ile özet gönder">
+        <Toggle checked={prefs.weeklyReport} onChange={() => toggle('weeklyReport')} />
+      </SettingRow>
+      <SettingRow label="Yeni müşteri kaydı" desc="Yeni müşteri oluşturulunca bildir">
+        <Toggle checked={prefs.newCustomer} onChange={() => toggle('newCustomer')} />
+      </SettingRow>
+      <div className="pt-5">
+        <button onClick={handleSave} disabled={saving}
+          className={cn('flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white rounded-xl transition-all', saved ? 'bg-emerald-600' : 'bg-blue-600 hover:bg-blue-700')}>
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : saved ? <Check className="w-4 h-4" /> : null}
+          {saving ? 'Kaydediliyor...' : saved ? 'Kaydedildi' : 'Kaydet'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<Tab>('integrations')
-  const [saved, setSaved] = useState(false)
   const [integrations, setIntegrations] = useState<Integration[]>([])
   const [oauthSuccess, setOauthSuccess] = useState(false)
 
@@ -532,16 +690,13 @@ export default function SettingsPage() {
       setTimeout(() => setOauthSuccess(false), 5000)
     }
     if (params.get('tab') === 'integrations') setActiveTab('integrations')
+    if (params.get('tab') === 'maildomain')   setActiveTab('maildomain')
   }, [loadIntegrations])
 
-  const shopifyIntegration = integrations.find(i => i.platform === 'shopify')
-  const ikasIntegration    = integrations.find(i => i.platform === 'ikas')
-  const wooIntegration     = integrations.find(i => i.platform === 'woocommerce')
-
-  function handleSave() {
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2500)
-  }
+  const shopifyIntegration  = integrations.find(i => i.platform === 'shopify')
+  const ikasIntegration     = integrations.find(i => i.platform === 'ikas')
+  const wooIntegration      = integrations.find(i => i.platform === 'woocommerce')
+  const whatsappIntegration = integrations.find(i => i.platform === 'whatsapp')
 
   return (
     <AppShell>
@@ -581,191 +736,178 @@ export default function SettingsPage() {
                     <Check className="w-5 h-5 text-emerald-400 shrink-0" />
                     <div>
                       <p className="text-sm font-semibold text-emerald-400">Shopify başarıyla bağlandı!</p>
-                      <p className="text-xs text-emerald-500/70">Verilerini senkronize etmek için &quot;Senkronize Et&quot; butonuna bas.</p>
+                      <p className="text-xs text-emerald-500/70">Verileri senkronize etmek için ayarlar butonuna bas.</p>
                     </div>
                   </div>
                 )}
+
                 <div>
                   <h3 className="text-base font-bold text-white">Platform Entegrasyonları</h3>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Mağaza verinizi Marksio&apos;ya bağlayın. Gerçek müşteri, sipariş ve sepet verileri ile otomasyonlar çalışır.
-                  </p>
+                  <p className="text-sm text-gray-600 mt-1">Mağaza verinizi Marksio&apos;ya bağlayın</p>
                 </div>
 
-                <ShopifyCard integration={shopifyIntegration} onConnected={loadIntegrations} />
-
-                <PlatformCard
-                  icon={Store} name="İkas" desc="İkas mağaza sipariş ve müşteri verilerini çek" iconBg="bg-purple-600"
-                  integration={ikasIntegration} onConnected={loadIntegrations}
-                  connectUrl="/api/integrations/ikas/connect"
-                  syncUrl="/api/integrations/ikas/sync"
-                  disconnectUrl="/api/integrations/ikas/disconnect"
-                  fields={[
-                    { key: 'storeName',   label: 'Mağaza Adı', placeholder: 'magazaniz' },
-                    { key: 'accessToken', label: 'API Token',   placeholder: 'ey...', secret: true },
-                  ]}
-                />
-
-                <PlatformCard
-                  icon={Globe} name="WooCommerce" desc="WordPress/WooCommerce sipariş ve müşteri verilerini çek" iconBg="bg-blue-600"
-                  integration={wooIntegration} onConnected={loadIntegrations}
-                  connectUrl="/api/integrations/woocommerce/connect"
-                  syncUrl="/api/integrations/woocommerce/sync"
-                  disconnectUrl="/api/integrations/woocommerce/disconnect"
-                  fields={[
-                    { key: 'storeUrl',       label: 'Mağaza URL',      placeholder: 'https://magazaniz.com' },
-                    { key: 'consumerKey',    label: 'Consumer Key',    placeholder: 'ck_...', secret: true },
-                    { key: 'consumerSecret', label: 'Consumer Secret', placeholder: 'cs_...', secret: true },
-                  ]}
-                />
-
+                {/* E-commerce platforms */}
                 <div className="space-y-2.5">
-                  <ComingSoonCard icon={ShoppingBag} name="Trendyol"    desc="Trendyol pazar yeri siparişleri"    iconBg="bg-orange-500" />
-                  <ComingSoonCard icon={Package}     name="Hepsiburada" desc="Hepsiburada pazar yeri siparişleri" iconBg="bg-amber-500"  />
-                </div>
-
-                {/* WhatsApp AI Chatbot — öne çıkan kart */}
-                <WhatsAppChatbotCard integration={integrations.find(i => i.platform === 'whatsapp')} onConnected={loadIntegrations} />
-
-                {/* Messaging channels */}
-                <div className="bg-[#111] border border-[#1e1e1e] rounded-2xl p-5">
-                  <p className="text-sm font-semibold text-white mb-4">Altyapı Servisleri</p>
-                  <div className="space-y-3">
-                    {[
-                      { name: 'Resend (Email)',         icon: Mail,          color: 'text-blue-400 bg-blue-500/10 border-blue-500/20',       connected: true },
-                      { name: 'Groq AI (Chatbot)',      icon: Zap,           color: 'text-violet-400 bg-violet-500/10 border-violet-500/20', connected: true },
-                      { name: 'fal.ai (Görsel Üretim)', icon: Sparkles,      color: 'text-pink-400 bg-pink-500/10 border-pink-500/20',       connected: true },
-                    ].map(ch => {
-                      const Icon = ch.icon
-                      return (
-                        <div key={ch.name} className="flex items-center justify-between py-2 border-b border-[#1a1a1a] last:border-0">
-                          <div className="flex items-center gap-3">
-                            <div className={cn('w-7 h-7 rounded-lg flex items-center justify-center border', ch.color)}>
-                              <Icon className="w-3.5 h-3.5" />
-                            </div>
-                            <span className="text-sm text-gray-400">{ch.name}</span>
-                          </div>
+                  {/* Shopify — OAuth flow, special handling */}
+                  <div className={cn(
+                    'flex items-center gap-4 px-5 py-4 rounded-2xl border-2 transition-all',
+                    shopifyIntegration?.status === 'active' ? 'bg-[#0d0d0d] border-emerald-500/25' : 'bg-[#0d0d0d] border-[#1a1a1a]'
+                  )}>
+                    <div className="w-10 h-10 rounded-xl bg-[#96bf48]/15 border border-[#96bf48]/20 flex items-center justify-center shrink-0">
+                      <ShoppingBag className="w-5 h-5 text-[#96bf48]" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-semibold text-white">Shopify</p>
+                        {shopifyIntegration?.status === 'active' && (
                           <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
-                            <Check className="w-3 h-3" /> Aktif
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse" /> Bağlı
                           </span>
-                        </div>
-                      )
-                    })}
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-600 truncate">
+                        {shopifyIntegration?.shopDomain ?? 'Sipariş, müşteri ve sepet verilerini çek'}
+                      </p>
+                    </div>
+                    <ShopifySettingsButton integration={shopifyIntegration} onConnected={loadIntegrations} />
+                  </div>
+
+                  <IntegrationCard
+                    icon={Store} name="İkas" desc="Sipariş ve müşteri verilerini çek" iconBg="bg-purple-600"
+                    integration={ikasIntegration} onConnected={loadIntegrations}
+                    connectUrl="/api/integrations/ikas/connect"
+                    syncUrl="/api/integrations/ikas/sync"
+                    disconnectUrl="/api/integrations/ikas/disconnect"
+                    modalFields={[
+                      { key: 'storeName',   label: 'Mağaza Adı',  placeholder: 'magazaniz', hint: 'İkas panelindeki mağaza adı' },
+                      { key: 'accessToken', label: 'API Token',    placeholder: 'ey...', secret: true, hint: 'İkas Admin → API → Token oluştur' },
+                    ]}
+                  />
+
+                  <IntegrationCard
+                    icon={Globe} name="WooCommerce" desc="WordPress/WooCommerce sipariş ve müşteri verilerini çek" iconBg="bg-blue-600"
+                    integration={wooIntegration} onConnected={loadIntegrations}
+                    connectUrl="/api/integrations/woocommerce/connect"
+                    syncUrl="/api/integrations/woocommerce/sync"
+                    disconnectUrl="/api/integrations/woocommerce/disconnect"
+                    modalFields={[
+                      { key: 'storeUrl',       label: 'Mağaza URL',      placeholder: 'https://magazaniz.com' },
+                      { key: 'consumerKey',    label: 'Consumer Key',    placeholder: 'ck_...', secret: true },
+                      { key: 'consumerSecret', label: 'Consumer Secret', placeholder: 'cs_...', secret: true },
+                    ]}
+                  />
+
+                  <IntegrationCard
+                    icon={MessageSquare} name="WhatsApp AI Chatbot" desc="Müşteriler WhatsApp üzerinden otomatik yanıt alır" iconBg="bg-green-600"
+                    badge="Premium"
+                    integration={whatsappIntegration} onConnected={loadIntegrations}
+                    connectUrl="/api/integrations/whatsapp/connect"
+                    disconnectUrl="/api/integrations/whatsapp/disconnect"
+                    modalFields={[
+                      { key: 'phoneNumberId', label: 'Phone Number ID',       placeholder: '1234567890123456', hint: 'Meta Developers → WhatsApp → API Setup' },
+                      { key: 'accessToken',   label: 'Permanent Access Token', placeholder: 'EAAxxxxxx...', secret: true, hint: 'Meta Business Manager → System User Token' },
+                    ]}
+                  />
+
+                  {/* Mail Servisi — Mail Domain tab'ına yönlendirir */}
+                  <div
+                    onClick={() => setActiveTab('maildomain')}
+                    className="flex items-center gap-4 px-5 py-4 rounded-2xl border-2 border-[#1a1a1a] bg-[#0d0d0d] hover:border-violet-500/20 transition-all cursor-pointer group"
+                  >
+                    <div className="w-10 h-10 rounded-xl bg-violet-600 flex items-center justify-center shrink-0">
+                      <Mail className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-white">Mail Domain</p>
+                      <p className="text-xs text-gray-600">SPF, DKIM, DMARC ile kendi domaininizden gönderin</p>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-gray-600 group-hover:text-gray-300 transition-colors" />
+                  </div>
+
+                  <div className="space-y-2">
+                    <IntegrationCard icon={ShoppingBag} name="Trendyol"    desc="Trendyol pazar yeri siparişleri"    iconBg="bg-orange-500" integration={undefined} onConnected={() => {}} connectUrl="" disconnectUrl="" modalFields={[]} comingSoon />
+                    <IntegrationCard icon={Package}     name="Hepsiburada" desc="Hepsiburada pazar yeri siparişleri" iconBg="bg-amber-500"  integration={undefined} onConnected={() => {}} connectUrl="" disconnectUrl="" modalFields={[]} comingSoon />
                   </div>
                 </div>
 
-                <div className="bg-amber-500/5 border border-amber-500/15 rounded-2xl p-4">
-                  <p className="text-sm font-semibold text-amber-400 mb-1">Shopify Webhook URL</p>
-                  <p className="text-xs text-amber-500/70 mb-2">
-                    Shopify Admin&apos;de webhook eklerken bu URL&apos;i kullanın (gerçek zamanlı güncellemeler için)
-                  </p>
-                  <code className="text-xs bg-amber-500/10 text-amber-400 px-2 py-1.5 rounded-lg block font-mono">
+                {/* Shopify Webhook */}
+                <div className="bg-[#0d0d0d] border border-[#1a1a1a] rounded-2xl p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <p className="text-xs font-semibold text-gray-400">Shopify Webhook URL</p>
+                    <CopyButton value={typeof window !== 'undefined' ? `${window.location.origin}/api/webhooks/shopify` : ''} />
+                  </div>
+                  <code className="text-xs text-gray-500 font-mono block">
                     {typeof window !== 'undefined' ? window.location.origin : 'https://your-domain.com'}/api/webhooks/shopify
                   </code>
                 </div>
               </div>
             )}
 
+            {/* MAIL DOMAIN */}
+            {activeTab === 'maildomain' && <MailDomainSection />}
+
             {/* MAĞAZA */}
-            {activeTab === 'store' && (
-              <div className="bg-[#111] border border-[#1e1e1e] rounded-2xl p-6">
-                <h3 className="text-sm font-semibold text-white mb-4">Mağaza Bilgileri</h3>
-                <SettingRow label="Mağaza Adı" desc="Müşterilerinize gösterilen isim">
-                  <input defaultValue="Demo Mağaza" className="px-3 py-2.5 text-sm border border-[#2a2a2a] bg-[#0d0d0d] text-white rounded-xl focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 w-52" />
-                </SettingRow>
-                <SettingRow label="Para Birimi">
-                  <select className="px-3 py-2.5 text-sm border border-[#2a2a2a] bg-[#0d0d0d] text-gray-300 rounded-xl focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 w-36">
-                    <option>TRY (₺)</option>
-                    <option>USD ($)</option>
-                    <option>EUR (€)</option>
-                  </select>
-                </SettingRow>
-                <SettingRow label="Dil">
-                  <select className="px-3 py-2.5 text-sm border border-[#2a2a2a] bg-[#0d0d0d] text-gray-300 rounded-xl focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 w-36">
-                    <option>Türkçe</option>
-                    <option>English</option>
-                  </select>
-                </SettingRow>
-                <SettingRow label="Zaman Dilimi">
-                  <select className="px-3 py-2.5 text-sm border border-[#2a2a2a] bg-[#0d0d0d] text-gray-300 rounded-xl focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 w-52">
-                    <option>Europe/Istanbul (UTC+3)</option>
-                    <option>UTC</option>
-                  </select>
-                </SettingRow>
-                <div className="pt-5">
-                  <button
-                    onClick={handleSave}
-                    className={cn(
-                      'flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white rounded-xl transition-all',
-                      saved ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-blue-600 hover:bg-blue-700'
-                    )}
-                  >
-                    {saved ? <><Check className="w-4 h-4" /> Kaydedildi</> : 'Değişiklikleri Kaydet'}
-                  </button>
-                </div>
-              </div>
-            )}
+            {activeTab === 'store' && <StoreSettings />}
 
             {/* API ANAHTARLARI */}
             {activeTab === 'api' && (
-              <div className="bg-[#111] border border-[#1e1e1e] rounded-2xl p-6 space-y-5">
-                <h3 className="text-sm font-semibold text-white">API Anahtarları</h3>
-                <div className="p-4 rounded-xl border border-blue-500/20 bg-blue-500/5 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center">
-                        <Sparkles className="w-4 h-4 text-violet-400" />
-                      </div>
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-base font-bold text-white">Bağlı Servisler</h3>
+                  <p className="text-sm text-gray-600 mt-1">Entegre ettiğiniz servislerin bağlantı durumu</p>
+                </div>
+                <div className="bg-[#0d0d0d] border border-[#1a1a1a] rounded-2xl divide-y divide-[#1a1a1a]">
+                  {[
+                    { name: 'Shopify API',       desc: 'Mağaza entegrasyonu',         connected: shopifyIntegration?.status === 'active'  },
+                    { name: 'İkas API',           desc: 'Mağaza entegrasyonu',         connected: ikasIntegration?.status === 'active'     },
+                    { name: 'WhatsApp API',       desc: 'WhatsApp AI chatbot',         connected: whatsappIntegration?.status === 'active' },
+                    { name: 'Mail Domain',        desc: 'E-posta gönderimi',           connected: false, action: () => setActiveTab('maildomain') },
+                  ].map(item => (
+                    <div key={item.name} className="flex items-center justify-between px-5 py-3.5">
                       <div>
-                        <p className="text-sm font-semibold text-gray-200">Groq AI</p>
-                        <p className="text-xs text-gray-600">Kampanya içeriği üretimi (.env üzerinden)</p>
+                        <p className="text-sm font-medium text-gray-300">{item.name}</p>
+                        <p className="text-xs text-gray-600">{item.desc}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {item.connected ? (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                            <Check className="w-3 h-3" /> Aktif
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-gray-600 bg-[#1a1a1a] border border-[#2a2a2a] px-2 py-0.5 rounded-full">
+                            Bağlı Değil
+                          </span>
+                        )}
+                        {item.action && (
+                          <button onClick={item.action} className="text-xs text-blue-400 hover:text-blue-300 transition-colors">Ayarla →</button>
+                        )}
                       </div>
                     </div>
-                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
-                      <Check className="w-3 h-3" /> Aktif
-                    </span>
-                  </div>
+                  ))}
                 </div>
-                <p className="text-xs text-gray-700">
-                  API anahtarları .env.local dosyasından okunur. Değiştirmek için dosyayı düzenleyin ve sunucuyu yeniden başlatın.
-                </p>
               </div>
             )}
 
             {/* BİLDİRİMLER */}
-            {activeTab === 'notifications' && (
-              <div className="bg-[#111] border border-[#1e1e1e] rounded-2xl p-6">
-                <h3 className="text-sm font-semibold text-white mb-4">Bildirim Tercihleri</h3>
-                <SettingRow label="Kampanya tamamlandığında" desc="Kampanya gönderimi bitince bildir">
-                  <Toggle defaultChecked />
-                </SettingRow>
-                <SettingRow label="Sepet terk tespit edildiğinde" desc="Gerçek zamanlı sepet terk bildirimleri">
-                  <Toggle defaultChecked={false} />
-                </SettingRow>
-                <SettingRow label="Haftalık performans raporu" desc="Her Pazartesi email ile özet gönder">
-                  <Toggle defaultChecked />
-                </SettingRow>
-                <SettingRow label="Yeni müşteri kaydı">
-                  <Toggle defaultChecked={false} />
-                </SettingRow>
-              </div>
-            )}
+            {activeTab === 'notifications' && <NotificationsSection />}
 
             {/* PLAN & ÖDEME */}
             {activeTab === 'billing' && (
               <div className="space-y-4">
-                <div className="relative p-6 rounded-2xl bg-gradient-to-br from-blue-600 to-blue-800 text-white overflow-hidden">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
+                <div className="relative p-6 rounded-2xl bg-gradient-to-br from-[#0f1729] to-[#0a0f1e] border border-blue-500/20 overflow-hidden">
+                  <div className="absolute top-0 right-0 w-48 h-48 bg-blue-600/5 rounded-full -translate-y-1/2 translate-x-1/4 blur-2xl" />
                   <div className="flex items-start justify-between relative">
                     <div>
-                      <p className="text-xs text-blue-300 font-semibold uppercase tracking-wider mb-1">Mevcut Plan</p>
-                      <p className="text-3xl font-bold">Growth</p>
-                      <p className="text-blue-200 text-sm mt-1">$119 / ay</p>
+                      <p className="text-xs text-blue-400/70 font-semibold uppercase tracking-wider mb-2">Mevcut Plan</p>
+                      <p className="text-3xl font-bold text-white">Growth</p>
+                      <p className="text-blue-400/60 text-sm mt-1.5">$49 / ay · 50.000 email</p>
                     </div>
-                    <Sparkles className="w-8 h-8 text-blue-300" />
+                    <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+                      <Shield className="w-5 h-5 text-blue-400" />
+                    </div>
                   </div>
                 </div>
-                <a href="/plans" className="flex items-center justify-between p-4 bg-[#111] rounded-2xl border border-[#1e1e1e] hover:border-blue-500/30 transition-all group">
+                <a href="/plans" className="flex items-center justify-between p-4 bg-[#0d0d0d] rounded-2xl border border-[#1a1a1a] hover:border-blue-500/30 transition-all group">
                   <span className="text-sm font-medium text-gray-400 group-hover:text-gray-200 transition-colors">Tüm planları gör ve yükselt</span>
                   <ChevronRight className="w-4 h-4 text-gray-600 group-hover:text-gray-400 transition-colors" />
                 </a>
@@ -775,5 +917,93 @@ export default function SettingsPage() {
         </div>
       </div>
     </AppShell>
+  )
+}
+
+// ─── Shopify settings button (OAuth flow) ─────────────────────────────────────
+
+function ShopifySettingsButton({ integration, onConnected }: { integration?: Integration; onConnected: () => void }) {
+  const [showModal, setShowModal] = useState(false)
+  const [domain, setDomain]       = useState('')
+  const [syncing, setSyncing]     = useState(false)
+  const [syncResult, setSyncResult] = useState('')
+  const isConnected = integration?.status === 'active'
+
+  async function handleSync() {
+    setSyncing(true)
+    try {
+      const res  = await fetch('/api/integrations/shopify/sync', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setSyncResult(data.message); onConnected()
+    } finally { setSyncing(false) }
+  }
+
+  return (
+    <>
+      <button onClick={() => setShowModal(true)} className="p-2 rounded-xl text-gray-600 hover:text-gray-300 hover:bg-[#1a1a1a] transition-all border border-[#2a2a2a]">
+        <Settings className="w-4 h-4" />
+      </button>
+
+      {showModal && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#111] border border-[#1e1e1e] rounded-2xl shadow-2xl w-full max-w-md">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[#1e1e1e]">
+              <h3 className="font-semibold text-white">Shopify Ayarları</h3>
+              <button onClick={() => setShowModal(false)} className="text-gray-600 hover:text-gray-300"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="p-6 space-y-4">
+              {isConnected ? (
+                <>
+                  <div className="flex items-center gap-3 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
+                    <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <div className="text-xs text-emerald-400">
+                      <p className="font-semibold">{integration?.shopDomain}</p>
+                      {integration?.lastSyncAt && <p className="opacity-70">Son sync: {new Date(integration.lastSyncAt).toLocaleString('tr-TR')}</p>}
+                    </div>
+                  </div>
+                  {syncResult && <p className="text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-3 py-2">✓ {syncResult}</p>}
+                  <div className="flex items-center gap-3">
+                    <button onClick={handleSync} disabled={syncing}
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white text-sm font-semibold rounded-xl transition-all">
+                      {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                      {syncing ? 'Senkronize ediliyor...' : 'Senkronize Et'}
+                    </button>
+                    <button onClick={async () => { await fetch('/api/integrations/shopify/disconnect', { method: 'POST' }); onConnected(); setShowModal(false) }}
+                      className="px-4 py-2.5 text-sm font-medium text-red-400 bg-red-500/10 hover:bg-red-500/15 border border-red-500/20 rounded-xl transition-all">
+                      Bağlantıyı Kes
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="bg-blue-500/5 border border-blue-500/15 rounded-xl px-4 py-3 text-xs text-blue-400">
+                    Mağaza adresini gir → Shopify izin sayfasına yönlendirilirsin → İzin ver → Otomatik bağlanır.
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-500 mb-1.5 block uppercase tracking-wider">Mağaza Domain</label>
+                    <div className="flex gap-2">
+                      <input
+                        value={domain} onChange={e => setDomain(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter' && domain) window.location.href = `/api/integrations/shopify/auth?shop=${encodeURIComponent(domain.replace(/^https?:\/\//, '').replace(/\/$/, ''))}` }}
+                        placeholder="magazaniz.myshopify.com"
+                        className="flex-1 px-3 py-2.5 text-sm border border-[#2a2a2a] bg-[#0d0d0d] text-gray-300 placeholder:text-gray-700 rounded-xl focus:outline-none focus:border-blue-500/50"
+                      />
+                      <button
+                        onClick={() => { if (domain) window.location.href = `/api/integrations/shopify/auth?shop=${encodeURIComponent(domain.replace(/^https?:\/\//, '').replace(/\/$/, ''))}` }}
+                        disabled={!domain}
+                        className="flex items-center gap-2 px-4 py-2.5 bg-[#96bf48] hover:bg-[#7ea33a] disabled:opacity-40 text-white text-sm font-semibold rounded-xl transition-all whitespace-nowrap"
+                      >
+                        <ShoppingBag className="w-4 h-4" /> Bağlan
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   )
 }

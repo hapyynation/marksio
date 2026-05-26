@@ -228,10 +228,6 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                   <MessageSquare className="w-4 h-4" />
                   WhatsApp Gönder
                 </button>
-                <button className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm font-medium text-teal-400 bg-teal-500/10 hover:bg-teal-500/20 rounded-xl transition-colors">
-                  <Phone className="w-4 h-4" />
-                  SMS Gönder
-                </button>
               </div>
             </div>
 

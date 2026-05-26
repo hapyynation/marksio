@@ -194,12 +194,12 @@ export default async function HomePage() {
           <div className="text-center mb-16">
             <p className="text-xs font-semibold text-violet-400 uppercase tracking-widest mb-3">Özellikler</p>
             <h2 className="text-4xl font-extrabold text-white mb-4">Her şey tek platformda</h2>
-            <p className="text-white/40 text-lg max-w-xl mx-auto">Dağınık araçlara son. Email, SMS, WhatsApp ve analitik tek panelden.</p>
+            <p className="text-white/40 text-lg max-w-xl mx-auto">Dağınık araçlara son. Email, WhatsApp ve AI analitiği tek panelden.</p>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
             {[
-              { icon: Sparkles, title: 'AI Kampanya Oluşturucu', desc: 'Hedef segmenti ve tonu belirleyin — AI saniyeler içinde e-posta, SMS ve WhatsApp içerikleri üretsin.', color: 'from-violet-500 to-purple-600' },
+              { icon: Sparkles, title: 'AI Kampanya Oluşturucu', desc: 'Hedef segmenti ve tonu belirleyin — AI saniyeler içinde email ve WhatsApp içerikleri üretsin.', color: 'from-violet-500 to-purple-600' },
               { icon: Users, title: 'Akıllı Segmentasyon', desc: 'Müşterileriniz satın alma davranışına göre otomatik VIP, sadık, risk altında ve pasif segmentlerine ayrılır.', color: 'from-blue-500 to-cyan-600' },
               { icon: Zap, title: 'Otomasyon Akışları', desc: 'Sepet terk, hoş geldin, doğum günü akışlarını bir kez kur. Sistem 7/24 çalışır, siz uyurken bile.', color: 'from-amber-500 to-orange-500' },
               { icon: BarChart3, title: 'Gelir Analitiği', desc: 'Kampanya bazlı ROI, açılma oranları, dönüşüm takibi ve gerçek zamanlı gelir raporları.', color: 'from-emerald-500 to-teal-600' },
@@ -258,7 +258,7 @@ export default async function HomePage() {
               { name: 'WooCommerce', icon: Globe, color: 'text-blue-400' },
               { name: 'Email (Resend)', icon: Mail, color: 'text-violet-400' },
               { name: 'WhatsApp', icon: MessageSquare, color: 'text-emerald-400' },
-              { name: 'SMS (Twilio)', icon: MessageSquare, color: 'text-cyan-400' },
+              { name: 'Resend', icon: Mail, color: 'text-cyan-400' },
             ].map(p => (
               <div key={p.name} className="flex items-center gap-2 bg-white/[0.04] border border-white/[0.07] rounded-xl px-4 py-2.5 text-sm text-white/60 hover:border-white/[0.15] hover:text-white transition-all">
                 <p.icon className={`w-4 h-4 ${p.color}`} />
@@ -295,7 +295,7 @@ export default async function HomePage() {
               {
                 name: 'Scale', price: '$199', period: '/ay',
                 desc: 'Kurumsal operasyonlar için',
-                features: ['Sınırsız müşteri', 'Sınırsız email & SMS', 'WhatsApp Business API', 'Özel AI modeli', 'Dedicated destek', 'SLA garantisi'],
+                features: ['Sınırsız müşteri', 'Sınırsız email', 'WhatsApp Business API', 'Özel AI modeli', 'Dedicated destek', 'SLA garantisi'],
                 cta: 'Satış Ekibiyle Görüş', highlight: false,
               },
             ].map(plan => (

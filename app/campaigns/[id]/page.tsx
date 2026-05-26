@@ -8,7 +8,7 @@ import {
   BarChart, Bar, Cell,
 } from 'recharts'
 import {
-  ArrowLeft, Mail, Phone, MessageSquare, TrendingUp, Eye, MousePointerClick,
+  ArrowLeft, Mail, MessageSquare, TrendingUp, Eye, MousePointerClick,
   ShoppingBag, Calendar, Users, Zap, ChevronRight, Loader2,
   CheckCircle2, Circle, Clock, AlertCircle, Send,
 } from 'lucide-react'
@@ -23,9 +23,8 @@ interface Campaign {
 }
 
 const typeConfig: Record<string, { label: string; icon: typeof Mail; color: string; bg: string; bar: string }> = {
-  email:    { label: 'Email',    icon: Mail,          color: 'text-blue-400',    bg: 'bg-blue-500/10 border-blue-500/20',       bar: '#3b82f6' },
-  sms:      { label: 'SMS',      icon: Phone,         color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20', bar: '#10b981' },
-  whatsapp: { label: 'WhatsApp', icon: MessageSquare, color: 'text-teal-400',    bg: 'bg-teal-500/10 border-teal-500/20',       bar: '#14b8a6' },
+  email:    { label: 'Email',    icon: Mail,          color: 'text-blue-400', bg: 'bg-blue-500/10 border-blue-500/20', bar: '#3b82f6' },
+  whatsapp: { label: 'WhatsApp', icon: MessageSquare, color: 'text-teal-400', bg: 'bg-teal-500/10 border-teal-500/20', bar: '#14b8a6' },
 }
 const statusConfig: Record<string, { label: string; color: string; icon: typeof CheckCircle2 }> = {
   completed: { label: 'Tamamlandı', color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20', icon: CheckCircle2 },

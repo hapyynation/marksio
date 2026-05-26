@@ -3,15 +3,14 @@
 import React from 'react'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { useRealtimeCampaignData, LiveActivity } from '@/lib/hooks/useRealtimeCampaignData'
-import { Mail, Phone, MessageSquare, ShoppingBag, MousePointerClick, Eye, UserX, TrendingUp, Activity } from 'lucide-react'
+import { Mail, MessageSquare, ShoppingBag, MousePointerClick, Eye, UserX, TrendingUp, Activity } from 'lucide-react'
 import { formatCurrency, formatNumber, cn } from '@/lib/utils'
 
 const channelIcon: Record<string, React.ElementType> = {
-  email: Mail, sms: Phone, whatsapp: MessageSquare,
+  email: Mail, whatsapp: MessageSquare,
 }
 const channelColor: Record<string, string> = {
-  email: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
-  sms: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
+  email:    'text-blue-400 bg-blue-500/10 border-blue-500/20',
   whatsapp: 'text-teal-400 bg-teal-500/10 border-teal-500/20',
 }
 const eventConfig: Record<string, { label: string; icon: React.ElementType; color: string }> = {

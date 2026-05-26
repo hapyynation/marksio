@@ -33,9 +33,12 @@ export async function POST(req: NextRequest) {
       heroImage: resolvedImage,
     })
 
+    const userEmail = (session.user as { email?: string }).email
+    const toEmail = userEmail ?? TEST_EMAIL
+
     const { data, error } = await resend.emails.send({
       from: `${storeName} <onboarding@resend.dev>`,
-      to: [TEST_EMAIL],
+      to: [toEmail],
       subject: `[TEST] ${headline}`,
       html,
       text: body,
@@ -43,7 +46,7 @@ export async function POST(req: NextRequest) {
 
     if (error) throw new Error(error.message)
 
-    return NextResponse.json({ success: true, id: data?.id, sentTo: TEST_EMAIL })
+    return NextResponse.json({ success: true, id: data?.id, sentTo: toEmail })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Email gönderilemedi'
     return NextResponse.json({ error: message }, { status: 500 })

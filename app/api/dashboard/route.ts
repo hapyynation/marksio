@@ -97,6 +97,15 @@ export async function GET() {
   const cartAbandonEvents = await prisma.customerEvent.count({ where: { userId, type: 'cart_abandoned' } })
   const integration = await prisma.integration.findFirst({ where: { userId, platform: 'shopify', status: 'active' }, select: { shopDomain: true, lastSyncAt: true } })
 
+  // Tetikleyici sayıları (işlenmemiş CustomerEvent'ler)
+  const triggerCountsRaw = await prisma.customerEvent.groupBy({
+    by: ['type'],
+    where: { userId, processedAt: null },
+    _count: { id: true },
+  }).catch(() => [])
+  const triggerCounts: Record<string, number> = {}
+  for (const t of triggerCountsRaw) triggerCounts[t.type] = t._count.id
+
   return NextResponse.json({
     stats: {
       revenue: { value: revenueThisMonth, change: revenueChange },
@@ -127,6 +136,7 @@ export async function GET() {
     recentCampaigns: campaigns,
     recentAutomations: automations,
     integration,
+    triggerCounts,
   })
   } catch (err) {
     console.error('[Dashboard GET]', err)

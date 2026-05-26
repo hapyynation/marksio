@@ -46,6 +46,12 @@ export async function POST(req: NextRequest) {
         },
       })
 
+      // Kullanıcının email domain ve WhatsApp entegrasyonunu önceden çek
+      const [emailDomain, whatsappIntegration] = await Promise.all([
+        prisma.emailDomain.findFirst({ where: { userId: event.userId, status: 'verified' }, orderBy: { createdAt: 'desc' } }),
+        prisma.integration.findFirst({ where: { userId: event.userId, platform: 'whatsapp', status: 'active' } }),
+      ])
+
       for (const automation of automations) {
         const steps: AutomationStep[] = JSON.parse(automation.steps || '[]')
 
@@ -57,7 +63,7 @@ export async function POST(req: NextRequest) {
           if (event.customer.unsubscribed) continue
 
           try {
-            await executeStep(step, event.customer, automation, event)
+            await executeStep(step, event.customer, automation, event, emailDomain?.domain, whatsappIntegration)
             sent++
           } catch (err) {
             results.push(`Hata [${automation.name}/${step.channel}]: ${err}`)
@@ -135,18 +141,25 @@ function calculateSendAt(eventTime: Date, step: AutomationStep): Date {
 
 // ── Adım çalıştır ──────────────────────────────────────────────────────────
 
+interface WhatsAppIntegration {
+  sellerId: string | null
+  accessToken: string | null
+}
+
 async function executeStep(
   step: AutomationStep,
   customer: CustomerRecord,
   automation: AutomationRecord,
   event: EventRecord,
+  verifiedDomain?: string,
+  whatsappIntegration?: WhatsAppIntegration | null,
 ) {
   const message = interpolateMessage(step.message, customer, event)
 
   if (step.channel === 'email') {
-    await sendEmail(customer, automation.name, message)
+    await sendEmail(customer, automation.name, message, verifiedDomain)
   } else if (step.channel === 'whatsapp') {
-    await sendWhatsApp(customer, message)
+    await sendWhatsApp(customer, message, whatsappIntegration)
   }
 }
 
@@ -167,7 +180,7 @@ function interpolateMessage(template: string, customer: CustomerRecord, event: E
 
 // ── Email gönder ───────────────────────────────────────────────────────────
 
-async function sendEmail(customer: CustomerRecord, subject: string, body: string) {
+async function sendEmail(customer: CustomerRecord, subject: string, body: string, verifiedDomain?: string) {
   if (!process.env.RESEND_API_KEY) return
 
   const html = buildPremiumEmail({
@@ -179,8 +192,13 @@ async function sendEmail(customer: CustomerRecord, subject: string, body: string
     ctaUrl: 'https://marksio.app',
   })
 
+  // Kullanıcının verify edilmiş domain'i varsa onu kullan, yoksa varsayılan
+  const from = verifiedDomain
+    ? `Marksio <kampanya@${verifiedDomain}>`
+    : 'Marksio <kampanya@marksio.co>'
+
   await resend.emails.send({
-    from: 'Marksio <onboarding@resend.dev>',
+    from,
     to: [customer.email],
     subject,
     html,
@@ -188,13 +206,13 @@ async function sendEmail(customer: CustomerRecord, subject: string, body: string
   })
 }
 
-// ── WhatsApp gönder (Meta Cloud API) ──────────────────────────────────────
+// ── WhatsApp gönder (Meta Cloud API — kullanıcının entegrasyonu) ──────────
 
-async function sendWhatsApp(customer: CustomerRecord, message: string) {
+async function sendWhatsApp(customer: CustomerRecord, message: string, integration?: { sellerId: string | null; accessToken: string | null } | null) {
   if (!customer.phone) return
 
-  const phoneNumberId = process.env.META_WHATSAPP_PHONE_NUMBER_ID
-  const accessToken = process.env.META_WHATSAPP_ACCESS_TOKEN
+  const phoneNumberId = integration?.sellerId || process.env.META_WHATSAPP_PHONE_NUMBER_ID
+  const accessToken = integration?.accessToken || process.env.META_WHATSAPP_ACCESS_TOKEN
   if (!phoneNumberId || !accessToken) return
 
   await sendWhatsAppMessage({ phoneNumberId, accessToken, to: customer.phone, body: message })

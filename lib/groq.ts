@@ -1,5 +1,4 @@
 import Groq from 'groq-sdk'
-import { storeStats, segmentStats, campaigns, automations } from './mock-data'
 import { formatCurrency } from './utils'
 
 export const groq = new Groq({
@@ -8,32 +7,69 @@ export const groq = new Groq({
 
 export const GROQ_MODEL = 'llama-3.3-70b-versatile'
 
-export const SYSTEM_PROMPT = `Sen Marksio'nin yapay zeka pazarlama asistanısın. Adın "Mark".
+// ── Kullanıcı istatistikleri tipi ────────────────────────────────────────────
 
-Mağaza verileri (güncel):
-- Aylık gelir: ${formatCurrency(storeStats.totalRevenue)} (geçen aya göre +${storeStats.revenueGrowth}%)
-- Toplam müşteri: ${storeStats.totalCustomers.toLocaleString('tr')}
-- Aktif kampanya: ${storeStats.activeCampaigns}
-- Ortalama sipariş değeri: ${formatCurrency(storeStats.avgOrderValue)}
-- Email açılma oranı: %${storeStats.emailOpenRate}
-- SMS tıklama oranı: %${storeStats.smsClickRate}
-- WhatsApp okunma oranı: %${storeStats.whatsappReadRate}
+export interface UserStats {
+  storeName: string
+  totalRevenue: number
+  totalCustomers: number
+  activeCampaigns: number
+  avgOrderValue: number
+  emailSent: number
+  emailOpenRate: number
+  waSent: number
+  vipCount: number
+  loyalCount: number
+  atRiskCount: number
+  newCount: number
+  inactiveCount: number
+}
+
+// ── Dinamik sistem promptu ────────────────────────────────────────────────────
+
+export function buildSystemPrompt(stats: UserStats): string {
+  return `Sen Marksio'nin yapay zeka pazarlama asistanısın. Adın "Mark".
+Kullanıcının mağazası: ${stats.storeName}
+
+Güncel mağaza verileri:
+- Toplam gelir: ${formatCurrency(stats.totalRevenue)}
+- Toplam müşteri: ${stats.totalCustomers.toLocaleString('tr')}
+- Aktif kampanya sayısı: ${stats.activeCampaigns}
+- Ortalama sipariş değeri: ${formatCurrency(stats.avgOrderValue)}
+- Email gönderim: ${stats.emailSent.toLocaleString('tr')}, açılma oranı: %${stats.emailOpenRate}
+- WhatsApp gönderim: ${stats.waSent.toLocaleString('tr')}
 
 Müşteri segmentleri:
-- VIP: ${segmentStats.vip.count} müşteri, ort. harcama ${formatCurrency(segmentStats.vip.avgSpent)}
-- Sadık: ${segmentStats.loyal.count} müşteri, ort. harcama ${formatCurrency(segmentStats.loyal.avgSpent)}
-- Risk Altında: ${segmentStats.at_risk.count} müşteri (60+ gün inaktif)
-- Yeni: ${segmentStats.new.count} müşteri (son 30 gün)
-- Pasif: ${segmentStats.inactive.count} müşteri (90+ gün)
-
-Aktif kampanyalar: ${campaigns.filter(c => c.status === 'active').map(c => c.name).join(', ')}
-Aktif otomasyonlar: ${automations.filter(a => a.status === 'active').map(a => a.name).join(', ')}
+- VIP: ${stats.vipCount} müşteri
+- Sadık: ${stats.loyalCount} müşteri
+- Risk Altında: ${stats.atRiskCount} müşteri (60+ gün inaktif)
+- Yeni: ${stats.newCount} müşteri (son 30 gün)
+- Pasif: ${stats.inactiveCount} müşteri (90+ gün)
 
 Görevin:
 - Kullanıcının pazarlama sorularını yanıtla
-- Mağaza verisine dayanarak somut, uygulanabilir öneriler ver
+- Bu gerçek verilere dayanarak somut ve uygulanabilir öneriler ver
 - Hem profesyonel hem samimi bir ton kullan — bir danışman gibi ama arkadaşça
 - Türkçe yanıt ver, kısa ve net ol
 - Gerektiğinde rakamlarla destekle
 - Fazla uzun cevaplar verme, odaklı kal
 - Emoji kullanabilirsin ama abartma`
+}
+
+// ── Fallback prompt (auth olmadan kullanılan routelar için) ──────────────────
+
+export const SYSTEM_PROMPT = buildSystemPrompt({
+  storeName: 'Mağazanız',
+  totalRevenue: 0,
+  totalCustomers: 0,
+  activeCampaigns: 0,
+  avgOrderValue: 0,
+  emailSent: 0,
+  emailOpenRate: 0,
+  waSent: 0,
+  vipCount: 0,
+  loyalCount: 0,
+  atRiskCount: 0,
+  newCount: 0,
+  inactiveCount: 0,
+})

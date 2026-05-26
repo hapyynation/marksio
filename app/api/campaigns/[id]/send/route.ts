@@ -22,6 +22,15 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { storeName: true } })
     const storeName = user?.storeName ?? 'Marksio'
 
+    // Kullanıcının verify edilmiş email domain'ini bul
+    const emailDomain = await prisma.emailDomain.findFirst({
+      where: { userId, status: 'verified' },
+      orderBy: { createdAt: 'desc' },
+    })
+    const fromEmail = emailDomain
+      ? `${storeName} <kampanya@${emailDomain.domain}>`
+      : `${storeName} <kampanya@marksio.co>`
+
     // Segment müşterilerini çek
     const segmentFilter = campaign.segment && campaign.segment !== 'all'
       ? { segment: campaign.segment }
@@ -71,7 +80,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 </body></html>`
 
         const { error } = await resend.emails.send({
-          from: `${storeName} <onboarding@resend.dev>`,
+          from: fromEmail,
           to: customer.email,
           subject: campaign.subject ?? campaign.name,
           html,

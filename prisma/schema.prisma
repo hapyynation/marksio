@@ -15,6 +15,11 @@ model User {
   name        String
   storeName   String
   plan        String   @default("starter")
+  currency    String   @default("TRY")
+  language    String   @default("tr")
+  timezone    String   @default("Europe/Istanbul")
+  onboarded   Boolean  @default(false)
+  onboardingData String @default("{}")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -25,6 +30,7 @@ model User {
   templates    Template[]
   integrations Integration[]
   orders       Order[]
+  emailDomains EmailDomain[]
 }
 
 model Campaign {
@@ -39,6 +45,7 @@ model Campaign {
   subject     String?
   previewText String?
   body        String
+  design      String   @default("[]")  // JSON: Block[] — editörde yeniden açmak için
   cta         String?
   tips        String   @default("[]")
 
@@ -248,9 +255,27 @@ model Template {
   category    String   @default("general")
   subject     String?
   body        String
+  design      String   @default("[]")  // JSON: Block[] — editörde yeniden açmak için
   cta         String?
   isPublic    Boolean  @default(false)
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model EmailDomain {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  domain      String
+  resendId    String?
+  status      String   @default("pending") // pending | verified | failed
+  dnsRecords  String   @default("[]")      // JSON array of DNS records
+  fromEmail   String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, domain])
 }
