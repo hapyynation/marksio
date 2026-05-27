@@ -1,393 +1,412 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  Sparkles, Check, ArrowRight, ArrowLeft,
-  ShoppingBag, Globe, Mail, MessageSquare,
-  Users, Target, ShoppingCart, Heart, TrendingUp, Loader2,
+  Sparkles, Check, ArrowRight, ArrowLeft, Loader2,
+  ShoppingBag, Globe, Target, TrendingUp, ShoppingCart,
+  Heart, Users, Mail, Shirt, Cpu, UtensilsCrossed, Flower2,
+  Home, Package, Zap,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const STEPS = [
-  { label: 'İşletme',   icon: Sparkles     },
-  { label: 'Platform',  icon: ShoppingBag  },
-  { label: 'Kanallar',  icon: Mail         },
-  { label: 'Hedef',     icon: Target       },
-  { label: 'Hazır',     icon: Check        },
+  { label: 'İşletme'  },
+  { label: 'Domain'   },
+  { label: 'Sektör'   },
+  { label: 'Hedef'    },
+  { label: 'Mail'     },
+  { label: 'Hazır'    },
 ]
 
 const PLATFORMS = [
-  { key: 'shopify',     label: 'Shopify',     logo: '🛍️', desc: 'mystore.myshopify.com' },
-  { key: 'ikas',        label: 'İkas',         logo: '🇹🇷', desc: 'Türkiye\'nin e-ticaret platformu' },
-  { key: 'woocommerce', label: 'WooCommerce',  logo: '🛒', desc: 'WordPress + WooCommerce' },
-  { key: 'other',       label: 'Diğer',        logo: '🌐', desc: 'Manuel entegrasyon' },
+  { key: 'shopify',     label: 'Shopify',     emoji: '🛍️', desc: 'mystore.myshopify.com' },
+  { key: 'ikas',        label: 'İkas',         emoji: '🇹🇷', desc: "Türkiye'nin platformu" },
+  { key: 'woocommerce', label: 'WooCommerce',  emoji: '🛒', desc: 'WordPress + WooCommerce' },
+  { key: 'other',       label: 'Diğer',        emoji: '🌐', desc: 'Manuel / Özel' },
 ]
 
-const TEAM_SIZES = [
-  { key: '1', label: 'Sadece ben' },
-  { key: '2-5', label: '2-5 kişi' },
-  { key: '6-20', label: '6-20 kişi' },
-  { key: '20+', label: '20+ kişi' },
+const SECTORS = [
+  { key: 'fashion',     icon: Shirt,           label: 'Moda & Giyim'       },
+  { key: 'electronics', icon: Cpu,             label: 'Elektronik'          },
+  { key: 'food',        icon: UtensilsCrossed, label: 'Gıda & İçecek'      },
+  { key: 'beauty',      icon: Flower2,         label: 'Güzellik & Kozmetik' },
+  { key: 'home',        icon: Home,            label: 'Ev & Yaşam'          },
+  { key: 'other',       icon: Package,         label: 'Diğer'               },
 ]
 
 const GOALS = [
-  { key: 'more_sales',     icon: TrendingUp,   label: 'Daha fazla satış',        desc: 'Kampanyalarla geliri artır' },
-  { key: 'cart_recovery',  icon: ShoppingCart, label: 'Terk edilmiş sepet',      desc: 'Kaçan satışları geri kazan' },
-  { key: 'loyalty',        icon: Heart,        label: 'Müşteri sadakati',         desc: 'Tekrar alışveriş oranını artır' },
-  { key: 'new_customers',  icon: Users,        label: 'Yeni müşteri kazanımı',    desc: 'Müşteri tabanını genişlet' },
+  { key: 'more_sales',    icon: TrendingUp,   label: 'Daha fazla satış',     desc: 'Kampanyalarla geliri artır' },
+  { key: 'cart_recovery', icon: ShoppingCart, label: 'Terk sepet',           desc: 'Kaçan satışları geri kazan' },
+  { key: 'loyalty',       icon: Heart,        label: 'Müşteri sadakati',      desc: 'Tekrar alışveriş oranını artır' },
+  { key: 'new_customers', icon: Users,        label: 'Yeni müşteri',          desc: 'Müşteri tabanını genişlet' },
 ]
 
 export default function OnboardingPage() {
   const router = useRouter()
-  const [step, setStep] = useState(0)
-  const [saving, setSaving] = useState(false)
+  const [step, setStep]       = useState(0)
+  const [saving, setSaving]   = useState(false)
 
   // Step 0 — business
   const [businessName, setBusinessName] = useState('')
-  const [teamSize, setTeamSize]         = useState('')
 
-  // Step 1 — platform
+  // Step 1 — domain / platform
+  const [website, setWebsite]   = useState('')
   const [platform, setPlatform] = useState('')
-  const [wantMailDomain, setWantMailDomain] = useState<boolean | null>(null)
+  const [shopDomain, setShopDomain] = useState('')
 
-  // Step 2 — channels
-  const [channels, setChannels] = useState<string[]>(['email'])
+  // Step 2 — sector
+  const [sector, setSector] = useState('')
 
   // Step 3 — goal
   const [goal, setGoal] = useState('')
-  const [wantWhatsApp, setWantWhatsApp] = useState<boolean | null>(null)
 
-  useEffect(() => {
-    // Pre-fill business name from session if available
-    try {
-      const raw = localStorage.getItem('marksio-user')
-      if (raw) {
-        const u = JSON.parse(raw)
-        if (u.storeName) setBusinessName(u.storeName)
-      }
-    } catch {}
-  }, [])
+  // Step 4 — mail domain
+  const [emailDomain, setEmailDomain]     = useState('')
+  const [skipMailDomain, setSkipMailDomain] = useState(false)
 
-  function toggleChannel(key: string) {
-    setChannels(prev => prev.includes(key) ? prev.filter(c => c !== key) : [...prev, key])
-  }
-
-  async function handleFinish() {
+  async function handleFinish(redirectTo: '/dashboard' | '/campaigns/new') {
     setSaving(true)
     try {
       await fetch('/api/settings/onboarding', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ businessName, teamSize, platform, channels, goal, wantMailDomain, wantWhatsApp }),
+        body: JSON.stringify({ businessName, website, platform, shopDomain, sector, goal, emailDomain }),
       })
     } catch {}
-    router.push('/dashboard')
+    router.push(redirectTo)
   }
 
+  const cardCls = 'bento-card p-8 w-full max-w-lg mx-auto'
+
+  const NavButtons = ({ back, next, nextDisabled = false, onNext }: {
+    back?: number, next?: number, nextDisabled?: boolean, onNext?: () => void
+  }) => (
+    <div className="flex items-center justify-between mt-8">
+      {back !== undefined ? (
+        <button onClick={() => setStep(back)}
+          className="flex items-center gap-1.5 text-sm font-semibold transition-colors"
+          style={{ color: '#8c90a1' }}>
+          <ArrowLeft className="w-4 h-4" /> Geri
+        </button>
+      ) : <div />}
+      <button
+        onClick={onNext ?? (() => next !== undefined && setStep(next))}
+        disabled={nextDisabled}
+        className="btn-gradient flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-40 disabled:cursor-not-allowed"
+      >
+        Devam Et <ArrowRight className="w-4 h-4" />
+      </button>
+    </div>
+  )
+
   return (
-    <div className="min-h-screen bg-[#080808] flex flex-col">
+    <div className="min-h-screen dot-bg flex flex-col" style={{ background: '#050505' }}>
+      {/* Top gradient accent */}
+      <div className="absolute top-0 left-0 right-0 h-px"
+        style={{ background: 'linear-gradient(90deg, transparent, rgba(0,241,254,0.3), rgba(0,102,255,0.2), transparent)' }} />
+
       {/* Top bar */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-[#1a1a1a]">
+      <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 bg-gradient-to-br from-blue-500 to-blue-700 rounded-lg flex items-center justify-center">
-            <Sparkles className="w-3.5 h-3.5 text-white" />
+          <div className="btn-gradient w-7 h-7 rounded-lg flex items-center justify-center">
+            <Zap className="w-3.5 h-3.5 text-white" />
           </div>
-          <span className="font-bold text-white tracking-tight">Marksio</span>
+          <span className="text-sm font-black" style={{ color: '#e5e2e1' }}>Marksio</span>
         </div>
-        <button onClick={() => router.push('/dashboard')} className="text-sm text-gray-600 hover:text-gray-400 transition-colors">
+        <button onClick={() => router.push('/dashboard')}
+          className="text-xs font-semibold transition-colors" style={{ color: '#424656' }}>
           Atla
         </button>
       </div>
 
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
-        {/* Step indicators */}
-        <div className="flex items-center gap-2 mb-10">
+        {/* Step indicator */}
+        <div className="flex items-center gap-1.5 mb-10">
           {STEPS.map((s, i) => {
             const done   = i < step
             const active = i === step
             return (
-              <div key={s.label} className="flex items-center gap-2">
+              <div key={s.label} className="flex items-center gap-1.5">
                 <div className={cn(
-                  'w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all',
-                  done ? 'bg-emerald-500 text-white' : active ? 'bg-blue-600 text-white' : 'bg-[#1a1a1a] text-gray-600 border border-[#2a2a2a]'
-                )}>
-                  {done ? <Check className="w-4 h-4" /> : i + 1}
+                  'w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-200',
+                )
+                } style={
+                  done   ? { background: 'rgba(52,211,153,0.15)', border: '1px solid rgba(52,211,153,0.3)', color: '#34d399' }
+                  : active ? { background: 'rgba(0,102,255,0.2)', border: '1px solid rgba(0,102,255,0.4)', color: '#6b9fff' }
+                  : { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', color: '#424656' }
+                }>
+                  {done ? <Check className="w-3.5 h-3.5" /> : i + 1}
                 </div>
                 {i < STEPS.length - 1 && (
-                  <div className={cn('w-8 h-px', done ? 'bg-emerald-500/40' : 'bg-[#2a2a2a]')} />
+                  <div className="w-6 h-px" style={{ background: done ? 'rgba(52,211,153,0.3)' : 'rgba(255,255,255,0.05)' }} />
                 )}
               </div>
             )
           })}
         </div>
 
-        <div className="w-full max-w-lg">
+        {/* ── Step 0: İşletme adı ── */}
+        {step === 0 && (
+          <div className={cardCls}>
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-5 mx-auto"
+              style={{ background: 'rgba(0,241,254,0.06)', border: '1px solid rgba(0,241,254,0.12)' }}>
+              <Sparkles className="w-6 h-6" style={{ color: '#00f1fe' }} />
+            </div>
+            <h1 className="text-2xl font-black text-center mb-1" style={{ color: '#e5e2e1' }}>
+              Marksio&apos;ya Hoş Geldiniz
+            </h1>
+            <p className="text-sm text-center mb-8" style={{ color: '#8c90a1' }}>
+              Kurulum sadece birkaç dakika sürer. Hadi başlayalım.
+            </p>
 
-          {/* ── Step 0: Business info ── */}
-          {step === 0 && (
-            <div className="bg-[#0d0d0d] border border-[#1e1e1e] rounded-2xl p-8">
-              <div className="w-14 h-14 bg-blue-500/10 border border-blue-500/20 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <Sparkles className="w-7 h-7 text-blue-400" />
+            <div>
+              <label className="label">İşletme Adınız</label>
+              <input
+                value={businessName}
+                onChange={e => setBusinessName(e.target.value)}
+                placeholder="Örn: Moda Butik"
+                className="input"
+                autoFocus
+              />
+              <p className="text-[10px] mt-1.5" style={{ color: '#424656' }}>
+                Müşterilerinize gönderilen emaillerde görünür.
+              </p>
+            </div>
+
+            <NavButtons next={1} nextDisabled={!businessName.trim()} />
+          </div>
+        )}
+
+        {/* ── Step 1: Website / domain ── */}
+        {step === 1 && (
+          <div className={cardCls}>
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-5"
+              style={{ background: 'rgba(0,102,255,0.08)', border: '1px solid rgba(0,102,255,0.18)' }}>
+              <Globe className="w-6 h-6" style={{ color: '#6b9fff' }} />
+            </div>
+            <h2 className="text-xl font-black mb-1" style={{ color: '#e5e2e1' }}>Website & Platform</h2>
+            <p className="text-sm mb-6" style={{ color: '#8c90a1' }}>E-ticaret platformunuzu ve sitenizi belirtin.</p>
+
+            <div className="space-y-5">
+              <div>
+                <label className="label">Website URL</label>
+                <input
+                  value={website}
+                  onChange={e => setWebsite(e.target.value)}
+                  placeholder="https://maganizin.com"
+                  className="input"
+                />
               </div>
-              <h1 className="text-2xl font-bold text-white text-center mb-1">Marksio&apos;ya Hoş Geldiniz</h1>
-              <p className="text-gray-500 text-sm text-center mb-8">Kurulum sadece 2 dakika sürer.</p>
 
-              <div className="space-y-5">
+              <div>
+                <label className="label">E-Ticaret Platformu</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {PLATFORMS.map(p => (
+                    <button key={p.key} onClick={() => setPlatform(p.key)}
+                      className={cn('flex items-center gap-3 p-3 rounded-xl text-left transition-all')}
+                      style={platform === p.key
+                        ? { background: 'rgba(0,102,255,0.1)', border: '1px solid rgba(0,102,255,0.3)' }
+                        : { background: '#0f0f0f', border: '1px solid rgba(255,255,255,0.05)' }}>
+                      <span className="text-xl">{p.emoji}</span>
+                      <div>
+                        <p className="text-xs font-semibold" style={{ color: '#e5e2e1' }}>{p.label}</p>
+                        <p className="text-[10px]" style={{ color: '#8c90a1' }}>{p.desc}</p>
+                      </div>
+                      {platform === p.key && (
+                        <Check className="w-3.5 h-3.5 ml-auto shrink-0" style={{ color: '#6b9fff' }} />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {platform && platform !== 'other' && (
                 <div>
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-2">İşletme Adınız</label>
+                  <label className="label">Mağaza Domain</label>
                   <input
-                    value={businessName}
-                    onChange={e => setBusinessName(e.target.value)}
-                    placeholder="Örn: Moda Butik"
-                    className="w-full px-4 py-3 bg-[#111] border border-[#2a2a2a] text-white placeholder:text-gray-700 rounded-xl text-sm focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20"
+                    value={shopDomain}
+                    onChange={e => setShopDomain(e.target.value)}
+                    placeholder={platform === 'shopify' ? 'mystore.myshopify.com' : 'mystore.com'}
+                    className="input"
                   />
                 </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-2">Ekip Büyüklüğünüz</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {TEAM_SIZES.map(t => (
-                      <button
-                        key={t.key}
-                        onClick={() => setTeamSize(t.key)}
-                        className={cn(
-                          'px-4 py-2.5 rounded-xl text-sm font-medium border transition-all text-left',
-                          teamSize === t.key
-                            ? 'border-blue-500/50 bg-blue-500/10 text-blue-400'
-                            : 'border-[#2a2a2a] bg-[#111] text-gray-500 hover:border-[#3a3a3a] hover:text-gray-300'
-                        )}
-                      >
-                        {t.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <button
-                onClick={() => setStep(1)}
-                disabled={!businessName}
-                className="w-full mt-8 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-semibold py-3 rounded-xl transition-all"
-              >
-                Devam Et <ArrowRight className="w-4 h-4" />
-              </button>
-            </div>
-          )}
-
-          {/* ── Step 1: Platform ── */}
-          {step === 1 && (
-            <div className="bg-[#0d0d0d] border border-[#1e1e1e] rounded-2xl p-8">
-              <h2 className="text-xl font-bold text-white mb-1">Hangi platformu kullanıyorsunuz?</h2>
-              <p className="text-sm text-gray-500 mb-6">E-ticaret platformunuzu seçin</p>
-
-              <div className="space-y-2 mb-7">
-                {PLATFORMS.map(p => (
-                  <button
-                    key={p.key}
-                    onClick={() => setPlatform(p.key)}
-                    className={cn(
-                      'w-full flex items-center gap-4 p-4 rounded-xl border transition-all text-left',
-                      platform === p.key ? 'border-blue-500/50 bg-blue-500/10' : 'border-[#2a2a2a] bg-[#111] hover:border-[#3a3a3a]'
-                    )}
-                  >
-                    <span className="text-2xl">{p.logo}</span>
-                    <div className="flex-1">
-                      <p className="text-sm font-semibold text-white">{p.label}</p>
-                      <p className="text-xs text-gray-500">{p.desc}</p>
-                    </div>
-                    {platform === p.key && (
-                      <div className="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center">
-                        <Check className="w-3 h-3 text-white" />
-                      </div>
-                    )}
-                  </button>
-                ))}
-              </div>
-
-              <div className="mb-7">
-                <p className="text-sm font-semibold text-white mb-3">Mail domaininizi bağlamak ister misiniz?</p>
-                <div className="grid grid-cols-2 gap-2">
-                  {[{ key: true, label: 'Evet, bağlamak istiyorum' }, { key: false, label: 'Şimdi değil' }].map(opt => (
-                    <button
-                      key={String(opt.key)}
-                      onClick={() => setWantMailDomain(opt.key)}
-                      className={cn(
-                        'py-2.5 px-4 rounded-xl text-sm font-medium border transition-all',
-                        wantMailDomain === opt.key ? 'border-blue-500/50 bg-blue-500/10 text-blue-400' : 'border-[#2a2a2a] bg-[#111] text-gray-500 hover:border-[#3a3a3a]'
-                      )}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <button onClick={() => setStep(0)} className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-300 transition-colors">
-                  <ArrowLeft className="w-4 h-4" /> Geri
-                </button>
-                <button
-                  onClick={() => setStep(2)}
-                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2.5 rounded-xl transition-all"
-                >
-                  Devam Et <ArrowRight className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* ── Step 2: Channels ── */}
-          {step === 2 && (
-            <div className="bg-[#0d0d0d] border border-[#1e1e1e] rounded-2xl p-8">
-              <h2 className="text-xl font-bold text-white mb-1">Hangi kanalları kullanacaksınız?</h2>
-              <p className="text-sm text-gray-500 mb-6">Müşterilerinize hangi kanallardan ulaşmak istiyorsunuz?</p>
-
-              <div className="space-y-3 mb-7">
-                {[
-                  { key: 'email',    icon: Mail,          label: 'Email Kampanyaları',    desc: 'Detaylı içerik, yüksek dönüşüm', color: 'text-blue-400',  bg: 'bg-blue-500/10 border-blue-500/30' },
-                  { key: 'whatsapp', icon: MessageSquare, label: 'WhatsApp Chatbot',       desc: 'Kişisel mesaj, %87 okunma oranı', color: 'text-green-400', bg: 'bg-green-500/10 border-green-500/30' },
-                ].map(ch => {
-                  const selected = channels.includes(ch.key)
-                  return (
-                    <button
-                      key={ch.key}
-                      onClick={() => toggleChannel(ch.key)}
-                      className={cn(
-                        'w-full flex items-center gap-4 p-4 rounded-xl border transition-all text-left',
-                        selected ? cn(ch.bg) : 'border-[#2a2a2a] bg-[#111] hover:border-[#3a3a3a]'
-                      )}
-                    >
-                      <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center border', selected ? ch.bg : 'bg-[#1a1a1a] border-[#2a2a2a]')}>
-                        <ch.icon className={cn('w-5 h-5', selected ? ch.color : 'text-gray-600')} />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-semibold text-white">{ch.label}</p>
-                        <p className="text-xs text-gray-500">{ch.desc}</p>
-                      </div>
-                      <div className={cn('w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all', selected ? 'border-blue-600 bg-blue-600' : 'border-[#3a3a3a]')}>
-                        {selected && <Check className="w-3 h-3 text-white" />}
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
-
-              <div className="flex items-center justify-between">
-                <button onClick={() => setStep(1)} className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-300 transition-colors">
-                  <ArrowLeft className="w-4 h-4" /> Geri
-                </button>
-                <button
-                  onClick={() => setStep(3)}
-                  disabled={channels.length === 0}
-                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-semibold px-5 py-2.5 rounded-xl transition-all"
-                >
-                  Devam Et <ArrowRight className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* ── Step 3: Goal ── */}
-          {step === 3 && (
-            <div className="bg-[#0d0d0d] border border-[#1e1e1e] rounded-2xl p-8">
-              <h2 className="text-xl font-bold text-white mb-1">Hedefiniz nedir?</h2>
-              <p className="text-sm text-gray-500 mb-6">Marksio'yu en çok hangi amaçla kullanacaksınız?</p>
-
-              <div className="grid grid-cols-2 gap-2 mb-7">
-                {GOALS.map(g => {
-                  const Icon = g.icon
-                  return (
-                    <button
-                      key={g.key}
-                      onClick={() => setGoal(g.key)}
-                      className={cn(
-                        'p-4 rounded-xl border transition-all text-left',
-                        goal === g.key ? 'border-blue-500/50 bg-blue-500/10' : 'border-[#2a2a2a] bg-[#111] hover:border-[#3a3a3a]'
-                      )}
-                    >
-                      <Icon className={cn('w-5 h-5 mb-2', goal === g.key ? 'text-blue-400' : 'text-gray-600')} />
-                      <p className="text-sm font-semibold text-white">{g.label}</p>
-                      <p className="text-[11px] text-gray-600 mt-0.5">{g.desc}</p>
-                    </button>
-                  )
-                })}
-              </div>
-
-              <div className="mb-7">
-                <p className="text-sm font-semibold text-white mb-3">WhatsApp AI Chatbot kullanacak mısınız?</p>
-                <div className="grid grid-cols-2 gap-2">
-                  {[{ key: true, label: 'Evet' }, { key: false, label: 'Henüz değil' }].map(opt => (
-                    <button
-                      key={String(opt.key)}
-                      onClick={() => setWantWhatsApp(opt.key)}
-                      className={cn(
-                        'py-2.5 px-4 rounded-xl text-sm font-medium border transition-all',
-                        wantWhatsApp === opt.key ? 'border-blue-500/50 bg-blue-500/10 text-blue-400' : 'border-[#2a2a2a] bg-[#111] text-gray-500 hover:border-[#3a3a3a]'
-                      )}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <button onClick={() => setStep(2)} className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-300 transition-colors">
-                  <ArrowLeft className="w-4 h-4" /> Geri
-                </button>
-                <button
-                  onClick={() => setStep(4)}
-                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2.5 rounded-xl transition-all"
-                >
-                  Devam Et <ArrowRight className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* ── Step 4: Done ── */}
-          {step === 4 && (
-            <div className="bg-[#0d0d0d] border border-[#1e1e1e] rounded-2xl p-8 text-center">
-              <div className="w-16 h-16 bg-emerald-500/10 border border-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-5">
-                <Check className="w-8 h-8 text-emerald-400" />
-              </div>
-              <h2 className="text-2xl font-bold text-white mb-2">Her şey hazır!</h2>
-              <p className="text-gray-500 text-sm mb-8">
-                {businessName} için AI destekli pazarlama başlamaya hazır.
-              </p>
-
-              <div className="grid grid-cols-3 gap-3 mb-8">
-                {[
-                  { value: platform || 'Manuel', label: 'Platform' },
-                  { value: channels.length.toString(), label: 'Kanal Aktif' },
-                  { value: '14 gün', label: 'Ücretsiz Deneme' },
-                ].map(s => (
-                  <div key={s.label} className="bg-[#111] border border-[#1e1e1e] rounded-xl p-3">
-                    <p className="text-base font-bold text-white capitalize">{s.value}</p>
-                    <p className="text-[11px] text-gray-600 mt-0.5">{s.label}</p>
-                  </div>
-                ))}
-              </div>
-
-              {wantMailDomain && (
-                <div className="mb-6 p-4 bg-blue-500/5 border border-blue-500/15 rounded-xl text-left">
-                  <p className="text-xs font-semibold text-blue-400 mb-1">Mail Domain Hatırlatması</p>
-                  <p className="text-xs text-blue-400/70">Dashboard&apos;a girdikten sonra Ayarlar → Mail Domain bölümünden domaininizi bağlayabilirsiniz.</p>
-                </div>
               )}
+            </div>
 
+            <NavButtons back={0} next={2} />
+          </div>
+        )}
+
+        {/* ── Step 2: Sektör ── */}
+        {step === 2 && (
+          <div className={cardCls}>
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-5"
+              style={{ background: 'rgba(167,139,250,0.08)', border: '1px solid rgba(167,139,250,0.18)' }}>
+              <ShoppingBag className="w-6 h-6" style={{ color: '#a78bfa' }} />
+            </div>
+            <h2 className="text-xl font-black mb-1" style={{ color: '#e5e2e1' }}>Sektörünüz</h2>
+            <p className="text-sm mb-6" style={{ color: '#8c90a1' }}>
+              Sektörünüze özel AI içerikler ve segmentler oluşturuyoruz.
+            </p>
+
+            <div className="grid grid-cols-2 gap-2">
+              {SECTORS.map(({ key, icon: Icon, label }) => (
+                <button key={key} onClick={() => setSector(key)}
+                  className={cn('flex items-center gap-3 p-3.5 rounded-xl text-left transition-all')}
+                  style={sector === key
+                    ? { background: 'rgba(167,139,250,0.08)', border: '1px solid rgba(167,139,250,0.25)' }
+                    : { background: '#0f0f0f', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <Icon className="w-4.5 h-4.5 shrink-0" style={{ color: sector === key ? '#a78bfa' : '#424656', width: 18, height: 18 }} />
+                  <p className="text-xs font-semibold" style={{ color: sector === key ? '#e5e2e1' : '#8c90a1' }}>{label}</p>
+                  {sector === key && <Check className="w-3.5 h-3.5 ml-auto shrink-0" style={{ color: '#a78bfa' }} />}
+                </button>
+              ))}
+            </div>
+
+            <NavButtons back={1} next={3} nextDisabled={!sector} />
+          </div>
+        )}
+
+        {/* ── Step 3: Hedef ── */}
+        {step === 3 && (
+          <div className={cardCls}>
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-5"
+              style={{ background: 'rgba(0,241,254,0.06)', border: '1px solid rgba(0,241,254,0.12)' }}>
+              <Target className="w-6 h-6" style={{ color: '#00f1fe' }} />
+            </div>
+            <h2 className="text-xl font-black mb-1" style={{ color: '#e5e2e1' }}>Hedefiniz nedir?</h2>
+            <p className="text-sm mb-6" style={{ color: '#8c90a1' }}>
+              Size en uygun otomasyonları ve kampanya şablonlarını hazırlayalım.
+            </p>
+
+            <div className="grid grid-cols-2 gap-3">
+              {GOALS.map(({ key, icon: Icon, label, desc }) => (
+                <button key={key} onClick={() => setGoal(key)}
+                  className={cn('p-4 rounded-xl text-left transition-all')}
+                  style={goal === key
+                    ? { background: 'rgba(0,241,254,0.06)', border: '1px solid rgba(0,241,254,0.2)' }
+                    : { background: '#0f0f0f', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <Icon className="w-5 h-5 mb-3" style={{ color: goal === key ? '#00f1fe' : '#424656' }} />
+                  <p className="text-xs font-bold mb-0.5" style={{ color: '#e5e2e1' }}>{label}</p>
+                  <p className="text-[10px]" style={{ color: '#8c90a1' }}>{desc}</p>
+                </button>
+              ))}
+            </div>
+
+            <NavButtons back={2} next={4} nextDisabled={!goal} />
+          </div>
+        )}
+
+        {/* ── Step 4: Mail domain bağlama ── */}
+        {step === 4 && (
+          <div className={cardCls}>
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-5"
+              style={{ background: 'rgba(0,102,255,0.08)', border: '1px solid rgba(0,102,255,0.18)' }}>
+              <Mail className="w-6 h-6" style={{ color: '#6b9fff' }} />
+            </div>
+            <h2 className="text-xl font-black mb-1" style={{ color: '#e5e2e1' }}>Mail Domain Bağlayın</h2>
+            <p className="text-sm mb-6" style={{ color: '#8c90a1' }}>
+              Kendi domain&apos;inizden email göndermek için DNS kaydı eklemeniz gerekir.
+              Şimdi atlayıp sonradan Ayarlar bölümünden yapabilirsiniz.
+            </p>
+
+            {!skipMailDomain && (
+              <div className="space-y-4 mb-4">
+                <div>
+                  <label className="label">Email Gönderme Domaini</label>
+                  <input
+                    value={emailDomain}
+                    onChange={e => setEmailDomain(e.target.value)}
+                    placeholder="magaza.com"
+                    className="input"
+                    disabled={skipMailDomain}
+                  />
+                  <p className="text-[10px] mt-1.5" style={{ color: '#424656' }}>
+                    DNS kayıtları (SPF, DKIM, DMARC) otomatik oluşturulacak.
+                  </p>
+                </div>
+
+                <div className="p-3 rounded-xl" style={{ background: 'rgba(0,241,254,0.03)', border: '1px solid rgba(0,241,254,0.08)' }}>
+                  <p className="text-xs font-semibold mb-1" style={{ color: '#00f1fe' }}>Neden önemli?</p>
+                  <p className="text-[11px] leading-relaxed" style={{ color: '#8c90a1' }}>
+                    Kendi domain&apos;inizden gönderim spam skorunu düşürür, açılma oranını ortalama %35 artırır.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <button onClick={() => setSkipMailDomain(!skipMailDomain)}
+              className="flex items-center gap-2 text-xs font-semibold transition-colors mb-2"
+              style={{ color: skipMailDomain ? '#00f1fe' : '#8c90a1' }}>
+              <div className={cn('w-4 h-4 rounded border flex items-center justify-center transition-all',
+                skipMailDomain ? '' : '')}
+                style={skipMailDomain
+                  ? { background: 'rgba(0,241,254,0.15)', border: '1px solid rgba(0,241,254,0.3)' }
+                  : { background: 'transparent', border: '1px solid rgba(255,255,255,0.1)' }}>
+                {skipMailDomain && <Check className="w-2.5 h-2.5" style={{ color: '#00f1fe' }} />}
+              </div>
+              Şimdi atla, sonra ayarlardan bağlarım
+            </button>
+
+            <NavButtons back={3} next={5} />
+          </div>
+        )}
+
+        {/* ── Step 5: Hazır / Final ── */}
+        {step === 5 && (
+          <div className={cn(cardCls, 'text-center gradient-border')}
+            style={{ background: 'linear-gradient(145deg, rgba(0,241,254,0.04), #131313)' }}>
+            <div className="absolute top-0 inset-x-0 h-px"
+              style={{ background: 'linear-gradient(90deg, transparent, #00f1fe, rgba(0,102,255,0.5), transparent)' }} />
+
+            <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-5"
+              style={{ background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)' }}>
+              <Check className="w-8 h-8" style={{ color: '#34d399' }} />
+            </div>
+
+            <h2 className="text-2xl font-black mb-2" style={{ color: '#e5e2e1' }}>Her şey hazır!</h2>
+            <p className="text-sm mb-8" style={{ color: '#8c90a1' }}>
+              <span className="font-semibold" style={{ color: '#e5e2e1' }}>{businessName}</span> için
+              AI destekli pazarlama başlamaya hazır.
+            </p>
+
+            <div className="grid grid-cols-3 gap-3 mb-8">
+              {[
+                { value: PLATFORMS.find(p => p.key === platform)?.label || '—', label: 'Platform' },
+                { value: SECTORS.find(s => s.key === sector)?.label.split(' ')[0] || '—', label: 'Sektör' },
+                { value: '14 gün', label: 'Ücretsiz Deneme' },
+              ].map(s => (
+                <div key={s.label} className="p-3 rounded-xl"
+                  style={{ background: '#0a0a0a', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <p className="text-sm font-black" style={{ color: '#e5e2e1' }}>{s.value}</p>
+                  <p className="text-[10px] mt-0.5" style={{ color: '#8c90a1' }}>{s.label}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="space-y-3">
               <button
-                onClick={handleFinish}
+                onClick={() => handleFinish('/campaigns/new')}
                 disabled={saving}
-                className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-semibold py-3.5 rounded-xl transition-all text-base"
+                className="btn-gradient w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold text-white"
               >
-                {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
-                {saving ? 'Kaydediliyor...' : 'Dashboard\'a Git'}
+                {saving
+                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Kaydediliyor...</>
+                  : <><Sparkles className="w-4 h-4" /> İlk Kampanyamı Oluştur</>
+                }
+              </button>
+              <button
+                onClick={() => handleFinish('/dashboard')}
+                disabled={saving}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-semibold transition-all"
+                style={{ background: '#1c1b1b', border: '1px solid rgba(255,255,255,0.07)', color: '#8c90a1' }}>
+                Dashboard&apos;a Git
               </button>
             </div>
-          )}
-        </div>
+          </div>
+        )}
+
       </div>
     </div>
   )

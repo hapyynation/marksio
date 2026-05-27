@@ -14,11 +14,36 @@ interface HeaderProps {
 }
 
 const notifications = [
-  { id: 1, icon: CheckCircle, color: '#34d399', bg: 'rgba(52,211,153,0.08)', title: 'Anneler Günü kampanyası tamamlandı', desc: '₺24.680 gelir · %70 açılma oranı', time: '2 saat önce', read: false },
-  { id: 2, icon: TrendingUp,  color: '#b3c5ff', bg: 'rgba(179,197,255,0.08)', title: 'Sepet terk otomasyonu bugün 48 tetiklendi', desc: '12 dönüşüm · ₺2.840 gelir', time: '5 saat önce', read: false },
-  { id: 3, icon: AlertCircle, color: '#fbbf24', bg: 'rgba(251,191,36,0.08)', title: '3 yeni VIP müşteri tespit edildi', desc: 'Segmentasyonu güncellemek ister misiniz?', time: 'Dün', read: false },
-  { id: 4, icon: Calendar,    color: '#00f1fe', bg: 'rgba(0,241,254,0.08)', title: 'Win-Back kampanyası yarın gönderilecek', desc: '620 müşteriye · Email kanalı', time: 'Dün', read: true },
-  { id: 5, icon: CheckCircle, color: '#34d399', bg: 'rgba(52,211,153,0.08)', title: 'WhatsApp Business bağlantısı doğrulandı', desc: 'Mesaj göndermeye hazırsınız', time: '2 gün önce', read: true },
+  {
+    id: 1, icon: CheckCircle, color: 'var(--green)', bg: 'rgba(34,201,122,0.08)',
+    title: 'Anneler Günü kampanyası tamamlandı',
+    desc: '₺24.680 gelir · %70 açılma oranı',
+    time: '2s önce', read: false,
+  },
+  {
+    id: 2, icon: TrendingUp, color: '#99b4ff', bg: 'rgba(68,112,255,0.08)',
+    title: 'Sepet terk otomasyonu 48 tetiklendi',
+    desc: '12 dönüşüm · ₺2.840 gelir',
+    time: '5s önce', read: false,
+  },
+  {
+    id: 3, icon: AlertCircle, color: 'var(--amber)', bg: 'rgba(240,160,32,0.08)',
+    title: '3 yeni VIP müşteri tespit edildi',
+    desc: 'Segmentasyonu güncellemek ister misiniz?',
+    time: 'Dün', read: false,
+  },
+  {
+    id: 4, icon: Calendar, color: '#00d8f0', bg: 'rgba(0,216,240,0.08)',
+    title: 'Win-Back kampanyası yarın gönderilecek',
+    desc: '620 müşteriye · Email kanalı',
+    time: 'Dün', read: true,
+  },
+  {
+    id: 5, icon: CheckCircle, color: 'var(--green)', bg: 'rgba(34,201,122,0.08)',
+    title: 'WhatsApp Business bağlantısı doğrulandı',
+    desc: 'Mesaj göndermeye hazırsınız',
+    time: '2 gün', read: true,
+  },
 ]
 
 export default function Header({ title, subtitle, action, actions }: HeaderProps) {
@@ -37,134 +62,162 @@ export default function Header({ title, subtitle, action, actions }: HeaderProps
     return () => document.removeEventListener('mousedown', onClick)
   }, [])
 
-  function markAllRead() {
-    setNotifs(prev => prev.map(n => ({ ...n, read: true })))
-  }
-
   return (
-    <header className="h-16 flex items-center px-4 lg:px-6 gap-3 sticky top-0 z-20"
+    <header
+      className="h-14 flex items-center px-5 gap-3 sticky top-0 z-20"
       style={{
-        background: 'rgba(19,19,19,0.92)',
+        background: 'rgba(11,11,20,0.9)',
         backdropFilter: 'blur(20px)',
         WebkitBackdropFilter: 'blur(20px)',
-        borderBottom: '1px solid rgba(255,255,255,0.05)',
-        boxShadow: 'inset 0 -1px 0 rgba(255,255,255,0.02)',
-      }}>
-
-      <button onClick={() => setOpen(true)}
-        className="lg:hidden p-2 rounded-lg transition-colors text-[#8c90a1] hover:text-[#e5e2e1] hover:bg-white/[0.04]">
+        borderBottom: '1px solid rgba(255,255,255,0.06)',
+      }}
+    >
+      {/* Mobile menu */}
+      <button
+        onClick={() => setOpen(true)}
+        className="lg:hidden p-2 rounded-lg transition-colors"
+        style={{ color: 'var(--text-2)' }}
+        onMouseEnter={e => (e.currentTarget.style.color = '#eeeef4')}
+        onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-2)')}>
         <Menu className="w-4 h-4" />
       </button>
 
+      {/* Title */}
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <h1 className="text-sm font-bold truncate" style={{ color: '#e5e2e1', fontFamily: 'Inter, sans-serif' }}>{title}</h1>
+        <div className="flex items-center gap-2.5">
+          <h1 className="text-[14px] font-semibold truncate tracking-tight"
+            style={{ color: '#eeeef4', letterSpacing: '-0.01em' }}>
+            {title}
+          </h1>
           {subtitle && (
-            <span className="hidden sm:block text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md"
-              style={{ background: '#2a2a2a', color: '#8c90a1' }}>
+            <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium"
+              style={{
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                color: 'var(--text-2)',
+              }}>
               {subtitle}
             </span>
           )}
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
-
+      <div className="flex items-center gap-1.5">
         {/* Search */}
         <div className="relative hidden md:block">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: '#424656' }} />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none"
+            style={{ color: 'var(--text-3)' }} />
           <input
             type="text"
             placeholder="Ara..."
-            className="pl-9 pr-4 py-2 text-xs rounded-xl w-44 outline-none transition-all"
+            className="pl-9 pr-4 py-1.5 text-[13px] rounded-lg w-40 outline-none transition-all"
             style={{
-              background: '#131313',
-              border: '1px solid rgba(255,255,255,0.06)',
-              color: '#e5e2e1',
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px solid rgba(255,255,255,0.07)',
+              color: '#eeeef4',
             }}
             onFocus={e => {
-              e.currentTarget.style.borderColor = 'rgba(0,241,254,0.3)'
-              e.currentTarget.style.boxShadow = '0 0 0 2px rgba(0,241,254,0.06)'
+              e.currentTarget.style.borderColor = 'rgba(68,112,255,0.4)'
+              e.currentTarget.style.boxShadow = '0 0 0 3px rgba(68,112,255,0.08)'
+              e.currentTarget.style.width = '200px'
             }}
             onBlur={e => {
-              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'
+              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)'
               e.currentTarget.style.boxShadow = 'none'
+              e.currentTarget.style.width = '160px'
             }}
           />
         </div>
 
         {/* Notifications */}
         <div className="relative" ref={ref}>
-          <button onClick={() => setShowNotifs(!showNotifs)}
-            className="relative p-2 rounded-xl transition-colors text-[#8c90a1] hover:text-[#e5e2e1] hover:bg-white/[0.04]">
-            <span className="material-symbols-outlined" style={{ fontSize: 18 }}>notifications</span>
+          <button
+            onClick={() => setShowNotifs(!showNotifs)}
+            className="relative p-2 rounded-lg transition-colors"
+            style={{ color: showNotifs ? '#eeeef4' : 'var(--text-2)' }}
+            onMouseEnter={e => (e.currentTarget.style.color = '#eeeef4')}
+            onMouseLeave={e => !showNotifs && (e.currentTarget.style.color = 'var(--text-2)')}>
+            <span className="material-symbols-outlined" style={{ fontSize: 17 }}>notifications</span>
             {unread > 0 && (
-              <span className="absolute top-1.5 right-1.5 min-w-[14px] h-3.5 rounded-full flex items-center justify-center text-[9px] font-bold text-white px-0.5"
-                style={{ background: '#00f1fe', boxShadow: '0 0 8px rgba(0,241,254,0.5)', color: '#001a1b' }}>
+              <span
+                className="absolute top-1 right-1 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold"
+                style={{ background: 'var(--blue)', color: '#fff', boxShadow: '0 0 6px rgba(68,112,255,0.5)' }}>
                 {unread}
               </span>
             )}
           </button>
 
           {showNotifs && (
-            <div className="absolute right-0 top-full mt-2 w-80 rounded-2xl z-50 overflow-hidden"
+            <div
+              className="absolute right-0 top-full mt-2 w-[320px] rounded-2xl z-50 overflow-hidden animate-slide-up"
               style={{
-                background: 'rgba(19,19,19,0.97)',
-                border: '1px solid rgba(255,255,255,0.06)',
-                backdropFilter: 'blur(24px)',
-                boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
+                background: '#111120',
+                border: '1px solid rgba(255,255,255,0.1)',
+                boxShadow: '0 24px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)',
               }}>
+              {/* Header */}
               <div className="flex items-center justify-between px-4 py-3"
-                style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-bold" style={{ color: '#e5e2e1' }}>Bildirimler</span>
+                  <span className="text-[13px] font-semibold" style={{ color: '#eeeef4' }}>
+                    Bildirimler
+                  </span>
                   {unread > 0 && (
-                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
-                      style={{ background: 'rgba(0,241,254,0.15)', color: '#00f1fe', border: '1px solid rgba(0,241,254,0.2)' }}>
+                    <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded-full"
+                      style={{
+                        background: 'rgba(68,112,255,0.15)',
+                        color: '#99b4ff',
+                        border: '1px solid rgba(68,112,255,0.2)',
+                      }}>
                       {unread}
                     </span>
                   )}
                 </div>
                 <div className="flex items-center gap-2">
                   {unread > 0 && (
-                    <button onClick={markAllRead}
-                      className="text-[10px] font-semibold transition-colors"
-                      style={{ color: '#00f1fe' }}>
-                      Tümünü oku
+                    <button
+                      onClick={() => setNotifs(prev => prev.map(n => ({ ...n, read: true })))}
+                      className="text-[11px] font-medium transition-colors"
+                      style={{ color: 'var(--blue)' }}>
+                      Tümü okundu
                     </button>
                   )}
                   <button onClick={() => setShowNotifs(false)}
-                    className="p-1 rounded-lg transition-colors"
-                    style={{ color: '#8c90a1' }}>
+                    className="p-1 rounded-md transition-colors"
+                    style={{ color: 'var(--text-2)' }}>
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
 
-              <div className="max-h-80 overflow-y-auto divide-y divide-white/[0.03]">
-                {notifs.map(n => (
-                  <div key={n.id}
-                    className={cn(
-                      'flex gap-3 px-4 py-3 cursor-pointer transition-colors hover:bg-white/[0.03]',
-                      !n.read && 'bg-[#00f1fe]/[0.02]',
-                    )}
-                    style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}
+              {/* Items */}
+              <div className="max-h-80 overflow-y-auto">
+                {notifs.map((n, idx) => (
+                  <div
+                    key={n.id}
+                    className="flex gap-3 px-4 py-3 cursor-pointer transition-colors"
+                    style={{
+                      background: !n.read ? 'rgba(68,112,255,0.03)' : 'transparent',
+                      borderBottom: idx < notifs.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.03)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = !n.read ? 'rgba(68,112,255,0.03)' : 'transparent')}
                     onClick={() => setNotifs(prev => prev.map(x => x.id === n.id ? { ...x, read: true } : x))}>
-                    <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
                       style={{ background: n.bg }}>
                       <n.icon className="w-4 h-4" style={{ color: n.color }} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs leading-snug"
-                        style={{ color: n.read ? '#8c90a1' : '#e5e2e1', fontWeight: n.read ? 400 : 600 }}>
+                      <p className="text-[13px] leading-snug"
+                        style={{ color: n.read ? 'var(--text-2)' : '#eeeef4', fontWeight: n.read ? 400 : 500 }}>
                         {n.title}
                       </p>
-                      <p className="text-[10px] mt-0.5 truncate" style={{ color: '#8c90a1' }}>{n.desc}</p>
-                      <p className="text-[9px] mt-1 font-medium uppercase tracking-wider" style={{ color: '#424656' }}>{n.time}</p>
+                      <p className="text-[11px] mt-0.5 truncate" style={{ color: 'var(--text-2)' }}>{n.desc}</p>
+                      <p className="text-[10px] mt-1 font-medium" style={{ color: 'var(--text-3)' }}>{n.time}</p>
                     </div>
                     {!n.read && (
                       <div className="w-1.5 h-1.5 rounded-full mt-2 shrink-0"
-                        style={{ background: '#00f1fe', boxShadow: '0 0 6px rgba(0,241,254,0.5)' }} />
+                        style={{ background: 'var(--blue)', boxShadow: '0 0 5px rgba(68,112,255,0.5)' }} />
                     )}
                   </div>
                 ))}
@@ -176,24 +229,17 @@ export default function Header({ title, subtitle, action, actions }: HeaderProps
         {/* Action buttons */}
         {actions?.map(a => (
           <Link key={a.href} href={a.href}
-            className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all"
-            style={a.variant === 'secondary' ? {
-              background: '#1c1b1b',
-              border: '1px solid rgba(255,255,255,0.06)',
-              color: '#8c90a1',
-            } : {
-              background: '#0066ff',
-              color: '#fff',
-              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.25), 0 0 15px rgba(0,102,255,0.25)',
-            }}>
+            className={cn(
+              'hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-medium transition-all',
+              a.variant === 'primary' ? 'btn-primary' : 'btn-secondary',
+            )}>
             <Plus className="w-3.5 h-3.5" />
             {a.label}
           </Link>
         ))}
         {action && (
           <Link href={action.href}
-            className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-white transition-all"
-            style={{ background: '#0066ff', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.25), 0 0 15px rgba(0,102,255,0.25)' }}>
+            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-semibold text-white transition-all btn-primary">
             <Plus className="w-3.5 h-3.5" />
             {action.label}
           </Link>

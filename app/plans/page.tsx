@@ -14,7 +14,9 @@ const plans = [
     icon: Rocket,
     price: { monthly: 0, yearly: 0 },
     desc: 'Başlamak için ideal',
-    color: 'text-gray-400',
+    accentColor: 'rgba(140,144,161,0.15)',
+    accentBorder: 'rgba(140,144,161,0.2)',
+    iconColor: '#8c90a1',
     features: [
       '1.000 email / ay',
       '1 kampanya',
@@ -30,7 +32,9 @@ const plans = [
     icon: Zap,
     price: { monthly: 19, yearly: 15 },
     desc: 'Büyüyen mağazalar için',
-    color: 'text-blue-400',
+    accentColor: 'rgba(0,102,255,0.08)',
+    accentBorder: 'rgba(0,102,255,0.2)',
+    iconColor: '#6b9fff',
     features: [
       '10.000 email / ay',
       '50 WhatsApp / ay',
@@ -49,7 +53,9 @@ const plans = [
     price: { monthly: 49, yearly: 39 },
     desc: 'En çok tercih edilen',
     popular: true,
-    color: 'text-blue-400',
+    accentColor: 'rgba(0,241,254,0.06)',
+    accentBorder: 'rgba(0,241,254,0.25)',
+    iconColor: '#00f1fe',
     features: [
       '50.000 email / ay',
       '200 WhatsApp / ay',
@@ -68,7 +74,9 @@ const plans = [
     icon: Building2,
     price: { monthly: 119, yearly: 95 },
     desc: 'Ajans ve yüksek hacim',
-    color: 'text-violet-400',
+    accentColor: 'rgba(167,139,250,0.08)',
+    accentBorder: 'rgba(167,139,250,0.2)',
+    iconColor: '#a78bfa',
     features: [
       'Sınırsız email',
       'Sınırsız WhatsApp',
@@ -83,6 +91,13 @@ const plans = [
   },
 ]
 
+const faqs = [
+  { q: 'Aylık kotayı aşarsam ne olur?', a: 'Mesaj gönderimleri durur. Ek kredi paketi satın alarak devam edebilirsiniz.' },
+  { q: 'İstediğim zaman plan değiştirebilir miyim?', a: 'Evet, her an yükseltme veya düşürme yapabilirsiniz. Fark bir sonraki dönemde yansır.' },
+  { q: 'Yıllık ödeme nasıl çalışır?', a: 'Yıllık planlar tek seferlik ödeme ile aktifleşir ve 12 ay boyunca geçerlidir.' },
+  { q: 'WhatsApp gönderimi için ne gerekiyor?', a: 'Meta Business API onayı gerekiyor. Ayarlar → Entegrasyonlar bölümünden bağlayabilirsiniz.' },
+]
+
 export default function PlansPage() {
   const { data: session } = useSession()
   const currentPlan = (session?.user as { plan?: string })?.plan ?? 'free'
@@ -91,23 +106,24 @@ export default function PlansPage() {
   return (
     <AppShell>
       <Header title="Planlar & Fiyatlandırma" subtitle="İhtiyacınıza göre plan seçin" />
-      <div className="p-6 space-y-10 flex-1 max-w-5xl">
+      <div className="page-content space-y-10 flex-1 max-w-5xl">
 
         {/* Billing toggle */}
         <div className="flex justify-center">
-          <div className="flex items-center gap-1 bg-[#0d0d0d] border border-[#1e1e1e] rounded-xl p-1">
+          <div className="flex items-center gap-1 p-1 rounded-xl" style={{ background: '#0a0a0a', border: '1px solid rgba(255,255,255,0.06)' }}>
             {(['monthly', 'yearly'] as const).map(b => (
-              <button
-                key={b}
-                onClick={() => setBilling(b)}
+              <button key={b} onClick={() => setBilling(b)}
                 className={cn(
-                  'flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium transition-all',
-                  billing === b ? 'bg-[#1a1a1a] text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'
+                  'flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold transition-all',
+                  billing === b
+                    ? 'text-white'
+                    : 'text-[#8c90a1] hover:text-[#c2c6d8]'
                 )}
+                style={billing === b ? { background: '#1c1b1b', border: '1px solid rgba(255,255,255,0.08)' } : undefined}
               >
                 {b === 'monthly' ? 'Aylık' : 'Yıllık'}
                 {b === 'yearly' && (
-                  <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded-full">%20 İndirim</span>
+                  <span className="chip chip-green text-[9px]">%20 İndirim</span>
                 )}
               </button>
             ))}
@@ -115,78 +131,83 @@ export default function PlansPage() {
         </div>
 
         {/* Plan cards */}
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {plans.map(plan => {
-            const Icon     = plan.icon
-            const price    = plan.price[billing]
+            const Icon = plan.icon
+            const price = plan.price[billing]
             const isCurrent = currentPlan === plan.id
 
             return (
-              <div
-                key={plan.id}
-                className={cn(
-                  'relative flex flex-col rounded-2xl border overflow-hidden transition-all',
-                  plan.popular
-                    ? 'border-blue-500/50 bg-gradient-to-b from-blue-500/5 to-[#0d0d0d]'
-                    : 'border-[#1e1e1e] bg-[#0d0d0d]'
-                )}
+              <div key={plan.id} className={cn('bento-card flex flex-col', plan.popular && 'gradient-border')}
+                style={plan.popular ? {
+                  borderColor: plan.accentBorder,
+                  background: `linear-gradient(145deg, ${plan.accentColor}, #131313)`,
+                } : undefined}
               >
                 {plan.popular && (
-                  <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-blue-500 to-transparent" />
+                  <div className="absolute top-0 inset-x-0 h-px"
+                    style={{ background: 'linear-gradient(90deg, transparent, #00f1fe, rgba(0,102,255,0.6), transparent)' }} />
                 )}
                 {plan.popular && (
                   <div className="absolute -top-px left-1/2 -translate-x-1/2">
-                    <span className="bg-blue-600 text-white text-[10px] font-bold px-3 py-1 rounded-b-lg block">En Popüler</span>
+                    <span className="text-[9px] font-black uppercase tracking-wider px-3 py-1 rounded-b-lg block"
+                      style={{ background: 'linear-gradient(270deg, #001849, #003fa4, #00f1fe)', backgroundSize: '200%', color: '#fff' }}>
+                      En Popüler
+                    </span>
                   </div>
                 )}
 
-                <div className="p-6 flex-1 flex flex-col">
-                  <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center mb-4 border',
-                    plan.popular ? 'bg-blue-500/10 border-blue-500/20' : 'bg-[#111] border-[#2a2a2a]')}>
-                    <Icon className={cn('w-4.5 h-4.5', plan.color)} />
+                <div className="p-5 flex-1 flex flex-col">
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-4"
+                    style={{ background: plan.accentColor, border: `1px solid ${plan.accentBorder}` }}>
+                    <Icon className="w-4 h-4" style={{ color: plan.iconColor }} />
                   </div>
 
-                  <p className="font-bold text-white text-lg leading-tight">{plan.name}</p>
-                  <p className="text-xs text-gray-600 mb-5 mt-0.5">{plan.desc}</p>
+                  <p className="text-base font-black" style={{ color: '#e5e2e1' }}>{plan.name}</p>
+                  <p className="text-[11px] mb-5 mt-0.5" style={{ color: '#424656' }}>{plan.desc}</p>
 
-                  <div className="mb-6">
+                  <div className="mb-5">
                     <div className="flex items-end gap-1">
-                      <span className="text-4xl font-bold text-white">${price}</span>
-                      <span className="text-sm text-gray-600 mb-1">/ay</span>
+                      <span className="text-3xl font-black" style={{ color: '#e5e2e1' }}>${price}</span>
+                      <span className="text-xs mb-1" style={{ color: '#8c90a1' }}>/ay</span>
                     </div>
                     {billing === 'yearly' && plan.price.monthly > 0 && (
-                      <p className="text-xs text-gray-700 mt-0.5">
-                        <span className="line-through">${plan.price.monthly}/ay</span>
-                        <span className="text-emerald-500 ml-1">%20 tasarruf</span>
+                      <p className="text-[10px] mt-0.5">
+                        <span className="line-through" style={{ color: '#424656' }}>${plan.price.monthly}/ay</span>
+                        <span className="ml-1" style={{ color: '#34d399' }}>%20 tasarruf</span>
                       </p>
                     )}
                   </div>
 
-                  <ul className="space-y-2.5 mb-7 flex-1">
+                  <ul className="space-y-2 mb-6 flex-1">
                     {plan.features.map(f => (
-                      <li key={f} className="flex items-start gap-2 text-sm text-gray-400">
-                        <Check className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                      <li key={f} className="flex items-start gap-2 text-xs" style={{ color: '#8c90a1' }}>
+                        <Check className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: '#34d399' }} />
                         {f}
                       </li>
                     ))}
                   </ul>
 
-                  <button
-                    disabled={isCurrent}
+                  <button disabled={isCurrent}
                     className={cn(
-                      'w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all',
-                      isCurrent
-                        ? 'bg-[#1a1a1a] text-gray-600 cursor-default border border-[#2a2a2a]'
-                        : plan.popular
-                          ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                          : 'bg-[#111] hover:bg-[#1a1a1a] text-gray-300 border border-[#2a2a2a]'
+                      'w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all',
+                      isCurrent ? 'cursor-default' : 'cursor-pointer',
+                      plan.popular && !isCurrent ? 'btn-gradient' : ''
                     )}
+                    style={!plan.popular && !isCurrent ? {
+                      background: '#1c1b1b',
+                      border: '1px solid rgba(255,255,255,0.07)',
+                      color: '#c2c6d8',
+                    } : isCurrent ? {
+                      background: 'rgba(255,255,255,0.03)',
+                      border: '1px solid rgba(255,255,255,0.06)',
+                      color: '#424656',
+                    } : undefined}
                   >
-                    {isCurrent ? (
-                      <><Check className="w-4 h-4" /> Mevcut Plan</>
-                    ) : (
-                      <>{plan.cta} <ArrowRight className="w-4 h-4" /></>
-                    )}
+                    {isCurrent
+                      ? <><Check className="w-3.5 h-3.5" /> Mevcut Plan</>
+                      : <>{plan.cta} <ArrowRight className="w-3.5 h-3.5" /></>
+                    }
                   </button>
                 </div>
               </div>
@@ -195,32 +216,27 @@ export default function PlansPage() {
         </div>
 
         {/* Current plan summary */}
-        <div className="bg-[#0d0d0d] border border-[#1e1e1e] rounded-2xl p-6">
+        <div className="stat-card">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs text-gray-600 uppercase tracking-wider font-semibold mb-1">Mevcut Plan</p>
-              <p className="text-lg font-bold text-white capitalize">{currentPlan}</p>
+              <p className="label">Mevcut Plan</p>
+              <p className="text-lg font-black capitalize" style={{ color: '#e5e2e1' }}>{currentPlan}</p>
             </div>
             <div className="text-right">
-              <p className="text-xs text-gray-600 mb-1">Sonraki yenileme</p>
-              <p className="text-sm text-gray-400">1 Temmuz 2026</p>
+              <p className="label" style={{ textAlign: 'right' }}>Sonraki yenileme</p>
+              <p className="text-sm" style={{ color: '#8c90a1' }}>1 Temmuz 2026</p>
             </div>
           </div>
         </div>
 
         {/* FAQ */}
         <div>
-          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-5">Sık Sorulan Sorular</h2>
-          <div className="grid grid-cols-2 gap-5">
-            {[
-              { q: 'Aylık kotayı aşarsam ne olur?', a: 'Mesaj gönderimleri durur. Ek kredi paketi satın alarak devam edebilirsiniz.' },
-              { q: 'İstediğim zaman plan değiştirebilir miyim?', a: 'Evet, her an yükseltme veya düşürme yapabilirsiniz. Fark bir sonraki dönemde yansır.' },
-              { q: 'Yıllık ödeme nasıl çalışır?', a: 'Yıllık planlar tek seferlik ödeme ile aktifleşir ve 12 ay boyunca geçerlidir.' },
-              { q: 'WhatsApp gönderimi için ne gerekiyor?', a: 'Meta Business API onayı gerekiyor. Ayarlar → Entegrasyonlar bölümünden bağlayabilirsiniz.' },
-            ].map(item => (
-              <div key={item.q} className="bg-[#0d0d0d] border border-[#1e1e1e] rounded-xl p-4">
-                <p className="text-sm font-semibold text-gray-200 mb-1.5">{item.q}</p>
-                <p className="text-xs text-gray-600 leading-relaxed">{item.a}</p>
+          <p className="label mb-5">Sık Sorulan Sorular</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {faqs.map(item => (
+              <div key={item.q} className="bento-card p-4">
+                <p className="text-sm font-semibold mb-1.5" style={{ color: '#e5e2e1' }}>{item.q}</p>
+                <p className="text-xs leading-relaxed" style={{ color: '#8c90a1' }}>{item.a}</p>
               </div>
             ))}
           </div>

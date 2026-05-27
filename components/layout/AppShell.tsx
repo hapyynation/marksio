@@ -6,26 +6,31 @@ import { useEffect } from 'react'
 import { SidebarProvider, useSidebar } from '@/lib/sidebar-context'
 import Sidebar from './Sidebar'
 import ChatWidget from '@/components/ChatWidget'
-import { Sparkles } from 'lucide-react'
 
 function AppShellInner({ children }: { children: React.ReactNode }) {
   const { open, setOpen, collapsed } = useSidebar()
 
   return (
-    <div className="flex min-h-screen bg-[#10131c] relative overflow-hidden">
-      {/* Ambient background light leaks */}
+    <div className="flex min-h-screen relative" style={{ background: 'var(--bg)' }}>
+      {/* Very subtle ambient light — minimal, not distracting */}
       <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
-        <div className="absolute -top-1/4 -left-1/4 w-[60%] h-[60%] bg-[#b3c5ff]/[0.04] rounded-full blur-[120px]" />
-        <div className="absolute -bottom-1/4 -right-1/4 w-[50%] h-[50%] bg-[#d0bcff]/[0.03] rounded-full blur-[100px]" />
+        <div className="absolute top-0 left-0 w-[600px] h-[400px] opacity-40"
+          style={{ background: 'radial-gradient(ellipse at 0% 0%, rgba(68,112,255,0.04) 0%, transparent 70%)' }} />
       </div>
 
+      {/* Mobile overlay */}
       {open && (
-        <div className="fixed inset-0 bg-black/60 z-20 lg:hidden" onClick={() => setOpen(false)} />
+        <div className="fixed inset-0 z-20 lg:hidden"
+          style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
+          onClick={() => setOpen(false)} />
       )}
+
       <Sidebar />
-      <main className={`relative z-10 flex-1 min-h-screen flex flex-col transition-all duration-300 ${collapsed ? 'lg:ml-[60px]' : 'lg:ml-[220px]'}`}>
+
+      <main className={`relative z-10 flex-1 min-h-screen flex flex-col transition-all duration-250 ${collapsed ? 'lg:ml-[58px]' : 'lg:ml-[220px]'}`}>
         {children}
       </main>
+
       <ChatWidget />
     </div>
   )
@@ -39,7 +44,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     if (status === 'unauthenticated') router.replace('/login')
   }, [status, router])
 
-  // Unauthenticated ise redirect beklenirken hiçbir şey gösterme
   if (status === 'unauthenticated') return null
 
   return (
