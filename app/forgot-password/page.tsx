@@ -2,20 +2,22 @@
 
 import { useState, FormEvent } from 'react'
 import Link from 'next/link'
-import { Loader2, Mail, Zap, ArrowLeft, CheckCircle2 } from 'lucide-react'
+import { Loader2, ArrowLeft, CheckCircle2 } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 
 export default function ForgotPasswordPage() {
-  const [email, setEmail] = useState('')
+  const [email, setEmail]     = useState('')
   const [loading, setLoading] = useState(false)
-  const [sent, setSent] = useState(false)
-  const [error, setError] = useState('')
+  const [sent, setSent]       = useState(false)
+  const [error, setError]     = useState('')
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError('')
     setLoading(true)
     try {
-      const res = await fetch('/api/auth/forgot-password', {
+      const res  = await fetch('/api/auth/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
@@ -38,13 +40,22 @@ export default function ForgotPasswordPage() {
       <div className="relative z-10 w-full max-w-[380px] px-6">
         {/* Logo */}
         <Link href="/login" className="flex items-center gap-2 mb-8">
-          <div className="btn-gradient w-7 h-7 rounded-lg flex items-center justify-center">
-            <Zap className="w-3.5 h-3.5 text-white" />
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center"
+            style={{ background: 'var(--blue)', boxShadow: '0 2px 8px rgba(68,112,255,0.3)' }}>
+            <span className="material-symbols-outlined icon-fill text-white" style={{ fontSize: 14 }}>auto_awesome</span>
           </div>
-          <span className="text-sm font-black" style={{ color: '#e5e2e1' }}>Marksio</span>
+          <span className="text-[14px] font-bold" style={{ color: '#eeeef4', letterSpacing: '-0.02em' }}>Marksio</span>
         </Link>
 
-        <div className="ds-modal">
+        {/* Card */}
+        <div className="rounded-2xl overflow-hidden"
+          style={{
+            background: '#080810',
+            border: '1px solid rgba(255,255,255,0.08)',
+            boxShadow: '0 0 0 1px rgba(255,255,255,0.04), 0 24px 64px rgba(0,0,0,0.6)',
+          }}>
+          <div className="h-[2px]" style={{ background: 'linear-gradient(90deg, #0066ff, #00f1fe)' }} />
+
           <div className="p-8">
             {sent ? (
               <div className="text-center space-y-4">
@@ -53,15 +64,15 @@ export default function ForgotPasswordPage() {
                   <CheckCircle2 className="w-6 h-6" style={{ color: '#34d399' }} />
                 </div>
                 <div>
-                  <h1 className="text-xl font-black mb-2" style={{ color: '#e5e2e1' }}>Email gönderildi</h1>
-                  <p className="text-sm leading-relaxed" style={{ color: '#8c90a1' }}>
-                    <span className="font-semibold" style={{ color: '#e5e2e1' }}>{email}</span> adresine
+                  <h1 className="text-[20px] font-bold mb-2" style={{ color: '#eeeef4' }}>Email gönderildi</h1>
+                  <p className="text-[13px] leading-relaxed" style={{ color: 'var(--text-2)' }}>
+                    <span className="font-semibold" style={{ color: '#eeeef4' }}>{email}</span> adresine
                     şifre sıfırlama bağlantısı gönderdik. Spam klasörünü de kontrol edin.
                   </p>
                 </div>
                 <Link href="/login"
-                  className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all w-full"
-                  style={{ background: '#1c1b1b', border: '1px solid rgba(255,255,255,0.07)', color: '#c2c6d8' }}>
+                  className="flex items-center justify-center gap-2 h-10 rounded-xl text-[13px] font-semibold transition-all w-full"
+                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#c2c6d8' }}>
                   <ArrowLeft className="w-3.5 h-3.5" />
                   Giriş sayfasına dön
                 </Link>
@@ -69,12 +80,10 @@ export default function ForgotPasswordPage() {
             ) : (
               <>
                 <div className="mb-7">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-4"
-                    style={{ background: 'rgba(0,241,254,0.06)', border: '1px solid rgba(0,241,254,0.12)' }}>
-                    <Mail className="w-5 h-5" style={{ color: '#00f1fe' }} />
-                  </div>
-                  <h1 className="text-xl font-black mb-1" style={{ color: '#e5e2e1' }}>Şifrenizi sıfırlayın</h1>
-                  <p className="text-xs" style={{ color: '#8c90a1' }}>
+                  <h1 className="text-[20px] font-bold mb-1" style={{ color: '#eeeef4', letterSpacing: '-0.025em' }}>
+                    Şifrenizi sıfırlayın
+                  </h1>
+                  <p className="text-[13px]" style={{ color: 'var(--text-2)' }}>
                     Email adresinizi girin, size sıfırlama bağlantısı gönderelim.
                   </p>
                 </div>
@@ -82,40 +91,39 @@ export default function ForgotPasswordPage() {
                 {error && <div className="ds-alert ds-alert-error mb-5">{error}</div>}
 
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  <div>
-                    <label className="label">Email adresi</label>
-                    <input
+                  <div className="space-y-1.5">
+                    <Label htmlFor="email">Email adresi</Label>
+                    <Input
+                      id="email"
                       type="email"
                       value={email}
                       onChange={e => setEmail(e.target.value)}
                       placeholder="siz@magaza.com"
                       required
-                      className="input"
                     />
                   </div>
 
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="btn-gradient w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold"
-                  >
+                  <button type="submit" disabled={loading}
+                    className="btn-gradient w-full justify-center h-10 rounded-xl text-[14px] font-semibold">
                     {loading
                       ? <><Loader2 className="w-4 h-4 animate-spin" /> Gönderiliyor...</>
                       : 'Sıfırlama Bağlantısı Gönder'
                     }
                   </button>
                 </form>
-
-                <div className="ds-sep" />
-
-                <Link href="/login"
-                  className="flex items-center justify-center gap-2 text-xs font-semibold transition-colors"
-                  style={{ color: '#8c90a1' }}>
-                  <ArrowLeft className="w-3.5 h-3.5" />
-                  Giriş sayfasına dön
-                </Link>
               </>
             )}
+          </div>
+
+          <div className="px-8 py-4" style={{ borderTop: '1px solid rgba(255,255,255,0.05)', background: 'rgba(0,0,0,0.3)' }}>
+            <Link href="/login"
+              className="flex items-center justify-center gap-2 text-[13px] font-semibold transition-colors"
+              style={{ color: 'var(--text-2)' }}
+              onMouseEnter={e => (e.currentTarget.style.color = '#eeeef4')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-2)')}>
+              <ArrowLeft className="w-3.5 h-3.5" />
+              Giriş sayfasına dön
+            </Link>
           </div>
         </div>
       </div>
