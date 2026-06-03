@@ -753,11 +753,47 @@ export default function SegmentsPage() {
                   <Users className="w-3.5 h-3.5 inline mr-1.5" />
                   Özel Segment Oluştur
                 </button>
+                <GenerateAiButton onDone={fetchSegments} />
               </div>
             </div>
           </div>
         )}
       </div>
     </AppShell>
+  )
+}
+
+// ─── AI Toplu Segment Oluştur ─────────────────────────────────────────────────
+
+function GenerateAiButton({ onDone }: { onDone: () => void }) {
+  const [loading, setLoading] = useState(false)
+  const [result, setResult] = useState<{ created: number; message: string; source?: string } | null>(null)
+
+  async function generate() {
+    setLoading(true); setResult(null)
+    try {
+      const res = await fetch('/api/segments/generate-ai', { method: 'POST' })
+      const data = await res.json() as { created: number; message: string; source?: string }
+      setResult(data)
+      if (data.created > 0) onDone()
+    } catch { setResult({ created: 0, message: 'Hata oluştu' }) }
+    finally { setLoading(false) }
+  }
+
+  return (
+    <div className="mt-2">
+      <button onClick={generate} disabled={loading}
+        className="w-full py-2 rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+        style={{ background: 'rgba(159,122,250,0.1)', color: '#9f7afa', border: '1px solid rgba(159,122,250,0.2)' }}
+        onMouseEnter={e => !loading && ((e.currentTarget as HTMLButtonElement).style.background = 'rgba(159,122,250,0.18)')}
+        onMouseLeave={e => !loading && ((e.currentTarget as HTMLButtonElement).style.background = 'rgba(159,122,250,0.1)')}>
+        {loading ? <><Loader2 className="w-3 h-3 animate-spin" /> Groq AI analiz ediyor…</> : <><Sparkles className="w-3 h-3" /> AI ile Tüm Segmentleri Oluştur</>}
+      </button>
+      {result && (
+        <p className="text-[10px] text-center mt-1.5" style={{ color: result.created > 0 ? '#22c97a' : '#8080a0' }}>
+          {result.message}{result.source === 'groq' ? ' (Groq AI)' : ''}
+        </p>
+      )}
+    </div>
   )
 }

@@ -277,6 +277,19 @@ export async function runSync(
       data: { lastSyncAt: new Date(), status: 'active', meta: JSON.stringify(updatedMeta) },
     })
 
+    // Write sync log
+    await (prisma as unknown as { syncLog: { create: (a: unknown) => Promise<unknown> } }).syncLog.create({
+      data: {
+        userId,
+        platform: 'shopify',
+        status: 'success',
+        customers: stats.customers,
+        orders: stats.orders,
+        products: stats.products,
+        completedAt: new Date(),
+      },
+    }).catch(() => null)
+
     return NextResponse.json({
       success: true,
       stats,
@@ -290,6 +303,17 @@ export async function runSync(
         meta: JSON.stringify({ ...parseMeta(rawMeta), syncInProgress: false }),
       },
     })
+
+    await (prisma as unknown as { syncLog: { create: (a: unknown) => Promise<unknown> } }).syncLog.create({
+      data: {
+        userId,
+        platform: 'shopify',
+        status: 'error',
+        errorMessage: err instanceof Error ? err.message.slice(0, 255) : 'Bilinmeyen hata',
+        completedAt: new Date(),
+      },
+    }).catch(() => null)
+
     console.error('Shopify sync error:', err)
     return NextResponse.json({ error: 'Senkronizasyon hatası' }, { status: 500 })
   }

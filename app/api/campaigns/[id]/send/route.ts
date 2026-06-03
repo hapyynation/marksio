@@ -5,6 +5,7 @@ import { Resend } from 'resend'
 import { sendWhatsAppMessage } from '@/lib/whatsapp'
 import { buildEmailHtml, personalize, type LayoutStyle, type Product } from '@/lib/email-campaign-template'
 import { getSystemFromAddress } from '@/lib/mail-from'
+import { matchesRules, type SegmentRule } from '@/lib/segment-engine'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 const BASE_URL = process.env.NEXTAUTH_URL || 'http://localhost:3000'
@@ -108,27 +109,56 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     let campaignProducts: Product[] = []
     try { campaignProducts = JSON.parse((campaign as { productsJson?: string }).productsJson ?? '[]') } catch { campaignProducts = [] }
 
-    const segmentFilter =
-      campaign.segment && campaign.segment !== 'all'
-        ? { segment: campaign.segment }
-        : {}
+    // Try to resolve campaign.segment to a DB Segment with rules (by ID or name)
+    let segRules: SegmentRule[] = []
+    let segMatchType: 'all' | 'any' = 'all'
+    let useRuleFilter = false
 
-    const customers = await prisma.customer.findMany({
+    if (campaign.segment && campaign.segment !== 'all') {
+      const dbSeg = await prisma.segment.findFirst({
+        where: {
+          userId,
+          OR: [
+            { id: campaign.segment },
+            { name: { equals: campaign.segment, mode: 'insensitive' } },
+          ],
+        },
+      })
+      if (dbSeg) {
+        try { segRules = JSON.parse(dbSeg.rules) } catch { segRules = [] }
+        segMatchType = (dbSeg.matchType ?? 'all') as 'all' | 'any'
+        useRuleFilter = segRules.length > 0
+      }
+    }
+
+    // Fetch all eligible customers (with rule-matching fields when needed)
+    const rawCustomers = await prisma.customer.findMany({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       where: {
         userId,
         unsubscribed: false,
-        bounced:      false,   // hard-bounce suppression (requires mail migration)
-        complained:   false,   // complaint suppression
+        bounced:      false,
+        complained:   false,
         ...(campaign.type === 'email' ? { NOT: { email: null } } : {}),
-        ...segmentFilter,
+        // Apply direct field filter only when no rule-based segment found
+        ...(!useRuleFilter && campaign.segment && campaign.segment !== 'all'
+          ? { segment: campaign.segment }
+          : {}),
       } as any,
       select: {
         id: true, email: true, phone: true,
         name: true, firstName: true, lastName: true,
         unsubscribeToken: true,
+        // Rule-matching fields
+        totalSpent: true, totalOrders: true, avgOrder: true,
+        lastOrder: true, tags: true, source: true, segment: true, score: true,
       },
     })
+
+    // Apply in-memory rule filter if segment has rules
+    const customers = useRuleFilter
+      ? rawCustomers.filter(c => matchesRules(c, segRules, segMatchType))
+      : rawCustomers
 
     if (customers.length === 0) {
       return NextResponse.json({ error: 'Bu segmentte gönderilecek müşteri yok' }, { status: 400 })

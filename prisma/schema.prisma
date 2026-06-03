@@ -446,6 +446,23 @@ model Template {
   updatedAt   DateTime @updatedAt
 }
 
+// ─── Sync logs ───────────────────────────────────────────────────────────────
+
+model SyncLog {
+  id            String   @id @default(cuid())
+  userId        String
+  platform      String   // "shopify" | "woocommerce" | "ikas"
+  status        String   // "running" | "success" | "error"
+  customers     Int      @default(0)
+  orders        Int      @default(0)
+  products      Int      @default(0)
+  errorMessage  String?
+  startedAt     DateTime @default(now())
+  completedAt   DateTime?
+
+  @@index([userId, platform, startedAt])
+}
+
 model PasswordResetToken {
   id        String   @id @default(cuid())
   email     String
