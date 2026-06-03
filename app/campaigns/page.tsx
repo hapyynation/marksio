@@ -117,26 +117,29 @@ export default function CampaignsPage() {
 
   const fetchAiSuggestions = useCallback(async (data: Campaign[]) => {
     setAiLoading(true)
-    const sent   = data.reduce((s, c) => s + c.sent, 0)
-    const opened = data.reduce((s, c) => s + c.opened, 0)
-    const clicked= data.reduce((s, c) => s + c.clicked, 0)
-    const rev    = data.reduce((s, c) => s + c.revenue, 0)
+    const sent    = data.reduce((s, c) => s + c.sent, 0)
+    const opened  = data.reduce((s, c) => s + c.opened, 0)
+    const clicked = data.reduce((s, c) => s + c.clicked, 0)
+    const rev     = data.reduce((s, c) => s + c.revenue, 0)
     try {
       const res = await fetch('/api/ai/campaign-suggestions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           campaigns: data,
-          openRate: sent > 0 ? ((opened / sent) * 100).toFixed(1) : 0,
-          clickRate: sent > 0 ? ((clicked / sent) * 100).toFixed(1) : 0,
+          openRate:  sent > 0 ? ((opened  / sent) * 100).toFixed(1) : '0',
+          clickRate: sent > 0 ? ((clicked / sent) * 100).toFixed(1) : '0',
           totalRevenue: rev,
           totalSent: sent,
         }),
       })
       const suggestions = await res.json()
-      if (Array.isArray(suggestions) && suggestions.length > 0) setAiSuggestions(suggestions)
-    } catch { /* silent */ }
-    finally { setAiLoading(false) }
+      if (Array.isArray(suggestions)) setAiSuggestions(suggestions)
+    } catch {
+      setAiSuggestions([])
+    } finally {
+      setAiLoading(false)
+    }
   }, [])
 
   useEffect(() => {
