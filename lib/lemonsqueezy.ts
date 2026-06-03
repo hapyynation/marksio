@@ -2,11 +2,16 @@ import crypto from 'crypto'
 
 export const LS_API_URL = 'https://api.lemonsqueezy.com/v1'
 
+// Strip BOM (U+FEFF) and whitespace that PowerShell pipe can prepend
+function env(key: string): string {
+  return (process.env[key] ?? '').replace(/^﻿/, '').trim()
+}
+
 // plan id → Lemon Squeezy variant ID
 export const VARIANT_IDS: Record<string, string> = {
-  starter: process.env.LS_VARIANT_STARTER ?? '1741638',
-  growth:  process.env.LS_VARIANT_GROWTH  ?? '1741701',
-  agency:  process.env.LS_VARIANT_AGENCY  ?? '1741713',
+  starter: env('LS_VARIANT_STARTER') || '1741638',
+  growth:  env('LS_VARIANT_GROWTH')  || '1741701',
+  agency:  env('LS_VARIANT_AGENCY')  || '1741713',
 }
 
 // Lemon Squeezy variant ID → internal plan name
@@ -18,7 +23,7 @@ export const VARIANT_TO_PLAN: Record<string, string> = {
 
 function lsHeaders() {
   return {
-    Authorization: `Bearer ${process.env.LEMONSQUEEZY_API_KEY}`,
+    Authorization: `Bearer ${env('LEMONSQUEEZY_API_KEY')}`,
     'Content-Type': 'application/vnd.api+json',
     Accept: 'application/vnd.api+json',
   }
@@ -58,7 +63,7 @@ export async function createCheckout(params: {
         },
         relationships: {
           store: {
-            data: { type: 'stores', id: process.env.LEMONSQUEEZY_STORE_ID },
+            data: { type: 'stores', id: env('LEMONSQUEEZY_STORE_ID') || '1112392' },
           },
           variant: {
             data: { type: 'variants', id: params.variantId },
@@ -81,8 +86,10 @@ export async function createCheckout(params: {
 }
 
 export function verifyWebhookSignature(rawBody: string, signature: string): boolean {
-  const secret = process.env.LEMONSQUEEZY_WEBHOOK_SECRET
+  const secret = env('LEMONSQUEEZY_WEBHOOK_SECRET')
   if (!secret) return false
+  const cleanSig = signature.replace(/^﻿/, '').trim()
   const hash = crypto.createHmac('sha256', secret).update(rawBody).digest('hex')
-  return crypto.timingSafeEqual(Buffer.from(hash), Buffer.from(signature))
+  if (hash.length !== cleanSig.length) return false
+  return crypto.timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(cleanSig, 'hex'))
 }
