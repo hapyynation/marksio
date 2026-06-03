@@ -12,6 +12,16 @@ interface CampaignRow {
   sent: number
 }
 
+// Suggestions always link to relevant pages within the app
+const HREF_MAP: Record<string, string> = {
+  mail:         '/ai-studio',
+  zap:          '/automations',
+  users:        '/segments',
+  trending_up:  '/analytics',
+  target:       '/campaigns/new',
+  clock:        '/campaigns/new',
+}
+
 export async function POST(req: NextRequest) {
   const session = await getApiSession()
   if (!session?.user) return NextResponse.json({ error: 'Yetkisiz' }, { status: 401 })
@@ -35,16 +45,18 @@ Kampanya Metrikleri:
 Son Kampanyalar:
 ${recentLines}
 
-Kural: Her öneri farklı kategoride olsun (konu satırı, segment, içerik, zamanlama, yeniden kazanma vb.). Rakamları kullan.
-Renk seçimi: turuncu=#f0a020, yeşil=#22c97a, mavi=#99b4ff, mor=#9f7afa
+Kural: 3 öneri farklı kategoride olsun (e-posta içeriği, segment/hedefleme, otomasyon/zamanlama gibi). Rakamları kullan.
+icon kuralı: mail=e-posta/içerik, zap=otomasyon, users=segment, trending_up=analitik, target=kampanya, clock=zamanlama
+
+Renk: turuncu=#f0a020, yeşil=#22c97a, mavi=#99b4ff, mor=#9f7afa
 
 JSON olarak dön:
 {
   "suggestions": [
     {
       "title": "Kısa başlık (max 4 kelime)",
-      "text": "Veriye dayalı açıklama, rakam içersin (max 115 karakter)",
-      "action": "CTA (max 3 kelime)",
+      "text": "Veriye dayalı, spesifik açıklama, rakam içersin (max 115 karakter)",
+      "action": "CTA butonu metni (max 3 kelime)",
       "color": "#hex",
       "icon": "mail|zap|users|trending_up|target|clock"
     }
@@ -64,7 +76,12 @@ JSON olarak dön:
     const parsed = JSON.parse(raw)
     const suggestions = Array.isArray(parsed.suggestions) ? parsed.suggestions : []
 
-    return NextResponse.json(suggestions.slice(0, 3))
+    const enriched = suggestions.slice(0, 3).map((s: { icon?: string; [key: string]: unknown }) => ({
+      ...s,
+      href: HREF_MAP[s.icon ?? ''] ?? '/campaigns/new',
+    }))
+
+    return NextResponse.json(enriched)
   } catch (err) {
     console.error('[AI Campaign Suggestions]', err)
     return NextResponse.json([], { status: 500 })
