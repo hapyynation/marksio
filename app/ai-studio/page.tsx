@@ -1,534 +1,638 @@
 'use client'
 
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import AppShell from '@/components/layout/AppShell'
-import { useRouter } from 'next/navigation'
 import {
-  Sparkles, Loader2, Check, Bell, ChevronDown, AlertCircle, Zap,
-  Upload, ShoppingBag, Link2, Store, CreditCard, Settings, LogOut,
-  Search, Package, X, Image as ImageIcon, Send, Monitor, Smartphone,
-  Mail, RefreshCw, Code2, ChevronLeft, ChevronRight, Wand2, ArrowRight, Layers,
+  Upload, X, Check, Code2, Send, Mail, Monitor, Smartphone,
+  ChevronDown, Loader2, Copy, Sparkles, Tag, ShoppingCart,
+  Star, Zap, Package,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useSession } from '@/lib/hooks/use-session'
-import { createClient } from '@/lib/supabase/client'
-import { SHOT_STYLES, detectCategory, CATEGORY_LABELS, type ShotStyle } from '@/lib/product-shots'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─── Types ───────────────────────────────────────────────────────────────────
 
-type Step         = 'product' | 'scene' | 'result'
-type ProductSrc   = 'upload' | 'shopify' | 'url'
-type PreviewMode  = 'desktop' | 'mobile'
-type BannerStyle  = 'minimal' | 'modern' | 'luxury' | 'dynamic' | 'ecommerce'
-type BannerSize   = '1200x600' | '1080x1080' | '1080x1920' | '1920x1080'
-type CampaignType = 'discount' | 'newproduct' | 'seasonal' | 'winback' | 'vip' | 'welcome' | 'blackfriday'
+type TemplateId = 'indirim' | 'yeniurun' | 'sepetterk' | 'premium' | 'blackfriday' | 'minimal'
+type PreviewMode = 'desktop' | 'mobile'
 
-interface ProductInfo {
-  name: string; price: string; description: string; category: string
-}
-interface DBProduct {
-  id: string; productName: string; productImage: string | null; price: number | null; description: string | null
-}
-interface BannerContent { headline: string; subheadline: string; badge: string; discountLabel: string; ctaLabel: string }
-interface BannerConfig  { campaignType: CampaignType; brandName: string; discountRate: string; discountType: 'percent' | 'fixed'; ctaText: string; style: BannerStyle; accentColor: string; size: BannerSize }
-interface BannerImage   { url: string; index: number }
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const BANNER_STYLES: Array<{ value: BannerStyle; label: string; bg: string }> = [
-  { value: 'minimal',   label: 'Minimal',   bg: 'linear-gradient(135deg,#f0ecff,#ddd6fe)' },
-  { value: 'modern',    label: 'Modern',    bg: 'linear-gradient(135deg,#1e1b4b,#312e81)' },
-  { value: 'luxury',    label: 'Lüks',      bg: 'linear-gradient(135deg,#fdf6ee,#e8d5b7)' },
-  { value: 'dynamic',   label: 'Dinamik',   bg: 'linear-gradient(135deg,#7c3aed,#db2777)' },
-  { value: 'ecommerce', label: 'E-Ticaret', bg: 'linear-gradient(135deg,#eff6ff,#dbeafe)' },
-]
-
-const CAMPAIGN_TYPES: Array<{ value: CampaignType; label: string; emoji: string }> = [
-  { value: 'discount', label: 'İndirim', emoji: '🏷️' },
-  { value: 'newproduct', label: 'Yeni Ürün', emoji: '✨' },
-  { value: 'seasonal', label: 'Sezonsal', emoji: '🌸' },
-  { value: 'winback', label: 'Geri Kazanım', emoji: '💫' },
-  { value: 'vip', label: 'VIP', emoji: '👑' },
-  { value: 'welcome', label: 'Hoş Geldin', emoji: '👋' },
-  { value: 'blackfriday', label: 'Black Friday', emoji: '🖤' },
-]
-
-const BANNER_SIZES: Array<{ value: BannerSize; label: string }> = [
-  { value: '1200x600', label: '1200×600 (Email Hero)' },
-  { value: '1080x1080', label: '1080×1080 (Kare)' },
-  { value: '1080x1920', label: '1080×1920 (Story)' },
-  { value: '1920x1080', label: '1920×1080 (Wide)' },
-]
-
-const ACCENT_COLORS = ['#6c47ff', '#2563eb', '#16a34a', '#d97706', '#dc2626', '#be185d']
-
-const DEFAULT_CONFIG: BannerConfig = {
-  campaignType: 'discount', brandName: '', discountRate: '',
-  discountType: 'percent', ctaText: 'Alışverişe Başla',
-  style: 'luxury', accentColor: '#6c47ff', size: '1200x600',
-}
-const DEFAULT_CONTENT: BannerContent = {
-  headline: 'YAZA ÖZEL BÜYÜK İNDİRİM!', subheadline: 'Seçili ürünlerde sepette anında',
-  badge: 'YAZ KOLEKSİYONU', discountLabel: '%40 İNDİRİM', ctaLabel: 'ALIŞVERİŞE BAŞLA',
+interface EmailFields {
+  title: string
+  description: string
+  discount: string
+  productImage: string | null
+  price: string
+  originalPrice: string
+  coupon: string
+  cta: string
+  ctaUrl: string
+  footer: string
+  unsubscribeUrl: string
+  brandName: string
+  brandColor: string
 }
 
-function detectProductType(n: string) {
-  const s = n.toLowerCase()
-  if (/gözlük|güneş|sunglass|eyewear/.test(s)) return 'eyewear'
-  if (/saat|watch/.test(s)) return 'watch'
-  if (/parfüm|perfume|cologne/.test(s)) return 'perfume'
-  if (/kozmetik|makyaj|serum|krem/.test(s)) return 'cosmetic'
-  if (/kıyafet|elbise|gömlek|fashion/.test(s)) return 'fashion'
-  if (/telefon|phone|laptop|tablet|tech/.test(s)) return 'tech'
-  return 'product'
+interface TemplateConfig {
+  id: TemplateId
+  name: string
+  description: string
+  icon: React.ElementType
+  previewImage: string
+  defaults: Partial<EmailFields>
+  accentColor: string
+  dark?: boolean
 }
 
-function truncate(text: string, max: number): string {
-  return text.length > max ? text.slice(0, max - 1) + '…' : text
-}
+// ─── Templates ───────────────────────────────────────────────────────────────
 
-function accentLuma(hex: string): number {
-  const c = hex.replace('#', '')
-  const r = parseInt(c.slice(0, 2), 16) / 255
-  const g = parseInt(c.slice(2, 4), 16) / 255
-  const b = parseInt(c.slice(4, 6), 16) / 255
-  return 0.299 * r + 0.587 * g + 0.114 * b
-}
-
-function getContrastColors(style: BannerStyle, accentColor: string) {
-  const isDarkStyle = ['modern', 'dynamic'].includes(style)
-  const isLuxury    = style === 'luxury'
-  return {
-    contentBg:     isDarkStyle ? '#0c0c18' : isLuxury ? '#fffdf7' : '#ffffff',
-    footerBg:      isDarkStyle ? '#08080f' : isLuxury ? '#f5f2ea' : '#f8f9fa',
-    textPrimary:   isDarkStyle ? '#f0f0f5' : '#111827',
-    textSecondary: isDarkStyle ? 'rgba(255,255,255,0.55)' : '#6b7280',
-    textMuted:     isDarkStyle ? 'rgba(255,255,255,0.3)'  : '#9ca3af',
-    ctaBtnText:    accentLuma(accentColor) > 0.62 ? '#111827' : '#ffffff',
-  }
-}
-
-const PRESET_TEMPLATES: Array<{
-  id: string; name: string; emoji: string; preview: string
-  config: Partial<BannerConfig>; content: BannerContent
-}> = [
+const TEMPLATES: TemplateConfig[] = [
   {
-    id: 'minimal-luxury',
-    name: 'Minimal Luxury Sale',
-    emoji: '✨',
-    preview: 'linear-gradient(135deg,#fdf6ee,#e8d5b7)',
-    config: { style: 'luxury', accentColor: '#b8860b', campaignType: 'discount' },
-    content: { headline: 'ÖZEL SATIŞ', subheadline: 'Seçili ürünlerde sınırlı süre indirim', badge: 'LUXURY SALE', discountLabel: '%50 İNDİRİM', ctaLabel: 'KOLEKSİYONU KEŞFET' },
+    id: 'indirim',
+    name: 'İndirim Maili',
+    description: 'Büyük indirim duyurusu, fiyat karşılaştırması ve kupon kodu',
+    icon: Tag,
+    previewImage: '/templates/email-indirim.jpeg',
+    accentColor: '#e84545',
+    defaults: {
+      title: 'BÜYÜK YAZI İNDİRİMİ!',
+      description: 'Seçili ürünlerde sınırlı süre geçerli fırsatı kaçırmayın.',
+      discount: '%50',
+      price: '₺299',
+      originalPrice: '₺599',
+      coupon: 'INDIRIM50',
+      cta: 'Hemen Alışveriş Yap',
+      footer: '© 2025 Marksio. Tüm hakları saklıdır.',
+    },
   },
   {
-    id: 'product-spotlight',
-    name: 'Product Spotlight',
-    emoji: '🎯',
-    preview: 'linear-gradient(135deg,#1e1b4b,#312e81)',
-    config: { style: 'modern', accentColor: '#6c47ff', campaignType: 'newproduct' },
-    content: { headline: 'YENİ ÜRÜN GELDİ', subheadline: 'Şimdi mağazamızda', badge: 'YENİ SEZON', discountLabel: 'ÖZEL LANSMAN', ctaLabel: 'HEMEN İNCELE' },
+    id: 'yeniurun',
+    name: 'Yeni Ürün Tanıtımı',
+    description: 'Yeni koleksiyon veya ürün lansmanı için ideal',
+    icon: Sparkles,
+    previewImage: '/templates/email-yeniurun.jpeg',
+    accentColor: '#4470ff',
+    defaults: {
+      title: 'YENİ KOLEKSİYON GELDİ',
+      description: 'Sezonun en yeni parçaları mağazamızda. Şimdi keşfet.',
+      discount: '',
+      price: '₺449',
+      originalPrice: '',
+      coupon: '',
+      cta: 'Koleksiyonu Keşfet',
+      footer: '© 2025 Marksio. Tüm hakları saklıdır.',
+    },
   },
   {
-    id: 'new-collection',
-    name: 'New Collection Launch',
-    emoji: '🚀',
-    preview: 'linear-gradient(135deg,#7c3aed,#db2777)',
-    config: { style: 'dynamic', accentColor: '#db2777', campaignType: 'seasonal' },
-    content: { headline: 'YENİ KOLEKSİYON', subheadline: 'Sezonun en yeni parçaları burada', badge: '2025 KOLEKSİYON', discountLabel: 'ŞİMDİ MEVCUT', ctaLabel: 'KOLEKSİYONU GÖR' },
+    id: 'sepetterk',
+    name: 'Sepet Terk Maili',
+    description: 'Sepeti terk eden müşterileri geri kazanın',
+    icon: ShoppingCart,
+    previewImage: '/templates/email-sepetterk.jpeg',
+    accentColor: '#f0a020',
+    defaults: {
+      title: 'Sepetinizde ürün var!',
+      description: 'Seçtiğiniz ürünler sizi bekliyor. Stoklar sınırlı, kaçırmayın!',
+      discount: '%10',
+      price: '₺349',
+      originalPrice: '₺389',
+      coupon: 'GERI10',
+      cta: 'Alışverişi Tamamla',
+      footer: '© 2025 Marksio. Tüm hakları saklıdır.',
+    },
+  },
+  {
+    id: 'premium',
+    name: 'Premium Lansman',
+    description: 'Lüks ve premium ürünler için koyu tasarım',
+    icon: Star,
+    previewImage: '/templates/email-premium.jpeg',
+    accentColor: '#c9a227',
+    dark: true,
+    defaults: {
+      title: 'EXCLUSIVE COLLECTION',
+      description: 'Sınırlı sayıda üretilen, özel tasarım koleksiyonumuz sizlerle.',
+      discount: '',
+      price: '₺2.490',
+      originalPrice: '',
+      coupon: 'VIP2025',
+      cta: 'Exclusive Koleksiyona Ulaş',
+      footer: '© 2025 Marksio. Tüm hakları saklıdır.',
+    },
+  },
+  {
+    id: 'blackfriday',
+    name: 'Black Friday Kampanyası',
+    description: 'Efsane cuma ve özel kampanya tasarımı',
+    icon: Zap,
+    previewImage: '/templates/email-blackfriday.jpeg',
+    accentColor: '#ffffff',
+    dark: true,
+    defaults: {
+      title: 'BLACK FRIDAY',
+      description: 'Yılın en büyük indirimi başladı. Sınırlı stok!',
+      discount: '%70',
+      price: '₺199',
+      originalPrice: '₺669',
+      coupon: 'BF2025',
+      cta: 'Fırsatı Yakala',
+      footer: '© 2025 Marksio. Tüm hakları saklıdır.',
+    },
+  },
+  {
+    id: 'minimal',
+    name: 'Minimal E-Ticaret',
+    description: 'Sade ve şık, ürünü ön plana çıkaran tasarım',
+    icon: Package,
+    previewImage: '/templates/email-minimal.jpeg',
+    accentColor: '#111827',
+    defaults: {
+      title: 'Sizin için seçtik',
+      description: 'Özenle tasarlanmış, kaliteyi hissettiren ürünler.',
+      discount: '',
+      price: '₺850',
+      originalPrice: '',
+      coupon: '',
+      cta: 'İncele',
+      footer: '© 2025 Marksio. Tüm hakları saklıdır.',
+    },
   },
 ]
 
-// ─── HTML export ─────────────────────────────────────────────────────────────
-// Hero image (AI commercial shot) + content section below
-// Gmail / Outlook / Apple Mail compatible — no absolute positioning, no flexbox
+const DEFAULT_FIELDS: EmailFields = {
+  title: 'Başlık',
+  description: 'Açıklama metni buraya gelecek.',
+  discount: '%50',
+  productImage: null,
+  price: '₺299',
+  originalPrice: '₺599',
+  coupon: 'KUPON20',
+  cta: 'Alışverişe Başla',
+  ctaUrl: '#',
+  footer: '© 2025 Marksio. Tüm hakları saklıdır.',
+  unsubscribeUrl: '#',
+  brandName: 'Marksio',
+  brandColor: '#4470ff',
+}
 
-function generateHTML(config: BannerConfig, content: BannerContent, commercialShot?: string | null): string {
-  const a      = config.accentColor
-  const colors = getContrastColors(config.style, a)
+// ─── HTML Email Generators ────────────────────────────────────────────────────
 
-  const hl = truncate(content.headline, 40)
-  const sh = truncate(content.subheadline, 60)
-  const dl = truncate(content.discountLabel, 20)
-  const cl = truncate(content.ctaLabel, 25)
-  const bg = truncate(content.badge, 22)
-
-  // Fallback hero bgcolor when no image
-  const heroBg: Record<BannerStyle, string> = {
-    minimal:   '#e8e4ff',
-    modern:    '#1e1b4b',
-    luxury:    '#e8d5b7',
-    dynamic:   '#7c3aed',
-    ecommerce: '#dbeafe',
-  }
-
-  const heroSection = commercialShot
-    ? `<!-- Hero: AI commercial shot — product preserved in premium scene -->
-<tr>
-  <td style="line-height:0;font-size:0;padding:0;margin:0;">
-    <img src="${commercialShot}" width="600" alt="${hl}"
-         style="display:block;width:100%;max-width:600px;height:auto;border:0;outline:none;text-decoration:none;-ms-interpolation-mode:bicubic;">
+function heroImg(productImage: string | null, defaultSrc: string, alt: string) {
+  const src = productImage ?? defaultSrc
+  return `<tr>
+  <td style="padding:0;line-height:0;font-size:0;">
+    <img src="${src}" width="600" alt="${alt}"
+      style="display:block;width:100%;max-width:600px;height:auto;min-height:260px;object-fit:cover;border:0;outline:none;-ms-interpolation-mode:bicubic;">
   </td>
 </tr>`
-    : `<!-- Hero placeholder when no shot generated -->
-<tr>
-  <td height="280" bgcolor="${heroBg[config.style] ?? '#e8e4ff'}"
-      style="text-align:center;vertical-align:middle;padding:48px 40px;background-color:${heroBg[config.style] ?? '#e8e4ff'};">
-    <p style="margin:0;font-size:32px;font-weight:900;color:${a};font-family:'Inter','Helvetica Neue',Arial,sans-serif;">${dl}</p>
+}
+
+function productCard(productImage: string | null, defaultSrc: string, alt: string) {
+  const src = productImage ?? defaultSrc
+  return `<img src="${src}" width="200" alt="${alt}"
+    style="display:block;width:200px;max-width:200px;height:200px;object-fit:contain;border:0;outline:none;background:#f9fafb;border-radius:12px;">`
+}
+
+function couponBox(code: string, accentColor: string) {
+  if (!code) return ''
+  return `<tr>
+  <td style="padding:0 40px 20px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      <tr>
+        <td style="padding:14px 20px;border:2px dashed ${accentColor};border-radius:10px;text-align:center;background:${accentColor}0d;">
+          <p style="margin:0 0 4px;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:${accentColor};font-family:'Inter','Helvetica Neue',Arial,sans-serif;">Kupon Kodunuz</p>
+          <p style="margin:0;font-size:22px;font-weight:900;letter-spacing:5px;color:${accentColor};font-family:'Courier New',Courier,monospace;">${code}</p>
+        </td>
+      </tr>
+    </table>
   </td>
 </tr>`
+}
 
+function ctaRow(cta: string, ctaUrl: string, accentColor: string, textColor = '#ffffff') {
+  return `<tr>
+  <td style="padding:0 40px 32px;text-align:center;">
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto;">
+      <tr>
+        <td bgcolor="${accentColor}" style="border-radius:12px;background-color:${accentColor};">
+          <a href="${ctaUrl || '#'}"
+            style="display:block;padding:16px 40px;font-size:14px;font-weight:700;color:${textColor};text-decoration:none;letter-spacing:0.04em;font-family:'Inter','Helvetica Neue',Arial,sans-serif;white-space:nowrap;mso-padding-alt:16px 40px;"
+          >${cta} →</a>
+        </td>
+      </tr>
+    </table>
+  </td>
+</tr>`
+}
+
+function footerRow(brandName: string, footer: string, unsubscribeUrl: string, accentColor: string, bgColor = '#f8f9fa') {
+  return `<tr>
+  <td bgcolor="${bgColor}" style="padding:16px 40px 20px;text-align:center;background-color:${bgColor};">
+    <p style="margin:0 0 4px;font-size:11px;color:#9ca3af;font-family:'Inter','Helvetica Neue',Arial,sans-serif;">
+      ${footer || `© 2025 ${brandName}. Tüm hakları saklıdır.`}
+    </p>
+    <p style="margin:0;font-size:11px;color:#9ca3af;font-family:'Inter','Helvetica Neue',Arial,sans-serif;">
+      Bu emaili almak istemiyorsanız&nbsp;<a href="${unsubscribeUrl || '#'}" style="color:${accentColor};text-decoration:none;">aboneliğinizi iptal edin</a>.
+    </p>
+  </td>
+</tr>`
+}
+
+function emailWrapper(content: string, bgColor = '#f0f2f5') {
   return `<!DOCTYPE html>
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <meta name="x-apple-disable-message-reformatting">
-<title>${hl}</title>
+<title>Email</title>
 <style>
 body,table,td,a{-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%}
 table,td{mso-table-lspace:0pt;mso-table-rspace:0pt}
 img{-ms-interpolation-mode:bicubic;border:0;height:auto;line-height:100%;outline:none;text-decoration:none}
-@media (max-width:480px){
-  .email-body{padding:12px 0!important}
-  .container{border-radius:12px!important}
-  .content-pad{padding:24px 20px 28px!important}
-  .hl{font-size:22px!important;line-height:1.2!important}
-  .dl{font-size:28px!important}
-  .cta-td{padding:0!important}
-  .cta-a{padding:13px 24px!important;font-size:12px!important}
+@media(max-width:480px){
+  .em-container{border-radius:12px!important}
+  .em-pad{padding-left:20px!important;padding-right:20px!important}
+  .em-hero img{min-height:180px!important}
+  .em-title{font-size:22px!important;line-height:1.2!important}
+  .em-price-big{font-size:28px!important}
+  .em-discount-big{font-size:52px!important}
+  .em-cta a{padding:13px 24px!important;font-size:13px!important}
 }
 </style>
 </head>
-<body style="margin:0;padding:0;background-color:#f0f2f5;font-family:'Inter','Helvetica Neue',Arial,sans-serif;">
-
-<table class="email-body" role="presentation" width="100%" cellpadding="0" cellspacing="0"
-       style="background-color:#f0f2f5;padding:20px 0;">
+<body style="margin:0;padding:0;background-color:${bgColor};font-family:'Inter','Helvetica Neue',Arial,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+  style="background-color:${bgColor};padding:24px 0;">
 <tr><td align="center" style="padding:0 12px;">
-
-<!-- Email container -->
-<table class="container" role="presentation" width="600" cellpadding="0" cellspacing="0"
-       style="max-width:600px;width:100%;border-radius:16px;overflow:hidden;background-color:${colors.contentBg};">
-
-<!-- Accent stripe at top (4px brand color) -->
-<tr>
-  <td bgcolor="${a}" height="4" style="line-height:0;font-size:0;background-color:${a};">&nbsp;</td>
-</tr>
-
-${heroSection}
-
-<!-- Content section -->
-<tr>
-  <td class="content-pad" bgcolor="${colors.contentBg}"
-      style="padding:32px 40px 40px;background-color:${colors.contentBg};">
-
-    <!-- Badge -->
-    <table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:16px;">
-      <tr>
-        <td style="border-radius:6px;padding:4px 13px;background-color:${a}1a;">
-          <span style="font-size:9px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;
-                       color:${a};font-family:'Inter','Helvetica Neue',Arial,sans-serif;">${bg}</span>
-        </td>
-      </tr>
-    </table>
-
-    <!-- Headline -->
-    <h1 class="hl"
-        style="margin:0 0 10px;font-size:28px;font-weight:900;color:${colors.textPrimary};
-               letter-spacing:-0.025em;line-height:1.15;
-               font-family:'Inter','Helvetica Neue',Arial,sans-serif;">${hl}</h1>
-
-    <!-- Subheadline -->
-    <p style="margin:0 0 14px;font-size:14px;color:${colors.textSecondary};line-height:1.55;
-              font-family:'Inter','Helvetica Neue',Arial,sans-serif;">${sh}</p>
-
-    <!-- Discount label -->
-    <p class="dl"
-       style="margin:0 0 28px;font-size:38px;font-weight:900;color:${a};
-              letter-spacing:-0.04em;line-height:1;
-              font-family:'Inter','Helvetica Neue',Arial,sans-serif;">${dl}</p>
-
-    <!-- CTA button — Outlook-safe nested table -->
-    <table role="presentation" cellpadding="0" cellspacing="0">
-      <tr>
-        <td class="cta-td" bgcolor="${a}" style="border-radius:12px;background-color:${a};">
-          <a href="#" class="cta-a"
-             style="display:block;padding:15px 34px;font-size:13px;font-weight:700;
-                    color:${colors.ctaBtnText};text-decoration:none;letter-spacing:0.06em;
-                    font-family:'Inter','Helvetica Neue',Arial,sans-serif;
-                    background-color:${a};border-radius:12px;mso-padding-alt:15px 34px;">
-            ${cl} &rarr;
-          </a>
-        </td>
-      </tr>
-    </table>
-
-  </td>
-</tr>
-
-<!-- Footer -->
-<tr>
-  <td bgcolor="${colors.footerBg}"
-      style="padding:14px 40px 16px;text-align:center;background-color:${colors.footerBg};">
-    <p style="margin:0;font-size:11px;color:${colors.textMuted};
-              font-family:'Inter','Helvetica Neue',Arial,sans-serif;">
-      &copy; ${config.brandName || 'Marksio'} &nbsp;&bull;&nbsp;
-      <a href="#" style="color:${a};text-decoration:none;">Aboneliği iptal et</a>
-    </p>
-  </td>
-</tr>
-
+<table class="em-container" role="presentation" width="600" cellpadding="0" cellspacing="0"
+  style="max-width:600px;width:100%;border-radius:16px;overflow:hidden;background-color:#ffffff;">
+${content}
 </table>
 </td></tr>
 </table>
-
 </body>
 </html>`
 }
 
-// ─── BannerCanvas ─────────────────────────────────────────────────────────────
-// bgImage = full AI commercial shot (product preserved in premium scene)
-// productImage = only used for pre-generation preview (shows product on gradient bg)
-// Layout: hero image card + content section below — matches the email HTML exactly
+function generateIndirim(f: EmailFields): string {
+  const a = f.brandColor || '#e84545'
+  const body = `
+<tr><td bgcolor="${a}" height="5" style="line-height:0;font-size:0;background-color:${a};">&nbsp;</td></tr>
+<tr class="em-hero">
+  <td style="padding:0;line-height:0;font-size:0;position:relative;">
+    <img src="${f.productImage ?? '/templates/email-indirim.jpeg'}" width="600" alt="${f.title}"
+      style="display:block;width:100%;max-width:600px;height:300px;object-fit:cover;border:0;outline:none;-ms-interpolation-mode:bicubic;">
+    ${f.discount ? `<div style="position:absolute;top:20px;right:20px;background:${a};color:#fff;font-size:22px;font-weight:900;padding:12px 18px;border-radius:12px;font-family:'Inter',Arial,sans-serif;line-height:1;">${f.discount}<br><span style="font-size:10px;font-weight:600;letter-spacing:1px;display:block;text-align:center;margin-top:2px;">İNDİRİM</span></div>` : ''}
+  </td>
+</tr>
+<tr>
+  <td class="em-pad" style="padding:28px 40px 0;">
+    <p style="margin:0 0 8px;font-size:10px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:${a};font-family:'Inter',Arial,sans-serif;">${f.brandName || 'Marka'}</p>
+    <h1 class="em-title" style="margin:0 0 10px;font-size:28px;font-weight:900;color:#111827;letter-spacing:-0.025em;line-height:1.15;font-family:'Inter',Arial,sans-serif;">${f.title}</h1>
+    <p style="margin:0 0 16px;font-size:14px;color:#6b7280;line-height:1.55;font-family:'Inter',Arial,sans-serif;">${f.description}</p>
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
+      <tr>
+        ${f.originalPrice ? `<td style="font-size:16px;font-weight:400;color:#9ca3af;text-decoration:line-through;font-family:'Inter',Arial,sans-serif;padding-right:12px;">${f.originalPrice}</td>` : ''}
+        <td class="em-price-big" style="font-size:36px;font-weight:900;color:${a};letter-spacing:-0.04em;font-family:'Inter',Arial,sans-serif;">${f.price}</td>
+      </tr>
+    </table>
+  </td>
+</tr>
+${f.coupon ? `<tr><td class="em-pad" style="padding:0 40px 20px;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+    <tr>
+      <td style="padding:14px 20px;border:2px dashed ${a};border-radius:10px;text-align:center;background:${a}0d;">
+        <p style="margin:0 0 4px;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:${a};font-family:'Inter',Arial,sans-serif;">Kupon Kodunuz</p>
+        <p style="margin:0;font-size:22px;font-weight:900;letter-spacing:5px;color:${a};font-family:'Courier New',Courier,monospace;">${f.coupon}</p>
+      </td>
+    </tr>
+  </table>
+</td></tr>` : ''}
+${ctaRow(f.cta, f.ctaUrl, a)}
+${footerRow(f.brandName, f.footer, f.unsubscribeUrl, a)}`
+  return emailWrapper(body)
+}
 
-function BannerCanvas({ config, content, bgImage, productImage, compact, onClick, selected, mobileView }: {
-  config: BannerConfig; content: BannerContent; bgImage?: string | null; productImage?: string | null
-  compact?: boolean; onClick?: () => void; selected?: boolean; mobileView?: boolean
-}) {
-  const accent  = config.accentColor
-  const styleDef = BANNER_STYLES.find(s => s.value === config.style)
-  const colors  = getContrastColors(config.style, accent)
-  const heroRatio = mobileView ? '1/1' : '2/1'
-  const radius  = compact ? 8 : 14
+function generateYeniUrun(f: EmailFields): string {
+  const a = f.brandColor || '#4470ff'
+  const body = `
+<tr><td bgcolor="${a}" style="padding:20px 40px;background-color:${a};">
+  <table role="presentation" cellpadding="0" cellspacing="0">
+    <tr>
+      <td style="border-radius:20px;padding:4px 14px;background:rgba(255,255,255,0.2);">
+        <span style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#ffffff;font-family:'Inter',Arial,sans-serif;">✨ YENİ ÜRÜN</span>
+      </td>
+    </tr>
+  </table>
+  <p style="margin:8px 0 0;font-size:20px;font-weight:700;color:#ffffff;font-family:'Inter',Arial,sans-serif;">${f.brandName || 'Marka'}</p>
+</td></tr>
+<tr>
+  <td style="padding:32px 40px;text-align:center;background-color:#f9fafb;">
+    <img src="${f.productImage ?? '/templates/email-yeniurun.jpeg'}" width="280" alt="${f.title}"
+      style="display:block;width:280px;max-width:100%;height:260px;object-fit:contain;margin:0 auto;border:0;outline:none;filter:drop-shadow(0 16px 40px rgba(0,0,0,0.15));">
+  </td>
+</tr>
+<tr>
+  <td class="em-pad" style="padding:28px 40px 0;">
+    <h1 class="em-title" style="margin:0 0 10px;font-size:26px;font-weight:900;color:#111827;letter-spacing:-0.025em;line-height:1.15;font-family:'Inter',Arial,sans-serif;">${f.title}</h1>
+    <p style="margin:0 0 20px;font-size:14px;color:#6b7280;line-height:1.55;font-family:'Inter',Arial,sans-serif;">${f.description}</p>
+    <p style="margin:0 0 24px;font-size:32px;font-weight:900;color:${a};letter-spacing:-0.03em;font-family:'Inter',Arial,sans-serif;">${f.price}</p>
+  </td>
+</tr>
+${ctaRow(f.cta, f.ctaUrl, a)}
+${footerRow(f.brandName, f.footer, f.unsubscribeUrl, a)}`
+  return emailWrapper(body)
+}
 
-  const containerStyle: React.CSSProperties = {
-    borderRadius: radius,
-    overflow: 'hidden',
-    border: selected ? `2.5px solid ${accent}` : compact ? '1.5px solid rgba(0,0,0,0.07)' : 'none',
-    boxShadow: selected
-      ? `0 0 0 4px ${accent}25`
-      : compact
-        ? '0 2px 10px rgba(0,0,0,0.08)'
-        : '0 12px 56px rgba(0,0,0,0.18)',
-    cursor: onClick ? 'pointer' : 'default',
-    transition: 'box-shadow 0.15s',
+function generateSepetTerk(f: EmailFields): string {
+  const a = f.brandColor || '#f0a020'
+  const body = `
+<tr><td bgcolor="${a}" height="5" style="line-height:0;font-size:0;background-color:${a};">&nbsp;</td></tr>
+<tr>
+  <td class="em-pad" style="padding:24px 40px 16px;">
+    <p style="margin:0 0 4px;font-size:13px;font-weight:700;color:${a};font-family:'Inter',Arial,sans-serif;">🛒 Sepetiniz Sizi Bekliyor</p>
+    <h1 class="em-title" style="margin:0;font-size:24px;font-weight:900;color:#111827;letter-spacing:-0.025em;font-family:'Inter',Arial,sans-serif;">${f.title}</h1>
+  </td>
+</tr>
+<tr>
+  <td class="em-pad" style="padding:0 40px 20px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+      style="background:#f9fafb;border-radius:14px;overflow:hidden;">
+      <tr>
+        <td width="140" style="padding:16px;vertical-align:middle;">
+          <img src="${f.productImage ?? '/templates/email-sepetterk.jpeg'}" width="108" alt="${f.title}"
+            style="display:block;width:108px;height:108px;object-fit:contain;border:0;background:#fff;border-radius:10px;">
+        </td>
+        <td style="padding:16px 16px 16px 0;vertical-align:middle;">
+          <p style="margin:0 0 6px;font-size:14px;font-weight:700;color:#111827;font-family:'Inter',Arial,sans-serif;">${f.title}</p>
+          <p style="margin:0 0 8px;font-size:12px;color:#6b7280;line-height:1.5;font-family:'Inter',Arial,sans-serif;">${f.description}</p>
+          <table role="presentation" cellpadding="0" cellspacing="0">
+            <tr>
+              ${f.originalPrice ? `<td style="font-size:13px;color:#9ca3af;text-decoration:line-through;font-family:'Inter',Arial,sans-serif;padding-right:8px;">${f.originalPrice}</td>` : ''}
+              <td style="font-size:20px;font-weight:900;color:${a};font-family:'Inter',Arial,sans-serif;">${f.price}</td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </td>
+</tr>
+<tr>
+  <td class="em-pad" style="padding:0 40px 20px;text-align:center;">
+    <p style="margin:0;font-size:13px;color:#6b7280;font-family:'Inter',Arial,sans-serif;">⏰ Stok tükenmeden tamamlayın!</p>
+  </td>
+</tr>
+${f.coupon ? `<tr><td class="em-pad" style="padding:0 40px 20px;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+    <tr>
+      <td style="padding:12px 20px;border:2px dashed ${a};border-radius:10px;text-align:center;background:${a}0d;">
+        <p style="margin:0 0 2px;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:${a};font-family:'Inter',Arial,sans-serif;">Ekstra ${f.discount} İndirim Kodu</p>
+        <p style="margin:0;font-size:20px;font-weight:900;letter-spacing:4px;color:${a};font-family:'Courier New',Courier,monospace;">${f.coupon}</p>
+      </td>
+    </tr>
+  </table>
+</td></tr>` : ''}
+${ctaRow(f.cta, f.ctaUrl, a)}
+${footerRow(f.brandName, f.footer, f.unsubscribeUrl, a)}`
+  return emailWrapper(body)
+}
+
+function generatePremium(f: EmailFields): string {
+  const a = f.brandColor || '#c9a227'
+  const body = `
+<tr>
+  <td style="padding:0;line-height:0;font-size:0;">
+    <img src="${f.productImage ?? '/templates/email-premium.jpeg'}" width="600" alt="${f.title}"
+      style="display:block;width:100%;max-width:600px;height:320px;object-fit:cover;border:0;outline:none;-ms-interpolation-mode:bicubic;">
+  </td>
+</tr>
+<tr>
+  <td class="em-pad" style="padding:32px 40px 28px;background-color:#0d0d14;">
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:16px;">
+      <tr>
+        <td style="border-radius:20px;padding:5px 14px;background:${a}22;border:1px solid ${a}44;">
+          <span style="font-size:9px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:${a};font-family:'Inter',Arial,sans-serif;">EXCLUSIVE LAUNCH</span>
+        </td>
+      </tr>
+    </table>
+    <h1 class="em-title" style="margin:0 0 12px;font-size:30px;font-weight:900;color:#f5f0e8;letter-spacing:-0.02em;line-height:1.15;font-family:'Inter',Arial,sans-serif;">${f.title}</h1>
+    <p style="margin:0 0 20px;font-size:14px;color:#8b8b9e;line-height:1.6;font-family:'Inter',Arial,sans-serif;">${f.description}</p>
+    ${f.coupon ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
+      <tr>
+        <td style="padding:10px 18px;border:1px solid ${a}55;border-radius:8px;background:${a}11;">
+          <span style="font-size:10px;color:#8b8b9e;font-family:'Inter',Arial,sans-serif;">VIP Kodu: </span>
+          <span style="font-size:14px;font-weight:700;letter-spacing:3px;color:${a};font-family:'Courier New',Courier,monospace;">${f.coupon}</span>
+        </td>
+      </tr>
+    </table>` : ''}
+    <p style="margin:0 0 24px;font-size:34px;font-weight:900;color:${a};letter-spacing:-0.03em;font-family:'Inter',Arial,sans-serif;">${f.price}</p>
+    <table role="presentation" cellpadding="0" cellspacing="0">
+      <tr>
+        <td style="border-radius:12px;background-color:${a};">
+          <a href="${f.ctaUrl || '#'}"
+            style="display:block;padding:16px 36px;font-size:13px;font-weight:700;color:#0d0d14;text-decoration:none;letter-spacing:0.06em;font-family:'Inter',Arial,sans-serif;white-space:nowrap;mso-padding-alt:16px 36px;"
+          >${f.cta} →</a>
+        </td>
+      </tr>
+    </table>
+  </td>
+</tr>
+<tr>
+  <td style="padding:14px 40px 16px;text-align:center;background-color:#08080f;">
+    <p style="margin:0 0 4px;font-size:11px;color:#3e3e54;font-family:'Inter',Arial,sans-serif;">
+      ${f.footer || `© 2025 ${f.brandName}. Tüm hakları saklıdır.`}
+    </p>
+    <p style="margin:0;font-size:11px;color:#3e3e54;font-family:'Inter',Arial,sans-serif;">
+      Bu emaili almak istemiyorsanız&nbsp;<a href="${f.unsubscribeUrl || '#'}" style="color:${a};text-decoration:none;">aboneliğinizi iptal edin</a>.
+    </p>
+  </td>
+</tr>`
+  return emailWrapper(body, '#0a0a10')
+}
+
+function generateBlackFriday(f: EmailFields): string {
+  const a = '#ffffff'
+  const body = `
+<tr>
+  <td class="em-pad" style="padding:32px 40px 0;background-color:#000000;text-align:center;">
+    <p style="margin:0 0 2px;font-size:10px;font-weight:700;letter-spacing:4px;color:#666;font-family:'Inter',Arial,sans-serif;text-transform:uppercase;">— ${f.brandName || 'Marksio'} —</p>
+    <h1 style="margin:8px 0;font-size:48px;font-weight:900;color:#ffffff;letter-spacing:-0.03em;line-height:1;font-family:'Inter',Arial,sans-serif;text-transform:uppercase;">${f.title}</h1>
+    ${f.discount ? `<p class="em-discount-big" style="margin:0 0 4px;font-size:80px;font-weight:900;color:#ffffff;letter-spacing:-0.05em;line-height:1;font-family:'Inter',Arial,sans-serif;">${f.discount}</p>
+    <p style="margin:0 0 0;font-size:12px;font-weight:700;letter-spacing:3px;color:#555;font-family:'Inter',Arial,sans-serif;text-transform:uppercase;">İNDİRİM</p>` : ''}
+  </td>
+</tr>
+<tr>
+  <td style="padding:24px 0 0;background-color:#000000;text-align:center;line-height:0;font-size:0;">
+    <img src="${f.productImage ?? '/templates/email-blackfriday.jpeg'}" width="600" alt="${f.title}"
+      style="display:block;width:100%;max-width:600px;height:280px;object-fit:cover;border:0;outline:none;opacity:0.85;">
+  </td>
+</tr>
+<tr>
+  <td class="em-pad" style="padding:24px 40px 20px;background-color:#000000;">
+    <p style="margin:0 0 8px;font-size:13px;color:#9ca3af;line-height:1.55;font-family:'Inter',Arial,sans-serif;">${f.description}</p>
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:16px;">
+      <tr>
+        ${f.originalPrice ? `<td style="font-size:16px;font-weight:400;color:#555;text-decoration:line-through;font-family:'Inter',Arial,sans-serif;padding-right:12px;">${f.originalPrice}</td>` : ''}
+        <td style="font-size:36px;font-weight:900;color:#ffffff;letter-spacing:-0.04em;font-family:'Inter',Arial,sans-serif;">${f.price}</td>
+      </tr>
+    </table>
+    ${f.coupon ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
+      <tr>
+        <td style="padding:10px 18px;border:2px dashed rgba(255,255,255,0.25);border-radius:8px;background:rgba(255,255,255,0.05);">
+          <span style="font-size:10px;color:#666;font-family:'Inter',Arial,sans-serif;letter-spacing:1px;">KOD: </span>
+          <span style="font-size:18px;font-weight:900;letter-spacing:4px;color:#fff;font-family:'Courier New',Courier,monospace;">${f.coupon}</span>
+        </td>
+      </tr>
+    </table>` : ''}
+  </td>
+</tr>
+<tr>
+  <td style="padding:0 40px 32px;text-align:center;background-color:#000000;">
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto;">
+      <tr>
+        <td style="border-radius:12px;background-color:#ffffff;">
+          <a href="${f.ctaUrl || '#'}"
+            style="display:block;padding:16px 40px;font-size:14px;font-weight:700;color:#000000;text-decoration:none;letter-spacing:0.04em;font-family:'Inter',Arial,sans-serif;white-space:nowrap;"
+          >${f.cta} →</a>
+        </td>
+      </tr>
+    </table>
+  </td>
+</tr>
+<tr>
+  <td style="padding:14px 40px 16px;text-align:center;background-color:#0a0a0a;border-top:1px solid #1a1a1a;">
+    <p style="margin:0 0 4px;font-size:11px;color:#444;font-family:'Inter',Arial,sans-serif;">
+      ${f.footer || `© 2025 ${f.brandName}. Tüm hakları saklıdır.`}
+    </p>
+    <p style="margin:0;font-size:11px;color:#444;font-family:'Inter',Arial,sans-serif;">
+      Bu emaili almak istemiyorsanız&nbsp;<a href="${f.unsubscribeUrl || '#'}" style="color:#888;text-decoration:none;">aboneliğinizi iptal edin</a>.
+    </p>
+  </td>
+</tr>`
+  return emailWrapper(body, '#0a0a0a')
+}
+
+function generateMinimal(f: EmailFields): string {
+  const a = f.brandColor || '#111827'
+  const body = `
+<tr>
+  <td class="em-pad" style="padding:28px 40px 20px;border-bottom:1px solid #f3f4f6;">
+    <p style="margin:0;font-size:14px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:${a};font-family:'Inter',Arial,sans-serif;">${f.brandName || 'Marka'}</p>
+  </td>
+</tr>
+<tr>
+  <td style="padding:32px 40px;text-align:center;background-color:#fafafa;">
+    <img src="${f.productImage ?? '/templates/email-minimal.jpeg'}" width="320" alt="${f.title}"
+      style="display:block;width:320px;max-width:100%;height:280px;object-fit:contain;margin:0 auto;border:0;outline:none;">
+  </td>
+</tr>
+<tr>
+  <td class="em-pad" style="padding:28px 40px 0;border-top:1px solid #f3f4f6;">
+    <h1 class="em-title" style="margin:0 0 10px;font-size:22px;font-weight:700;color:#111827;letter-spacing:-0.015em;line-height:1.2;font-family:'Inter',Arial,sans-serif;">${f.title}</h1>
+    <p style="margin:0 0 18px;font-size:14px;color:#6b7280;line-height:1.6;font-family:'Inter',Arial,sans-serif;">${f.description}</p>
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+      <tr>
+        ${f.originalPrice ? `<td style="font-size:14px;font-weight:400;color:#9ca3af;text-decoration:line-through;font-family:'Inter',Arial,sans-serif;padding-right:10px;">${f.originalPrice}</td>` : ''}
+        <td style="font-size:28px;font-weight:700;color:#111827;letter-spacing:-0.025em;font-family:'Inter',Arial,sans-serif;">${f.price}</td>
+      </tr>
+    </table>
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+      <tr>
+        <td style="border-radius:10px;border:2px solid ${a};">
+          <a href="${f.ctaUrl || '#'}"
+            style="display:block;padding:14px 36px;font-size:13px;font-weight:600;color:${a};text-decoration:none;letter-spacing:0.04em;font-family:'Inter',Arial,sans-serif;white-space:nowrap;"
+          >${f.cta}</a>
+        </td>
+      </tr>
+    </table>
+  </td>
+</tr>
+<tr>
+  <td style="padding:16px 40px 20px;text-align:center;border-top:1px solid #f3f4f6;">
+    <p style="margin:0 0 4px;font-size:11px;color:#9ca3af;font-family:'Inter',Arial,sans-serif;">
+      ${f.footer || `© 2025 ${f.brandName}. Tüm hakları saklıdır.`}
+    </p>
+    <p style="margin:0;font-size:11px;color:#9ca3af;font-family:'Inter',Arial,sans-serif;">
+      <a href="${f.unsubscribeUrl || '#'}" style="color:#9ca3af;text-decoration:underline;">Aboneliği iptal et</a>
+    </p>
+  </td>
+</tr>`
+  return emailWrapper(body)
+}
+
+function generateEmail(templateId: TemplateId, fields: EmailFields): string {
+  switch (templateId) {
+    case 'indirim':     return generateIndirim(fields)
+    case 'yeniurun':    return generateYeniUrun(fields)
+    case 'sepetterk':   return generateSepetTerk(fields)
+    case 'premium':     return generatePremium(fields)
+    case 'blackfriday': return generateBlackFriday(fields)
+    case 'minimal':     return generateMinimal(fields)
   }
+}
 
+// ─── Subcomponents ────────────────────────────────────────────────────────────
+
+function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div onClick={onClick} className="relative w-full" style={containerStyle}>
-
-      {/* ─ HERO: AI commercial shot ─ */}
-      <div className="relative w-full overflow-hidden" style={{ aspectRatio: heroRatio, background: '#0a0a0a' }}>
-        {bgImage ? (
-          // After generation: full commercial shot — product is IN the image
-          <img
-            src={bgImage}
-            alt={content.headline}
-            className="w-full h-full object-cover"
-            style={{ display: 'block' }}
-            draggable={false}
-          />
-        ) : productImage ? (
-          // Pre-generation preview: product centered on style gradient
-          <>
-            <div className="absolute inset-0" style={{ background: styleDef?.bg ?? 'linear-gradient(135deg,#f0ecff,#ddd6fe)' }} />
-            <div className="absolute inset-0 flex items-center justify-center" style={{ padding: compact ? 12 : 24 }}>
-              <img
-                src={productImage}
-                alt="Ürün"
-                style={{
-                  maxWidth: compact ? '55%' : '52%',
-                  maxHeight: '80%',
-                  objectFit: 'contain',
-                  filter: 'drop-shadow(0 16px 48px rgba(0,0,0,0.38))',
-                  display: 'block',
-                }}
-                draggable={false}
-              />
-            </div>
-            {/* Subtle vignette */}
-            <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at 50% 50%, transparent 50%, rgba(0,0,0,0.18) 100%)' }} />
-          </>
-        ) : (
-          // Empty state
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2"
-            style={{ background: styleDef?.bg ?? 'linear-gradient(135deg,#f0ecff,#ddd6fe)' }}>
-            <Sparkles className={compact ? 'w-4 h-4' : 'w-7 h-7'} style={{ color: `${accent}80` }} />
-            {!compact && <p className="text-[11px] font-medium" style={{ color: `${accent}80` }}>AI kreatif burada görünecek</p>}
-          </div>
-        )}
-
-        {/* Selected checkmark */}
-        {selected && (
-          <div className="absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center z-10"
-            style={{ background: accent, boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }}>
-            <Check className="w-3.5 h-3.5 text-white" />
-          </div>
-        )}
-      </div>
-
-      {/* ─ CONTENT SECTION: badge, headline, discount, CTA ─ */}
-      <div style={{
-        background: colors.contentBg,
-        padding: compact ? '9px 12px 10px' : mobileView ? '18px 20px 20px' : '22px 28px 26px',
-      }}>
-        {/* Accent stripe at top of content (mimics email 4px bar) */}
-        <div style={{ height: compact ? 2 : 3, background: accent, borderRadius: 2, marginBottom: compact ? 6 : 12, width: compact ? 24 : 40 }} />
-
-        {!compact && (
-          <span style={{
-            fontSize: mobileView ? 8 : 9,
-            fontWeight: 700,
-            color: accent,
-            background: `${accent}18`,
-            padding: '3px 9px',
-            borderRadius: 4,
-            letterSpacing: '2px',
-            textTransform: 'uppercase' as const,
-            display: 'inline-block',
-            marginBottom: mobileView ? 7 : 10,
-          }}>
-            {truncate(content.badge, 20)}
-          </span>
-        )}
-
-        <h2 style={{
-          margin: 0,
-          fontSize: compact ? 10 : mobileView ? 15 : 18,
-          fontWeight: 900,
-          color: colors.textPrimary,
-          letterSpacing: '-0.025em',
-          lineHeight: 1.1,
-          marginBottom: compact ? 2 : 5,
-          overflow: 'hidden',
-          display: '-webkit-box',
-          WebkitLineClamp: 2,
-          WebkitBoxOrient: 'vertical' as const,
-        } as React.CSSProperties}>
-          {truncate(content.headline, compact ? 24 : 46)}
-        </h2>
-
-        {!compact && (
-          <p style={{
-            margin: '0 0 6px',
-            fontSize: mobileView ? 10 : 12,
-            color: colors.textSecondary,
-            lineHeight: 1.45,
-            overflow: 'hidden',
-            whiteSpace: 'nowrap',
-            textOverflow: 'ellipsis',
-          }}>
-            {truncate(content.subheadline, 55)}
-          </p>
-        )}
-
-        <p style={{
-          margin: `0 0 ${compact ? 0 : mobileView ? 10 : 14}px`,
-          fontSize: compact ? 11 : mobileView ? 20 : 26,
-          fontWeight: 900,
-          color: accent,
-          letterSpacing: '-0.04em',
-          lineHeight: 1,
-        }}>
-          {truncate(content.discountLabel, 20)}
-        </p>
-
-        {!compact && (
-          <div style={{
-            display: 'inline-block',
-            background: accent,
-            color: colors.ctaBtnText,
-            padding: mobileView ? '8px 16px' : '10px 22px',
-            borderRadius: 9,
-            fontSize: mobileView ? 10 : 11,
-            fontWeight: 700,
-            letterSpacing: '0.06em',
-            whiteSpace: 'nowrap' as const,
-          }}>
-            {truncate(content.ctaLabel, 22)} →
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-// ─── Form helpers ─────────────────────────────────────────────────────────────
-
-const FL = ({ c }: { c: string }) => <label className="block text-[11px] font-semibold mb-1.5" style={{ color: '#6b7280' }}>{c}</label>
-
-function FI({ v, o, ph, type = 'text' }: { v: string; o: (x: string) => void; ph?: string; type?: string }) {
-  return <input type={type} value={v} onChange={e => o(e.target.value)} placeholder={ph}
-    className="w-full rounded-xl text-[13px] outline-none transition-all"
-    style={{ padding: '10px 13px', background: '#f9fafb', border: '1.5px solid #e5e7eb', color: '#111827' }}
-    onFocus={e => (e.currentTarget.style.borderColor = '#6c47ff')}
-    onBlur={e => (e.currentTarget.style.borderColor = '#e5e7eb')} />
-}
-
-function FS({ v, o, children }: { v: string; o: (x: string) => void; children: React.ReactNode }) {
-  return <div className="relative">
-    <select value={v} onChange={e => o(e.target.value)} className="w-full rounded-xl text-[13px] outline-none appearance-none"
-      style={{ padding: '10px 32px 10px 13px', background: '#f9fafb', border: '1.5px solid #e5e7eb', color: '#111827' }}>
+    <label className="block text-[11px] font-semibold mb-1.5" style={{ color: '#6b7280' }}>
       {children}
-    </select>
-    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none" style={{ color: '#9ca3af' }} />
-  </div>
-}
-
-// ─── Action Sheet ──────────────────────────────────────────────────────────────
-
-function CampaignActionSheet({ onClose, onNewCampaign, onSaveTemplate, onAutomation }: {
-  onClose: () => void; onNewCampaign: () => void; onSaveTemplate: () => void; onAutomation: () => void
-}) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(6px)' }}
-      onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="w-full max-w-lg rounded-t-3xl overflow-hidden" style={{ background: '#fff', boxShadow: '0 -24px 64px rgba(0,0,0,0.2)' }}>
-        <div className="flex justify-center pt-3 pb-1">
-          <div className="w-10 h-1 rounded-full" style={{ background: '#e5e7eb' }} />
-        </div>
-        <div className="px-6 pb-2 pt-3">
-          <p className="text-[16px] font-bold" style={{ color: '#111827' }}>Kampanyada Kullan</p>
-          <p className="text-[13px] mt-0.5" style={{ color: '#9ca3af' }}>Bu banner ile ne yapmak istersiniz?</p>
-        </div>
-        <div className="px-4 pb-6 space-y-2 mt-2">
-          {([
-            { icon: '📧', title: 'Yeni Email Kampanyası Oluştur', desc: 'Bu banner ile sıfırdan kampanya başlat', color: '#6c47ff', action: onNewCampaign },
-            { icon: '➕', title: 'Mevcut Kampanyaya Ekle',        desc: 'Var olan kampanya görselini güncelle',   color: '#2563eb', action: () => { onClose(); } },
-            { icon: '💾', title: 'Şablon Olarak Kaydet',          desc: 'AI Assets kütüphanesine kaydet',        color: '#16a34a', action: onSaveTemplate },
-            { icon: '⚡', title: 'Otomasyonda Kullan',            desc: 'Email otomasyonuna banner ekle',        color: '#d97706', action: onAutomation },
-          ] as Array<{ icon: string; title: string; desc: string; color: string; action: () => void }>).map(({ icon, title, desc, color, action }) => (
-            <button key={title} onClick={action}
-              className="w-full flex items-center gap-4 p-4 rounded-2xl text-left transition-all"
-              style={{ background: '#fafafa', border: '1.5px solid #f3f4f6' }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = color + '40'; e.currentTarget.style.background = color + '08' }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = '#f3f4f6'; e.currentTarget.style.background = '#fafafa' }}>
-              <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-xl shrink-0" style={{ background: color + '14' }}>{icon}</div>
-              <div>
-                <p className="text-[13px] font-bold" style={{ color: '#111827' }}>{title}</p>
-                <p className="text-[12px]" style={{ color: '#9ca3af' }}>{desc}</p>
-              </div>
-              <ChevronRight className="w-4 h-4 ml-auto shrink-0" style={{ color: '#d1d5db' }} />
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
+    </label>
   )
 }
 
-// ─── Test Mail Modal ───────────────────────────────────────────────────────────
+function FieldInput({
+  value, onChange, placeholder, type = 'text', multiline,
+}: {
+  value: string; onChange: (v: string) => void; placeholder?: string; type?: string; multiline?: boolean
+}) {
+  const style: React.CSSProperties = {
+    width: '100%', padding: '9px 12px', background: '#f9fafb',
+    border: '1.5px solid #e5e7eb', borderRadius: 10, fontSize: 12,
+    color: '#111827', outline: 'none', resize: multiline ? 'vertical' : 'none',
+    fontFamily: 'inherit',
+  }
+  if (multiline) {
+    return (
+      <textarea
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        rows={2}
+        style={style}
+        onFocus={e => (e.currentTarget.style.borderColor = '#4470ff')}
+        onBlur={e => (e.currentTarget.style.borderColor = '#e5e7eb')}
+      />
+    )
+  }
+  return (
+    <input
+      type={type}
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      placeholder={placeholder}
+      style={style}
+      onFocus={e => (e.currentTarget.style.borderColor = '#4470ff')}
+      onBlur={e => (e.currentTarget.style.borderColor = '#e5e7eb')}
+    />
+  )
+}
 
-function TestMailModal({ onClose, html, storeName }: { onClose: () => void; html: string; storeName?: string }) {
+const BRAND_COLORS = ['#4470ff', '#e84545', '#22c97a', '#f0a020', '#9f7afa', '#c9a227', '#0ea5e9', '#111827']
+
+function TestMailModal({ html, onClose, brandName }: { html: string; onClose: () => void; brandName?: string }) {
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [sent, setSent] = useState(false)
   const [err, setErr] = useState('')
 
   async function send() {
-    if (!email.trim()) { setErr('E-posta gerekli.'); return }
+    if (!email.trim()) { setErr('E-posta adresi gerekli.'); return }
     setLoading(true); setErr('')
     try {
-      const r = await fetch('/api/ai/banner-test-email', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email.trim(), bannerHtml: html, storeName }) })
+      const r = await fetch('/api/ai/banner-test-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), bannerHtml: html, storeName: brandName }),
+      })
       const d = await r.json()
       if (!r.ok) throw new Error(d.error)
       setSent(true)
@@ -536,31 +640,47 @@ function TestMailModal({ onClose, html, storeName }: { onClose: () => void; html
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(6px)' }}>
-      <div className="w-[380px] rounded-2xl overflow-hidden" style={{ background: '#fff', border: '1px solid rgba(0,0,0,0.08)', boxShadow: '0 24px 64px rgba(0,0,0,0.2)' }}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(6px)' }}>
+      <div className="w-[360px] rounded-2xl overflow-hidden"
+        style={{ background: '#fff', border: '1px solid rgba(0,0,0,0.08)', boxShadow: '0 24px 64px rgba(0,0,0,0.2)' }}>
         <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid #f3f4f6' }}>
           <p className="text-[14px] font-bold" style={{ color: '#111827' }}>Test Mail Gönder</p>
           <button onClick={onClose}><X className="w-4 h-4" style={{ color: '#9ca3af' }} /></button>
         </div>
-        <div className="p-5 space-y-4">
+        <div className="p-5">
           {sent ? (
             <div className="text-center py-4">
-              <div className="w-12 h-12 rounded-full mx-auto flex items-center justify-center mb-3" style={{ background: '#f0fdf4' }}><Check className="w-6 h-6" style={{ color: '#16a34a' }} /></div>
-              <p className="text-[14px] font-bold" style={{ color: '#111827' }}>Gönderildi!</p>
-              <button onClick={onClose} className="mt-3 px-5 py-2 rounded-xl text-[12px] font-semibold" style={{ background: '#f5f3ff', color: '#6c47ff' }}>Kapat</button>
+              <div className="w-12 h-12 rounded-full mx-auto flex items-center justify-center mb-3"
+                style={{ background: '#f0fdf4' }}>
+                <Check className="w-6 h-6" style={{ color: '#16a34a' }} />
+              </div>
+              <p className="text-[14px] font-bold mb-3" style={{ color: '#111827' }}>Gönderildi!</p>
+              <button onClick={onClose} className="px-5 py-2 rounded-xl text-[12px] font-semibold"
+                style={{ background: '#f5f3ff', color: '#4470ff' }}>
+                Kapat
+              </button>
             </div>
           ) : (
-            <>
-              <div><FL c="E-posta Adresi" /><FI v={email} o={setEmail} ph="ornek@mail.com" type="email" /></div>
+            <div className="space-y-4">
+              <div>
+                <FieldLabel>E-posta Adresi</FieldLabel>
+                <FieldInput value={email} onChange={setEmail} placeholder="ornek@mail.com" type="email" />
+              </div>
               {err && <p className="text-[11px]" style={{ color: '#dc2626' }}>{err}</p>}
-              <div className="flex gap-2">
-                <button onClick={onClose} className="flex-1 py-2.5 rounded-xl text-[12px] font-semibold" style={{ background: '#f9fafb', border: '1px solid #e5e7eb', color: '#374151' }}>İptal</button>
-                <button onClick={send} disabled={loading} className="flex-1 py-2.5 rounded-xl text-[13px] font-bold flex items-center justify-center gap-2" style={{ background: 'linear-gradient(135deg,#6c47ff,#9c40ff)', color: '#fff' }}>
+              <div className="flex gap-2 pt-1">
+                <button onClick={onClose} className="flex-1 py-2.5 rounded-xl text-[12px] font-semibold"
+                  style={{ background: '#f9fafb', border: '1px solid #e5e7eb', color: '#374151' }}>
+                  İptal
+                </button>
+                <button onClick={send} disabled={loading}
+                  className="flex-1 py-2.5 rounded-xl text-[13px] font-bold flex items-center justify-center gap-2"
+                  style={{ background: 'linear-gradient(135deg,#4470ff,#6c47ff)', color: '#fff' }}>
                   {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                   {loading ? 'Gönderiliyor...' : 'Gönder'}
                 </button>
               </div>
-            </>
+            </div>
           )}
         </div>
       </div>
@@ -568,827 +688,414 @@ function TestMailModal({ onClose, html, storeName }: { onClose: () => void; html
   )
 }
 
-// ─── Header (shared across steps) ─────────────────────────────────────────────
-
-function StudioHeader({ step, credits, user, notifRef, userRef, notifOpen, setNotifOpen, userMenuOpen, setUserMenuOpen, router, handleSignOut }: {
-  step: Step; credits: number
-  user: { name?: string; email?: string; storeName?: string } | undefined
-  notifRef: React.RefObject<HTMLDivElement>; userRef: React.RefObject<HTMLDivElement>
-  notifOpen: boolean; setNotifOpen: (v: boolean) => void
-  userMenuOpen: boolean; setUserMenuOpen: (v: boolean) => void
-  router: ReturnType<typeof useRouter>; handleSignOut: () => void
-}) {
-  const STEP_LABELS: Record<Step, string> = { product: 'Ürün', scene: 'Sahne', result: 'Sonuç' }
-  const STEPS: Step[] = ['product', 'scene', 'result']
-
-  return (
-    <header className="flex items-center justify-between px-6 shrink-0" style={{ height: 56, background: '#ffffff', borderBottom: '1px solid rgba(0,0,0,0.07)', zIndex: 20 }}>
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#6c47ff,#9c40ff)' }}>
-            <Sparkles className="w-4 h-4 text-white" />
-          </div>
-          <span className="text-[14px] font-bold" style={{ color: '#111827' }}>AI Studio</span>
-        </div>
-        <div className="hidden sm:flex items-center gap-1">
-          {STEPS.map((s, i) => (
-            <div key={s} className="flex items-center gap-1">
-              {i > 0 && <ChevronRight className="w-3 h-3" style={{ color: '#d1d5db' }} />}
-              <span className={cn('text-[12px] font-semibold px-2 py-0.5 rounded-lg', step === s ? 'text-[#6c47ff]' : 'text-[#9ca3af]')}
-                style={{ background: step === s ? '#f5f3ff' : 'transparent' }}>
-                {STEP_LABELS[s]}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="flex items-center gap-2">
-        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl" style={{ background: '#f5f3ff', border: '1px solid #ede9fe' }}>
-          <Zap className="w-3.5 h-3.5" style={{ color: '#6c47ff' }} />
-          <span className="text-[12px] font-semibold" style={{ color: '#6c47ff' }}>{credits.toLocaleString('tr-TR')}</span>
-        </div>
-
-        <div ref={notifRef} className="relative">
-          <button onClick={() => setNotifOpen(!notifOpen)} className="relative w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: '#f9fafb', border: '1px solid #e5e7eb' }}>
-            <Bell className="w-4 h-4" style={{ color: '#6b7280' }} />
-            <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold text-white" style={{ background: '#6c47ff' }}>3</span>
-          </button>
-          {notifOpen && (
-            <div className="absolute right-0 top-full mt-2 w-72 rounded-2xl z-50" style={{ background: '#fff', border: '1px solid rgba(0,0,0,0.08)', boxShadow: '0 12px 40px rgba(0,0,0,0.12)' }}>
-              <div className="px-4 py-3" style={{ borderBottom: '1px solid #f3f4f6' }}><p className="text-[13px] font-semibold" style={{ color: '#111827' }}>Bildirimler</p></div>
-              {[{ i: '📬', t: 'Kampanya gönderildi', s: '2 saat önce' }, { i: '📈', t: 'Açılma oranı %38.7', s: '1 gün önce' }, { i: '🎯', t: '245 yeni müşteri', s: 'Bu hafta' }]
-                .map((n, i) => (
-                  <div key={i} className="flex items-start gap-3 px-4 py-3 hover:bg-gray-50 cursor-pointer" style={{ borderTop: i > 0 ? '1px solid #f3f4f6' : 'none' }}>
-                    <span className="text-base">{n.i}</span>
-                    <div><p className="text-[12px] font-semibold" style={{ color: '#111827' }}>{n.t}</p><p className="text-[11px]" style={{ color: '#9ca3af' }}>{n.s}</p></div>
-                  </div>
-                ))}
-            </div>
-          )}
-        </div>
-
-        <div ref={userRef} className="relative">
-          <button onClick={() => setUserMenuOpen(!userMenuOpen)} className="flex items-center gap-2.5 pl-3 pr-2.5 py-1.5 rounded-xl" style={{ background: '#f9fafb', border: '1px solid #e5e7eb' }}>
-            <div className="w-7 h-7 rounded-full flex items-center justify-center text-[12px] font-bold text-white shrink-0" style={{ background: '#6c47ff' }}>{user?.name?.[0]?.toUpperCase() ?? 'M'}</div>
-            <div className="text-left">
-              <p className="text-[12px] font-semibold leading-tight" style={{ color: '#111827' }}>{user?.storeName ?? 'Markus Store'}</p>
-              <p className="text-[10px]" style={{ color: '#9ca3af' }}>Pro Plan</p>
-            </div>
-            <ChevronDown className="w-3.5 h-3.5" style={{ color: '#9ca3af' }} />
-          </button>
-          {userMenuOpen && (
-            <div className="absolute right-0 top-full mt-2 w-52 rounded-2xl z-50" style={{ background: '#fff', border: '1px solid rgba(0,0,0,0.08)', boxShadow: '0 12px 40px rgba(0,0,0,0.12)' }}>
-              <div className="px-4 py-3" style={{ borderBottom: '1px solid #f3f4f6' }}>
-                <p className="text-[12px] font-semibold" style={{ color: '#111827' }}>{user?.name ?? 'Kullanıcı'}</p>
-                <p className="text-[11px]" style={{ color: '#9ca3af' }}>{user?.email ?? ''}</p>
-              </div>
-              {([
-                { Icon: Store,      label: 'Mağaza Ayarları', href: '/settings' },
-                { Icon: CreditCard, label: 'Plan & Billing',  href: '/plans' },
-                { Icon: Settings,   label: 'Hesap Ayarları',  href: '/settings' },
-              ] as Array<{ Icon: React.ElementType; label: string; href: string }>).map(({ Icon, label, href }) => (
-                <button key={label} onClick={() => { router.push(href); setUserMenuOpen(false) }} className="w-full flex items-center gap-3 px-4 py-2.5 text-[12px] font-medium text-left hover:bg-gray-50" style={{ color: '#374151' }}>
-                  <Icon className="w-3.5 h-3.5" style={{ color: '#9ca3af' }} /> {label}
-                </button>
-              ))}
-              <div style={{ borderTop: '1px solid #f3f4f6' }}>
-                <button onClick={handleSignOut} className="w-full flex items-center gap-3 px-4 py-2.5 text-[12px] font-medium text-left hover:bg-red-50" style={{ color: '#dc2626' }}>
-                  <LogOut className="w-3.5 h-3.5" /> Çıkış Yap
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </header>
-  )
-}
-
-// ─── Main Page ─────────────────────────────────────────────────────────────────
+// ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function AIStudioPage() {
-  const router = useRouter()
-  const { data: session } = useSession()
-  const user = session?.user as { name?: string; email?: string; storeName?: string } | undefined
+  const [selectedTemplate, setSelectedTemplate] = useState<TemplateId>('indirim')
+  const [fields, setFields] = useState<EmailFields>({ ...DEFAULT_FIELDS })
+  const [previewMode, setPreviewMode] = useState<PreviewMode>('desktop')
+  const [copied, setCopied] = useState(false)
+  const [testMailOpen, setTestMailOpen] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
 
-  // Step
-  const [step, setStep] = useState<Step>('product')
+  const tplConfig = TEMPLATES.find(t => t.id === selectedTemplate)!
+  const html = generateEmail(selectedTemplate, { ...fields, brandColor: fields.brandColor || tplConfig.accentColor })
 
-  // Product
-  const [productSrc, setProductSrc]           = useState<ProductSrc>('upload')
-  const [productImage, setProductImage]       = useState<string | null>(null)
-  const [productInfo, setProductInfo]         = useState<ProductInfo>({ name: '', price: '', description: '', category: '' })
-  const [dbProducts, setDbProducts]           = useState<DBProduct[]>([])
-  const [dbLoading, setDbLoading]             = useState(false)
-  const [dbSearch, setDbSearch]               = useState('')
-  const [selectedDbProduct, setSelectedDbProduct] = useState<DBProduct | null>(null)
-  const [productUrlInput, setProductUrlInput] = useState('')
-  const [urlPreviewOk, setUrlPreviewOk]       = useState<boolean | null>(null)
-  const [uploadLoading, setUploadLoading]     = useState(false)
-
-  // Shot style
-  const [shotStyle, setShotStyle] = useState<ShotStyle>('auto')
-  const [extraNotes, setExtraNotes] = useState('')
-
-  // Generation
-  const [generating, setGenerating]         = useState(false)
-  const [desktopUrl, setDesktopUrl]         = useState<string | null>(null)
-  const [mobileUrl, setMobileUrl]           = useState<string | null>(null)
-  // Legacy compat for BannerCanvas
-  const [images, setImages]                 = useState<BannerImage[]>([])
-  const [error, setError]                   = useState('')
-
-  // Banner
-  const [content, setContent]               = useState<BannerContent>(DEFAULT_CONTENT)
-  const [config, setConfig]                 = useState<BannerConfig>({ ...DEFAULT_CONFIG, brandName: user?.storeName ?? '' })
-  const [previewMode, setPreviewMode]       = useState<PreviewMode>('desktop')
-
-  // UI
-  const [actionSheetOpen, setActionSheetOpen] = useState(false)
-  const [testMailOpen, setTestMailOpen]       = useState(false)
-  const [copied, setCopied]                   = useState(false)
-  const [downloading, setDownloading]         = useState(false)
-  const [credits]                             = useState(12450)
-  const [notifOpen, setNotifOpen]             = useState(false)
-  const [userMenuOpen, setUserMenuOpen]       = useState(false)
-  const notifRef = useRef<HTMLDivElement>(null)
-  const userRef  = useRef<HTMLDivElement>(null)
-  const fileRef  = useRef<HTMLInputElement>(null)
-
-  const resolvedProductImage = productImage ?? selectedDbProduct?.productImage ?? null
-  const resolvedProductName  = selectedDbProduct?.productName ?? productInfo.name
-  const currentBg            = previewMode === 'mobile' ? (mobileUrl ?? desktopUrl) : (desktopUrl ?? mobileUrl)
-  // HTML uses the commercial shot as hero image — product is already IN the shot
-  const currentHtml          = generateHTML(config, content, currentBg)
-
-
-  const setC = <K extends keyof BannerConfig>(k: K) => (v: BannerConfig[K]) => setConfig(c => ({ ...c, [k]: v }))
-  const setT = <K extends keyof BannerContent>(k: K) => (v: string) => setContent(c => ({ ...c, [k]: v }))
-
-  // Close dropdowns on outside click
-  useEffect(() => {
-    const fn = (e: MouseEvent) => {
-      if (notifRef.current && !notifRef.current.contains(e.target as Node)) setNotifOpen(false)
-      if (userRef.current  && !userRef.current.contains(e.target as Node))  setUserMenuOpen(false)
-    }
-    document.addEventListener('mousedown', fn)
-    return () => document.removeEventListener('mousedown', fn)
+  const setF = useCallback(<K extends keyof EmailFields>(k: K) => (v: EmailFields[K]) => {
+    setFields(p => ({ ...p, [k]: v }))
   }, [])
 
-  // Load Shopify products
-  const loadDbProducts = useCallback(async () => {
-    if (dbProducts.length > 0) return
-    setDbLoading(true)
-    try { const r = await fetch('/api/products'); if (r.ok) setDbProducts(await r.json()) }
-    catch { /* silent */ } finally { setDbLoading(false) }
-  }, [dbProducts.length])
+  function selectTemplate(id: TemplateId) {
+    const tpl = TEMPLATES.find(t => t.id === id)!
+    setSelectedTemplate(id)
+    setFields(p => ({
+      ...p,
+      ...tpl.defaults,
+      brandColor: tpl.accentColor,
+      productImage: p.productImage,
+    }))
+  }
 
-  // File upload
-  const handleFile = useCallback((file: File) => {
+  function handleFile(file: File) {
     if (!file.type.startsWith('image/')) return
-    setUploadLoading(true)
     const reader = new FileReader()
-    reader.onload = e => { setProductImage(e.target?.result as string); setUploadLoading(false) }
+    reader.onload = e => setF('productImage')(e.target?.result as string)
     reader.readAsDataURL(file)
-  }, [])
-
-  // URL validate
-  const validateUrl = useCallback((url: string) => {
-    if (!url.trim()) { setUrlPreviewOk(null); return }
-    const img = new Image()
-    img.onload  = () => { setProductImage(url); setUrlPreviewOk(true) }
-    img.onerror = () => { setProductImage(null); setUrlPreviewOk(false) }
-    img.src = url
-  }, [])
-
-  // Switch product source
-  const switchSrc = useCallback((s: ProductSrc) => {
-    setProductSrc(s)
-    setProductImage(null)
-    setSelectedDbProduct(null)
-    setProductUrlInput('')
-    setUrlPreviewOk(null)
-    if (s === 'shopify') loadDbProducts()
-  }, [loadDbProducts])
-
-  // Can proceed to scene?
-  const hasProduct = (productSrc === 'upload' && !!productImage) ||
-                     (productSrc === 'shopify' && !!selectedDbProduct) ||
-                     (productSrc === 'url' && urlPreviewOk === true)
-
-  // Prefetch scene background
-  // Generate commercial shot
-  const generate = useCallback(async () => {
-    if (!hasProduct) { setError('Ürün ekleyin.'); return }
-    setGenerating(true); setError('')
-
-    try {
-      const body = {
-        brandName: config.brandName || user?.storeName || 'Marka',
-        productName: resolvedProductName || extraNotes || 'Ürün',
-        campaignType: config.campaignType,
-        discountRate: config.discountRate,
-        discountType: config.discountType,
-        ctaText: config.ctaText,
-        style: config.style,
-        accentColor: config.accentColor,
-        size: config.size,
-        productSource: productSrc,
-        productImageUrl: resolvedProductImage,
-        shotStyle,
-      }
-      const r = await fetch('/api/ai/banner-studio', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      })
-      const d = await r.json() as {
-        error?: string
-        content?: BannerContent
-        desktop?: { url: string } | null
-        mobile?: { url: string } | null
-        images?: BannerImage[]
-        category?: string
-        effectiveStyle?: string
-      }
-      if (!r.ok) throw new Error(d.error)
-      if (d.content) setContent(d.content)
-      setDesktopUrl(d.desktop?.url ?? null)
-      setMobileUrl(d.mobile?.url ?? null)
-      setImages((d.images ?? []).filter(Boolean) as BannerImage[])
-      if (!d.desktop?.url && !d.mobile?.url) throw new Error('Görsel üretilemedi.')
-      setPreviewMode('desktop')
-      setStep('result')
-    } catch (e) {
-      setError((e as Error).message)
-    } finally {
-      setGenerating(false)
-    }
-  }, [hasProduct, shotStyle, extraNotes, config, user, resolvedProductName, resolvedProductImage, productSrc])
-
-  // Campaign actions
-  function saveAsset(status: string) {
-    const id = `asset_${Date.now()}`
-    const assets = JSON.parse(localStorage.getItem('marksio_ai_assets') ?? '[]') as unknown[]
-    const styleLabel = SHOT_STYLES.find(s => s.id === shotStyle)?.name ?? shotStyle
-    assets.unshift({
-      id, html: currentHtml,
-      bgImageUrl: desktopUrl,
-      mobileImageUrl: mobileUrl,
-      productImage: resolvedProductImage,
-      config, content, status,
-      createdAt: Date.now(),
-      sceneName: styleLabel,
-    })
-    localStorage.setItem('marksio_ai_assets', JSON.stringify(assets.slice(0, 50)))
-    return id
-  }
-
-  function handleNewCampaign() {
-    const id = saveAsset('in_campaign')
-    localStorage.setItem(`marksio_banner_asset_${id}`, JSON.stringify({ html: currentHtml, bgImageUrl: currentBg, productImage: resolvedProductImage, config, content }))
-    router.push(`/campaigns/new?bannerId=${id}`)
-  }
-
-  function handleSaveTemplate() {
-    saveAsset('draft')
-    setActionSheetOpen(false)
-    alert('Şablon AI Assets kütüphanesine kaydedildi.')
-  }
-
-  function handleAutomation() {
-    const id = saveAsset('in_automation')
-    localStorage.setItem(`marksio_banner_asset_${id}`, JSON.stringify({ html: currentHtml, bgImageUrl: currentBg, productImage: resolvedProductImage, config, content }))
-    router.push(`/automations/new?bannerId=${id}`)
   }
 
   function copyHTML() {
-    navigator.clipboard.writeText(currentHtml).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) })
+    navigator.clipboard.writeText(html).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
   }
 
-  async function handleDownload() {
-    const url = previewMode === 'mobile' ? (mobileUrl ?? desktopUrl) : (desktopUrl ?? mobileUrl)
-    if (!url || downloading) return
-    setDownloading(true)
-    try {
-      const res = await fetch(url)
-      const blob = await res.blob()
-      const a = document.createElement('a')
-      a.href = URL.createObjectURL(blob)
-      a.download = `marksio-banner-${Date.now()}.jpg`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(a.href)
-    } catch {
-      window.open(url, '_blank')
-    } finally {
-      setDownloading(false)
-    }
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault()
+    const file = e.dataTransfer.files[0]
+    if (file) handleFile(file)
   }
-
-  async function handleSignOut() {
-    await createClient().auth.signOut()
-    router.push('/login')
-  }
-
-  const filteredDbProducts = dbProducts.filter(p => p.productName.toLowerCase().includes(dbSearch.toLowerCase()))
-
-  // ─────────────────────────────────────────────────────────────────────────────
 
   return (
     <AppShell>
-      {actionSheetOpen && <CampaignActionSheet onClose={() => setActionSheetOpen(false)} onNewCampaign={handleNewCampaign} onSaveTemplate={handleSaveTemplate} onAutomation={handleAutomation} />}
-      {testMailOpen && <TestMailModal onClose={() => setTestMailOpen(false)} html={currentHtml} storeName={user?.storeName} />}
+      {testMailOpen && (
+        <TestMailModal
+          html={html}
+          onClose={() => setTestMailOpen(false)}
+          brandName={fields.brandName}
+        />
+      )}
 
-      <div className="flex flex-col h-screen overflow-hidden" style={{ background: '#f2f2f7' }}>
-        <StudioHeader step={step} credits={credits} user={user} notifRef={notifRef} userRef={userRef} notifOpen={notifOpen} setNotifOpen={setNotifOpen} userMenuOpen={userMenuOpen} setUserMenuOpen={setUserMenuOpen} router={router} handleSignOut={handleSignOut} />
+      <div className="flex flex-col h-full overflow-hidden" style={{ background: '#f2f2f7' }}>
 
-        {/* ════ STEP 1: ÜRÜN ════ */}
-        {step === 'product' && (
-          <div className="flex-1 overflow-y-auto flex flex-col">
-            <div className="flex-1 p-6 flex items-start justify-center">
-              <div className="w-full max-w-2xl">
-                <div className="mb-6 text-center">
-                  <h2 className="text-[22px] font-bold" style={{ color: '#111827', letterSpacing: '-0.025em' }}>Ürün Ekle</h2>
-                  <p className="text-[14px] mt-1" style={{ color: '#9ca3af' }}>Ürün görseli yükle veya Shopify'dan seç. AI sahneyi buna göre oluşturur.</p>
-                </div>
-
-                {/* Source tabs */}
-                <div className="flex items-center gap-1 p-1 rounded-2xl mb-6 w-fit mx-auto" style={{ background: '#f3f4f6' }}>
-                  {([['upload', Upload, 'Görsel Yükle'], ['shopify', ShoppingBag, 'Shopify'], ['url', Link2, 'URL']] as [ProductSrc, React.ElementType, string][])
-                    .map(([src, Icon, label]) => (
-                      <button key={src} onClick={() => switchSrc(src)}
-                        className="flex items-center gap-2 px-4 py-2 rounded-xl text-[13px] font-semibold transition-all"
-                        style={{ background: productSrc === src ? '#fff' : 'transparent', color: productSrc === src ? '#6c47ff' : '#9ca3af', boxShadow: productSrc === src ? '0 1px 6px rgba(0,0,0,0.08)' : 'none' }}>
-                        <Icon className="w-4 h-4" /> {label}
-                      </button>
-                    ))}
-                </div>
-
-                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                  {/* Left: Image */}
-                  <div className="rounded-2xl p-5" style={{ background: '#fff', border: '1px solid rgba(0,0,0,0.07)', boxShadow: '0 2px 16px rgba(0,0,0,0.04)' }}>
-                    <p className="text-[13px] font-bold mb-3" style={{ color: '#111827' }}>Ürün Görseli</p>
-                    <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} />
-
-                    {productSrc === 'upload' && (
-                      resolvedProductImage ? (
-                        <div className="relative rounded-xl overflow-hidden" style={{ border: '1.5px solid #e5e7eb' }}>
-                          <img src={resolvedProductImage} className="w-full h-48 object-contain bg-gray-50" />
-                          <button onClick={() => { setProductImage(null); if (fileRef.current) fileRef.current.value = '' }} className="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.6)' }}>
-                            <X className="w-3.5 h-3.5 text-white" />
-                          </button>
-                          <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-bold" style={{ background: 'rgba(108,71,255,0.9)', color: '#fff' }}>✓ Ürün korunacak</div>
-                        </div>
-                      ) : (
-                        <button onClick={() => fileRef.current?.click()} disabled={uploadLoading}
-                          className="w-full rounded-xl flex flex-col items-center justify-center gap-3 transition-all"
-                          style={{ height: 192, border: '2px dashed #d1d5db', background: '#fafafa' }}
-                          onMouseEnter={e => { e.currentTarget.style.borderColor = '#6c47ff'; e.currentTarget.style.background = '#f5f3ff' }}
-                          onMouseLeave={e => { e.currentTarget.style.borderColor = '#d1d5db'; e.currentTarget.style.background = '#fafafa' }}>
-                          {uploadLoading ? <Loader2 className="w-7 h-7 animate-spin" style={{ color: '#6c47ff' }} /> : (
-                            <>
-                              <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: '#f0ecff' }}>
-                                <Upload className="w-7 h-7" style={{ color: '#6c47ff' }} />
-                              </div>
-                              <div className="text-center">
-                                <p className="text-[13px] font-bold" style={{ color: '#374151' }}>Görsel sürükle veya seç</p>
-                                <p className="text-[11px] mt-1" style={{ color: '#9ca3af' }}>PNG, JPG, WebP, SVG • Maks 5MB</p>
-                              </div>
-                            </>
-                          )}
-                        </button>
-                      )
-                    )}
-
-                    {productSrc === 'shopify' && (
-                      <div className="space-y-2.5">
-                        <div className="relative">
-                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: '#9ca3af' }} />
-                          <input value={dbSearch} onChange={e => setDbSearch(e.target.value)} placeholder="Ürün ara..." className="w-full text-[13px] outline-none rounded-xl" style={{ paddingLeft: 36, paddingRight: 12, paddingTop: 9, paddingBottom: 9, background: '#f9fafb', border: '1.5px solid #e5e7eb', color: '#111827' }} />
-                        </div>
-                        {dbLoading ? <div className="flex justify-center py-6"><Loader2 className="w-6 h-6 animate-spin" style={{ color: '#6c47ff' }} /></div> :
-                          filteredDbProducts.length === 0 ? <p className="text-center py-5 text-[13px]" style={{ color: '#9ca3af' }}>{dbProducts.length === 0 ? 'Shopify entegrasyonu gerekli' : 'Bulunamadı'}</p> : (
-                            <div className="space-y-2 max-h-44 overflow-y-auto">
-                              {filteredDbProducts.map(p => (
-                                <button key={p.id} onClick={() => { setSelectedDbProduct(p); setProductImage(p.productImage); setProductInfo(i => ({ ...i, name: p.productName, price: p.price?.toString() ?? '', description: p.description ?? '' })) }}
-                                  className="w-full flex items-center gap-3 p-2.5 rounded-xl text-left transition-all"
-                                  style={{ border: selectedDbProduct?.id === p.id ? '1.5px solid #6c47ff' : '1.5px solid #e5e7eb', background: selectedDbProduct?.id === p.id ? '#f5f3ff' : '#fff' }}>
-                                  {p.productImage ? <img src={p.productImage} className="w-10 h-10 rounded-lg object-cover shrink-0" /> : <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ background: '#f3f4f6' }}><Package className="w-4 h-4" style={{ color: '#9ca3af' }} /></div>}
-                                  <div className="min-w-0 flex-1">
-                                    <p className="text-[13px] font-semibold truncate" style={{ color: '#111827' }}>{p.productName}</p>
-                                    {p.price && <p className="text-[11px]" style={{ color: '#6c47ff' }}>₺{p.price.toFixed(2)}</p>}
-                                  </div>
-                                  {selectedDbProduct?.id === p.id && <Check className="w-4 h-4 shrink-0" style={{ color: '#6c47ff' }} />}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                      </div>
-                    )}
-
-                    {productSrc === 'url' && (
-                      <div className="space-y-3">
-                        <FI v={productUrlInput} o={v => { setProductUrlInput(v); validateUrl(v) }} ph="https://cdn.ornek.com/urun.jpg" />
-                        {urlPreviewOk === false && <p className="text-[11px]" style={{ color: '#dc2626' }}>Görsel yüklenemedi. URL'yi kontrol edin.</p>}
-                        {productImage && urlPreviewOk && <div className="rounded-xl overflow-hidden" style={{ border: '1.5px solid #e5e7eb' }}><img src={productImage} className="w-full h-36 object-contain bg-gray-50" /></div>}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Right: Product info */}
-                  <div className="rounded-2xl p-5 space-y-4" style={{ background: '#fff', border: '1px solid rgba(0,0,0,0.07)', boxShadow: '0 2px 16px rgba(0,0,0,0.04)' }}>
-                    <p className="text-[13px] font-bold" style={{ color: '#111827' }}>Ürün Bilgileri</p>
-                    <div><FL c="Ürün Adı" /><FI v={productInfo.name} o={v => setProductInfo(i => ({ ...i, name: v }))} ph="Yaz Koleksiyonu Gözlüğü" /></div>
-                    <div><FL c="Marka Adı" /><FI v={config.brandName} o={setC('brandName')} ph="Markus Store" /></div>
-                    <div><FL c="Fiyat (opsiyonel)" /><FI v={productInfo.price} o={v => setProductInfo(i => ({ ...i, price: v }))} ph="₺299" /></div>
-                    <div><FL c="Kategori" />
-                      <FI v={productInfo.category} o={v => setProductInfo(i => ({ ...i, category: v }))} ph="Gözlük / Aksesuar" />
-                    </div>
-                    <div>
-                      <FL c="Kampanya Tipi" />
-                      <FS v={config.campaignType} o={v => setC('campaignType')(v as CampaignType)}>
-                        {CAMPAIGN_TYPES.map(t => <option key={t.value} value={t.value}>{t.emoji} {t.label}</option>)}
-                      </FS>
-                    </div>
-                    <div className="flex gap-2">
-                      <div className="flex-1"><FL c="İndirim" /><FI v={config.discountRate} o={setC('discountRate')} ph="%40" /></div>
-                      <div className="w-24"><FL c="Tür" />
-                        <FS v={config.discountType} o={v => setC('discountType')(v as 'percent' | 'fixed')}>
-                          <option value="percent">%</option>
-                          <option value="fixed">₺</option>
-                        </FS>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Next */}
-                <div className="mt-6 flex items-center justify-center gap-4">
-                  {!hasProduct && (
-                    <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl" style={{ background: '#fffbeb', border: '1px solid #fde68a' }}>
-                      <AlertCircle className="w-4 h-4" style={{ color: '#d97706' }} />
-                      <p className="text-[12px]" style={{ color: '#92400e' }}>Devam etmek için ürün görseli ekleyin</p>
-                    </div>
-                  )}
-                  <button onClick={() => hasProduct && setStep('scene')} disabled={!hasProduct}
-                    className="flex items-center gap-2 px-6 py-3 rounded-2xl text-[14px] font-bold transition-all"
-                    style={{ background: hasProduct ? 'linear-gradient(135deg,#6c47ff,#9c40ff)' : '#e5e7eb', color: hasProduct ? '#fff' : '#9ca3af', boxShadow: hasProduct ? '0 4px 20px rgba(108,71,255,0.38)' : 'none', cursor: hasProduct ? 'pointer' : 'not-allowed' }}>
-                    Sahne Seç <ArrowRight className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
+        {/* ── Top Bar ── */}
+        <div className="flex items-center justify-between px-6 shrink-0"
+          style={{ height: 56, background: '#fff', borderBottom: '1px solid rgba(0,0,0,0.07)' }}>
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center"
+              style={{ background: 'linear-gradient(135deg,#4470ff,#9f7afa)' }}>
+              <Mail className="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <p className="text-[14px] font-bold leading-tight" style={{ color: '#111827' }}>
+                Email Şablon Builder
+              </p>
+              <p className="text-[10px]" style={{ color: '#9ca3af' }}>
+                {tplConfig.name} seçili
+              </p>
             </div>
           </div>
-        )}
 
-        {/* ════ STEP 2: ÇEKİM STİLİ ════ */}
-        {step === 'scene' && (
-          <div className="flex-1 overflow-y-auto" style={{ background: '#f8f9fc' }}>
-            <div className="max-w-2xl mx-auto p-6">
+          <div className="flex items-center gap-2">
+            {/* Desktop / Mobile toggle */}
+            <div className="flex items-center gap-1 p-0.5 rounded-xl" style={{ background: '#f3f4f6' }}>
+              {([['desktop', Monitor, 'Desktop'], ['mobile', Smartphone, 'Mobil']] as [PreviewMode, React.ElementType, string][])
+                .map(([mode, Icon, label]) => (
+                  <button key={mode} onClick={() => setPreviewMode(mode)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all"
+                    style={{
+                      background: previewMode === mode ? '#fff' : 'transparent',
+                      color: previewMode === mode ? '#4470ff' : '#9ca3af',
+                      boxShadow: previewMode === mode ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
+                    }}>
+                    <Icon className="w-3.5 h-3.5" /> {label}
+                  </button>
+                ))}
+            </div>
 
-              {/* Preset Templates */}
-              <div className="mb-5">
-                <p className="text-[11px] font-bold uppercase tracking-wider mb-3" style={{ color: '#9ca3af' }}>Hazır Şablonlar</p>
-                <div className="grid grid-cols-3 gap-3">
-                  {PRESET_TEMPLATES.map(tpl => (
-                    <button key={tpl.id}
-                      onClick={() => {
-                        setConfig(c => ({ ...c, ...tpl.config }))
-                        setContent(tpl.content)
-                      }}
-                      className="flex flex-col items-start p-3 rounded-2xl text-left transition-all"
-                      style={{ background: '#fff', border: '1.5px solid rgba(0,0,0,0.07)', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}
-                      onMouseEnter={e => { e.currentTarget.style.borderColor = tpl.config.accentColor ?? '#6c47ff'; e.currentTarget.style.boxShadow = `0 0 0 3px ${tpl.config.accentColor ?? '#6c47ff'}18` }}
-                      onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(0,0,0,0.07)'; e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.04)' }}>
-                      <div className="w-full h-10 rounded-xl mb-2" style={{ background: tpl.preview }} />
-                      <span className="text-[11px] font-semibold" style={{ color: '#111827' }}>{tpl.emoji} {tpl.name}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
+            {/* Actions */}
+            <button onClick={copyHTML}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[12px] font-semibold transition-all"
+              style={{ background: copied ? '#f0fdf4' : '#f9fafb', color: copied ? '#16a34a' : '#374151', border: `1px solid ${copied ? '#bbf7d0' : '#e5e7eb'}` }}>
+              {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+              {copied ? 'Kopyalandı!' : 'HTML Kopyala'}
+            </button>
 
-              {/* Header */}
-              <div className="flex items-center gap-3 mb-6">
-                <button onClick={() => setStep('product')} className="flex items-center gap-1.5 text-[13px] font-semibold transition-colors shrink-0" style={{ color: '#9ca3af' }}
-                  onMouseEnter={e => (e.currentTarget.style.color = '#6c47ff')} onMouseLeave={e => (e.currentTarget.style.color = '#9ca3af')}>
-                  <ChevronLeft className="w-4 h-4" /> Geri
-                </button>
-                <div>
-                  <h2 className="text-[22px] font-bold" style={{ color: '#111827', letterSpacing: '-0.03em' }}>Çekim Stili</h2>
-                  <p className="text-[13px]" style={{ color: '#9ca3af' }}>
-                    AI ürününü alıp profesyonel ticari fotoğrafa dönüştürür — sahne ve ortamı otomatik seçer.
-                  </p>
-                </div>
-              </div>
+            <button onClick={() => setTestMailOpen(true)}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[12px] font-semibold"
+              style={{ background: 'linear-gradient(135deg,#4470ff,#6c47ff)', color: '#fff', boxShadow: '0 4px 16px rgba(68,112,255,0.35)' }}>
+              <Send className="w-3.5 h-3.5" /> Test Gönder
+            </button>
+          </div>
+        </div>
 
-              {/* Detected product category */}
-              {resolvedProductName && (
-                <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl mb-5" style={{ background: '#fff', border: '1px solid rgba(108,71,255,0.15)' }}>
-                  <span className="text-xl">{CATEGORY_LABELS[detectCategory(resolvedProductName)].split(' ')[0]}</span>
-                  <div>
-                    <p className="text-[12px] font-semibold" style={{ color: '#374151' }}>
-                      Tespit edilen ürün: <span style={{ color: '#6c47ff' }}>{CATEGORY_LABELS[detectCategory(resolvedProductName)]}</span>
-                    </p>
-                    <p className="text-[11px]" style={{ color: '#9ca3af' }}>AI bu kategoriye özel çekim ortamı oluşturacak</p>
-                  </div>
-                </div>
-              )}
+        <div className="flex flex-1 overflow-hidden">
 
-              {/* 5 Shot style cards */}
-              <div className="space-y-2.5 mb-5">
-                {SHOT_STYLES.map(style => {
-                  const isSelected = shotStyle === style.id
-                  return (
-                    <button key={style.id} onClick={() => setShotStyle(style.id)}
-                      className="w-full flex items-center gap-4 p-4 rounded-2xl text-left transition-all"
-                      style={{
-                        background: isSelected ? '#fff' : '#fff',
-                        border: isSelected ? '2px solid #6c47ff' : '1.5px solid rgba(0,0,0,0.07)',
-                        boxShadow: isSelected ? '0 0 0 4px rgba(108,71,255,0.08), 0 4px 16px rgba(0,0,0,0.06)' : '0 1px 4px rgba(0,0,0,0.04)',
-                      }}>
-                      {/* Emoji */}
-                      <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shrink-0"
-                        style={{ background: isSelected ? 'rgba(108,71,255,0.08)' : '#f9fafb' }}>
-                        {style.emoji}
-                      </div>
+          {/* ── Left Panel ── */}
+          <div className="w-[320px] shrink-0 flex flex-col overflow-hidden"
+            style={{ background: '#fff', borderRight: '1px solid rgba(0,0,0,0.07)' }}>
 
-                      {/* Info */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-0.5">
-                          <p className="text-[14px] font-bold" style={{ color: '#111827' }}>{style.name}</p>
-                          <span className="text-[9px] font-bold px-2 py-0.5 rounded-full" style={{ background: '#f3f4f6', color: '#6b7280' }}>
-                            {style.examples}
+            <div className="flex-1 overflow-y-auto">
+
+              {/* Template selection */}
+              <div className="p-4 border-b" style={{ borderColor: 'rgba(0,0,0,0.07)' }}>
+                <p className="text-[10px] font-bold uppercase tracking-wider mb-3" style={{ color: '#9ca3af' }}>
+                  Şablon Seç
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {TEMPLATES.map(tpl => {
+                    const Icon = tpl.icon
+                    const isActive = tpl.id === selectedTemplate
+                    return (
+                      <button key={tpl.id} onClick={() => selectTemplate(tpl.id)}
+                        className="flex flex-col items-start p-3 rounded-xl text-left transition-all"
+                        style={{
+                          border: isActive ? `2px solid ${tpl.accentColor}` : '1.5px solid #f3f4f6',
+                          background: isActive ? `${tpl.accentColor}08` : '#fafafa',
+                          boxShadow: isActive ? `0 0 0 3px ${tpl.accentColor}18` : 'none',
+                        }}>
+                        <div className="w-full h-14 rounded-lg overflow-hidden mb-2 relative"
+                          style={{ background: '#f3f4f6' }}>
+                          <img
+                            src={tpl.previewImage}
+                            alt={tpl.name}
+                            className="w-full h-full object-cover"
+                            style={{ opacity: isActive ? 1 : 0.7 }}
+                          />
+                          {isActive && (
+                            <div className="absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center"
+                              style={{ background: tpl.accentColor }}>
+                              <Check className="w-3 h-3 text-white" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <Icon className="w-3 h-3 shrink-0" style={{ color: isActive ? tpl.accentColor : '#9ca3af' }} />
+                          <span className="text-[11px] font-semibold leading-tight"
+                            style={{ color: isActive ? tpl.accentColor : '#374151' }}>
+                            {tpl.name}
                           </span>
                         </div>
-                        <p className="text-[12px]" style={{ color: '#6b7280' }}>{style.description}</p>
-                      </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
 
-                      {/* Selected indicator */}
-                      <div className={cn('w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-all',
-                        isSelected ? 'opacity-100' : 'opacity-0')}
-                        style={{ background: '#6c47ff' }}>
-                        <Check className="w-3 h-3 text-white" />
-                      </div>
+              {/* Product image upload */}
+              <div className="p-4 border-b" style={{ borderColor: 'rgba(0,0,0,0.07)' }}>
+                <p className="text-[10px] font-bold uppercase tracking-wider mb-3" style={{ color: '#9ca3af' }}>
+                  Ürün Görseli
+                </p>
+                <input ref={fileRef} type="file" accept="image/*" className="hidden"
+                  onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} />
+
+                {fields.productImage ? (
+                  <div className="relative rounded-xl overflow-hidden" style={{ border: '1.5px solid #e5e7eb' }}>
+                    <img src={fields.productImage} alt="Ürün" className="w-full h-40 object-contain"
+                      style={{ background: '#f9fafb' }} />
+                    <button
+                      onClick={() => setF('productImage')(null)}
+                      className="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center"
+                      style={{ background: 'rgba(0,0,0,0.6)' }}>
+                      <X className="w-3.5 h-3.5 text-white" />
                     </button>
-                  )
-                })}
-              </div>
-
-              {/* Optional extra notes */}
-              <div className="rounded-2xl p-4 mb-5" style={{ background: '#fff', border: '1px solid rgba(0,0,0,0.07)' }}>
-                <p className="text-[12px] font-bold mb-2" style={{ color: '#374151' }}>Özel Not <span className="font-normal text-[11px]" style={{ color: '#9ca3af' }}>(opsiyonel)</span></p>
-                <textarea
-                  value={extraNotes}
-                  onChange={e => setExtraNotes(e.target.value)}
-                  rows={2}
-                  placeholder="Örn: siyah renk korunacak, spor ortam, suya dayanıklı görünüm..."
-                  className="w-full rounded-xl text-[12px] outline-none resize-none"
-                  style={{ padding: '10px 13px', background: '#f9fafb', border: '1.5px solid #e5e7eb', color: '#111827', lineHeight: 1.6 }}
-                  onFocus={e => (e.currentTarget.style.borderColor = '#6c47ff')}
-                  onBlur={e => (e.currentTarget.style.borderColor = '#e5e7eb')}
-                />
-              </div>
-
-              {/* Banner settings */}
-              <div className="rounded-2xl p-4 mb-5" style={{ background: '#fff', border: '1px solid rgba(0,0,0,0.07)' }}>
-                <p className="text-[11px] font-bold uppercase tracking-wider mb-3" style={{ color: '#9ca3af' }}>Banner Ayarları</p>
-                <div className="grid grid-cols-3 gap-4">
-                  <div><FL c="Aksent Rengi" />
-                    <div className="flex items-center gap-1.5 flex-wrap pt-1">
-                      {ACCENT_COLORS.map(c => <button key={c} onClick={() => setC('accentColor')(c)} className="rounded-full" style={{ width: 24, height: 24, background: c, boxShadow: config.accentColor === c ? `0 0 0 2px #fff, 0 0 0 4px ${c}` : 'none' }} />)}
+                    <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-bold"
+                      style={{ background: 'rgba(68,112,255,0.9)', color: '#fff' }}>
+                      ✓ Hero alana yerleşti
                     </div>
                   </div>
-                  <div><FL c="CTA Butonu" /><FI v={config.ctaText} o={setC('ctaText')} ph="Alışverişe Başla" /></div>
-                  <div><FL c="Kampanya Tipi" />
-                    <FS v={config.campaignType} o={v => setC('campaignType')(v as CampaignType)}>
-                      {CAMPAIGN_TYPES.map(t => <option key={t.value} value={t.value}>{t.emoji} {t.label}</option>)}
-                    </FS>
+                ) : (
+                  <button
+                    onClick={() => fileRef.current?.click()}
+                    onDrop={handleDrop}
+                    onDragOver={e => e.preventDefault()}
+                    className="w-full rounded-xl flex flex-col items-center justify-center gap-2 transition-all"
+                    style={{ height: 112, border: '2px dashed #d1d5db', background: '#fafafa' }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#4470ff'; e.currentTarget.style.background = '#f0f4ff' }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = '#d1d5db'; e.currentTarget.style.background = '#fafafa' }}>
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center"
+                      style={{ background: '#eff2ff' }}>
+                      <Upload className="w-5 h-5" style={{ color: '#4470ff' }} />
+                    </div>
+                    <div className="text-center">
+                      <p className="text-[12px] font-semibold" style={{ color: '#374151' }}>
+                        Görsel yükle veya sürükle
+                      </p>
+                      <p className="text-[10px]" style={{ color: '#9ca3af' }}>
+                        Hero alana otomatik yerleşir
+                      </p>
+                    </div>
+                  </button>
+                )}
+              </div>
+
+              {/* Edit fields */}
+              <div className="p-4 space-y-3.5">
+                <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: '#9ca3af' }}>
+                  İçerik Düzenle
+                </p>
+
+                <div>
+                  <FieldLabel>Marka Adı</FieldLabel>
+                  <FieldInput value={fields.brandName} onChange={setF('brandName')} placeholder="Marksio" />
+                </div>
+
+                <div>
+                  <FieldLabel>Başlık</FieldLabel>
+                  <FieldInput value={fields.title} onChange={setF('title')} placeholder="E-posta başlığı" />
+                </div>
+
+                <div>
+                  <FieldLabel>Açıklama</FieldLabel>
+                  <FieldInput value={fields.description} onChange={setF('description')} placeholder="Açıklama metni..." multiline />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <FieldLabel>Fiyat</FieldLabel>
+                    <FieldInput value={fields.price} onChange={setF('price')} placeholder="₺299" />
+                  </div>
+                  <div>
+                    <FieldLabel>Orijinal Fiyat</FieldLabel>
+                    <FieldInput value={fields.originalPrice} onChange={setF('originalPrice')} placeholder="₺599" />
+                  </div>
+                </div>
+
+                <div>
+                  <FieldLabel>İndirim Oranı</FieldLabel>
+                  <FieldInput value={fields.discount} onChange={setF('discount')} placeholder="%50" />
+                </div>
+
+                <div>
+                  <FieldLabel>Kupon Kodu</FieldLabel>
+                  <FieldInput value={fields.coupon} onChange={setF('coupon')} placeholder="KUPON20" />
+                </div>
+
+                <div>
+                  <FieldLabel>CTA Butonu Metni</FieldLabel>
+                  <FieldInput value={fields.cta} onChange={setF('cta')} placeholder="Alışverişe Başla" />
+                </div>
+
+                <div>
+                  <FieldLabel>CTA Linki</FieldLabel>
+                  <FieldInput value={fields.ctaUrl} onChange={setF('ctaUrl')} placeholder="https://..." />
+                </div>
+
+                <div>
+                  <FieldLabel>Footer Metni</FieldLabel>
+                  <FieldInput value={fields.footer} onChange={setF('footer')} placeholder="© 2025 Marka." />
+                </div>
+
+                <div>
+                  <FieldLabel>Abonelikten Çık Linki</FieldLabel>
+                  <FieldInput value={fields.unsubscribeUrl} onChange={setF('unsubscribeUrl')} placeholder="https://..." />
+                </div>
+
+                <div>
+                  <FieldLabel>Marka Rengi</FieldLabel>
+                  <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                    {BRAND_COLORS.map(c => (
+                      <button
+                        key={c}
+                        onClick={() => setF('brandColor')(c)}
+                        className="rounded-full shrink-0 transition-all"
+                        style={{
+                          width: 22, height: 22, background: c,
+                          boxShadow: fields.brandColor === c
+                            ? `0 0 0 2px #fff, 0 0 0 4px ${c}`
+                            : 'none',
+                        }}
+                      />
+                    ))}
+                    <input
+                      type="color"
+                      value={fields.brandColor}
+                      onChange={e => setF('brandColor')(e.target.value)}
+                      className="w-6 h-6 rounded-full cursor-pointer border-0"
+                      style={{ padding: 1, background: 'none' }}
+                      title="Özel renk"
+                    />
                   </div>
                 </div>
               </div>
-
-              {/* Error */}
-              {error && (
-                <div className="flex items-center gap-2 p-3 rounded-xl mb-4" style={{ background: '#fef2f2', border: '1px solid #fecaca' }}>
-                  <AlertCircle className="w-4 h-4" style={{ color: '#dc2626' }} />
-                  <p className="text-[12px]" style={{ color: '#dc2626' }}>{error}</p>
-                </div>
-              )}
-
-              {/* Generate */}
-              <button onClick={generate} disabled={generating}
-                className="w-full flex items-center justify-center gap-3 py-4 rounded-2xl text-[15px] font-bold transition-all"
-                style={{
-                  background: generating ? 'linear-gradient(135deg,#a78bfa,#c084fc)' : 'linear-gradient(135deg,#6c47ff,#9c40ff)',
-                  color: '#fff',
-                  boxShadow: generating ? 'none' : '0 8px 32px rgba(108,71,255,0.45)',
-                  opacity: generating ? 0.85 : 1,
-                }}>
-                {generating ? (
-                  <><Loader2 className="w-5 h-5 animate-spin" /> Profesyonel reklam fotoğrafı oluşturuluyor...</>
-                ) : (
-                  <><Sparkles className="w-5 h-5" /> Reklam Fotoğrafı Oluştur</>
-                )}
-              </button>
-
-              {generating && (
-                <div className="text-center mt-3 space-y-1">
-                  <p className="text-[12px] font-semibold" style={{ color: '#6c47ff' }}>
-                    {SHOT_STYLES.find(s => s.id === shotStyle)?.emoji} {SHOT_STYLES.find(s => s.id === shotStyle)?.name}
-                    {resolvedProductName && ` • ${CATEGORY_LABELS[detectCategory(resolvedProductName)]}`}
-                  </p>
-                  <p className="text-[11px]" style={{ color: '#9ca3af' }}>
-                    flux-pro/kontext ile ürün kimliği korunarak profesyonel ticari çekim yapılıyor
-                  </p>
-                </div>
-              )}
             </div>
           </div>
-        )}
 
-        {/* ════ STEP 3: SONUÇ ════ */}
-        {step === 'result' && (
-          <div className="flex flex-1 min-h-0 overflow-hidden">
+          {/* ── Preview Panel ── */}
+          <div className="flex-1 flex items-start justify-center overflow-auto p-8"
+            style={{ background: '#eef0f5' }}>
 
-            {/* Center: Desktop + Mobile preview */}
-            <div className="flex-1 flex flex-col overflow-y-auto min-w-0" style={{ background: '#f2f4f8' }}>
-
-              {/* Preview header */}
-              <div className="flex items-center justify-between px-5 py-3 shrink-0" style={{ background: '#fff', borderBottom: '1px solid rgba(0,0,0,0.07)' }}>
-                <div className="flex items-center gap-3">
-                  <button onClick={() => setStep('scene')} className="flex items-center gap-1.5 text-[12px] font-semibold transition-colors" style={{ color: '#9ca3af' }}
-                    onMouseEnter={e => (e.currentTarget.style.color = '#6c47ff')} onMouseLeave={e => (e.currentTarget.style.color = '#9ca3af')}>
-                    <ChevronLeft className="w-3.5 h-3.5" /> Farklı sahne
-                  </button>
-                  <div className="w-px h-4" style={{ background: '#e5e7eb' }} />
-                  <p className="text-[13px] font-bold" style={{ color: '#111827' }}>
-                    {SHOT_STYLES.find(s => s.id === shotStyle)?.emoji} {SHOT_STYLES.find(s => s.id === shotStyle)?.name}
-                    {resolvedProductName && ` • ${CATEGORY_LABELS[detectCategory(resolvedProductName)]}`}
-                  </p>
+            {previewMode === 'desktop' ? (
+              <div className="w-full" style={{ maxWidth: 680 }}>
+                <div className="flex items-center justify-between mb-3 px-1">
+                  <span className="text-[11px] font-semibold" style={{ color: '#9ca3af' }}>
+                    Desktop Önizleme — 600px
+                  </span>
+                  <span className="text-[11px]" style={{ color: '#9ca3af' }}>
+                    {tplConfig.name}
+                  </span>
                 </div>
-
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1 p-0.5 rounded-xl" style={{ background: '#f3f4f6' }}>
-                    {([['desktop', Monitor, 'Desktop Email'], ['mobile', Smartphone, 'Mobile Email']] as [PreviewMode, React.ElementType, string][]).map(([mode, Icon, label]) => (
-                      <button key={mode} onClick={() => setPreviewMode(mode)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all"
-                        style={{ background: previewMode === mode ? '#fff' : 'transparent', color: previewMode === mode ? '#6c47ff' : '#9ca3af', boxShadow: previewMode === mode ? '0 1px 4px rgba(0,0,0,0.08)' : 'none' }}>
-                        <Icon className="w-3 h-3" /> {label}
-                      </button>
+                {/* Browser chrome mockup */}
+                <div className="rounded-t-xl overflow-hidden"
+                  style={{ background: '#e5e7eb', padding: '10px 12px 0' }}>
+                  <div className="flex items-center gap-1.5 mb-2.5">
+                    {['#ff5f57', '#febc2e', '#28c840'].map(c => (
+                      <div key={c} className="w-3 h-3 rounded-full" style={{ background: c }} />
                     ))}
+                    <div className="flex-1 mx-3 h-5 rounded-full"
+                      style={{ background: '#fff', border: '1px solid #d1d5db' }} />
                   </div>
-                  {resolvedProductImage && (
-                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-semibold" style={{ background: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0' }}>
-                      <Check className="w-3 h-3" /> Ürün korundu
-                    </div>
-                  )}
+                </div>
+                <div style={{ background: '#f4f4f4', borderRadius: '0 0 12px 12px', overflow: 'hidden', boxShadow: '0 8px 40px rgba(0,0,0,0.12)' }}>
+                  <iframe
+                    srcDoc={html}
+                    title="Email preview"
+                    style={{
+                      display: 'block',
+                      width: '100%',
+                      minHeight: 500,
+                      border: 'none',
+                    }}
+                    sandbox="allow-same-origin"
+                    onLoad={e => {
+                      const iframe = e.currentTarget
+                      const doc = iframe.contentDocument
+                      if (doc) {
+                        iframe.style.height = doc.documentElement.scrollHeight + 'px'
+                      }
+                    }}
+                  />
                 </div>
               </div>
-
-              {/* Preview area */}
-              <div className="flex-1 flex items-start justify-center p-6 gap-6 overflow-auto">
-
-                {previewMode === 'desktop' ? (
-                  <div className="w-full max-w-3xl">
-                    <BannerCanvas
-                      config={config}
-                      content={content}
-                      bgImage={desktopUrl}
-                      productImage={resolvedProductImage}
-                      mobileView={false}
-                    />
-                    <p className="text-[10px] text-center mt-2" style={{ color: '#9ca3af' }}>Desktop Email — 1200×600px</p>
+            ) : (
+              <div className="flex flex-col items-center">
+                <div className="mb-3 flex items-center gap-2">
+                  <span className="text-[11px] font-semibold" style={{ color: '#9ca3af' }}>
+                    Mobile Önizleme — 375px
+                  </span>
+                </div>
+                {/* Phone mockup */}
+                <div style={{
+                  width: 390,
+                  background: '#1c1c1e',
+                  borderRadius: 48,
+                  padding: '14px 10px',
+                  boxShadow: '0 30px 80px rgba(0,0,0,0.4), inset 0 0 0 2px rgba(255,255,255,0.12)',
+                }}>
+                  {/* Notch */}
+                  <div className="flex justify-center mb-2">
+                    <div style={{ width: 100, height: 28, background: '#000', borderRadius: 20 }} />
                   </div>
-                ) : (
-                  // Mobile phone mockup
-                  <div className="flex flex-col items-center">
-                    <div style={{ width: 320 }}>
-                      <div className="rounded-3xl overflow-hidden" style={{ background: '#000', padding: '10px 8px', boxShadow: '0 24px 60px rgba(0,0,0,0.3), inset 0 0 0 2px rgba(255,255,255,0.15)' }}>
-                        <div className="rounded-2xl overflow-hidden" style={{ background: '#f3f4f6' }}>
-                          {/* Status bar */}
-                          <div className="flex items-center justify-between px-4 py-1" style={{ background: '#000' }}>
-                            <span className="text-[9px] text-white font-semibold">9:41</span>
-                            <div className="w-16 h-3 rounded-full" style={{ background: '#000' }} />
-                            <div className="flex gap-1">
-                              {[4,3,2].map(h => <div key={h} className="rounded-sm" style={{ width: 3, height: h + 4, background: '#fff' }} />)}
-                            </div>
-                          </div>
-                          <div style={{ background: '#f4f4f4', padding: '8px 6px' }}>
-                            <div className="rounded-xl overflow-hidden" style={{ background: '#fff' }}>
-                              {/* Email sender header */}
-                              <div className="flex items-center gap-2 px-3 py-2" style={{ borderBottom: '1px solid #f0f0f0' }}>
-                                <div className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold text-white shrink-0" style={{ background: config.accentColor }}>
-                                  {(config.brandName || 'M')[0]?.toUpperCase()}
-                                </div>
-                                <div>
-                                  <p className="text-[8px] font-semibold" style={{ color: '#111' }}>{config.brandName || 'Marka'}</p>
-                                  <p className="text-[7px]" style={{ color: '#9ca3af' }}>info@marka.com</p>
-                                </div>
-                              </div>
-                              {/* Mobile banner with BannerCanvas */}
-                              <BannerCanvas
-                                config={config}
-                                content={content}
-                                bgImage={mobileUrl ?? desktopUrl}
-                                productImage={resolvedProductImage}
-                                mobileView={true}
-                              />
-                            </div>
-                          </div>
+                  <div style={{ borderRadius: 36, overflow: 'hidden', background: '#f4f4f4' }}>
+                    {/* Email client header */}
+                    <div style={{ background: '#fff', padding: '12px 16px', borderBottom: '1px solid #f0f0f0' }}>
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0"
+                          style={{ background: fields.brandColor }}>
+                          {(fields.brandName || 'M')[0]?.toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-bold" style={{ color: '#111' }}>{fields.brandName || 'Marka'}</p>
+                          <p className="text-[10px]" style={{ color: '#9ca3af' }}>info@{(fields.brandName || 'marka').toLowerCase().replace(/\s+/g, '')}.com</p>
                         </div>
                       </div>
                     </div>
-                    <p className="text-[10px] text-center mt-3" style={{ color: '#9ca3af' }}>Mobile Email — 600×800px</p>
+                    <div style={{ background: '#f4f4f4', padding: 8, maxHeight: 560, overflow: 'hidden' }}>
+                      <iframe
+                        srcDoc={html}
+                        title="Mobile preview"
+                        style={{
+                          display: 'block',
+                          width: '100%',
+                          height: 540,
+                          border: 'none',
+                          borderRadius: 8,
+                          background: '#fff',
+                        }}
+                        sandbox="allow-same-origin"
+                      />
+                    </div>
                   </div>
-                )}
-              </div>
-            </div>
-
-            {/* Right: Edit + Actions */}
-            <div className="w-[256px] shrink-0 flex flex-col overflow-hidden" style={{ background: '#fff', borderLeft: '1px solid rgba(0,0,0,0.07)' }}>
-              <div className="px-4 pt-4 pb-2 flex items-center gap-2" style={{ borderBottom: '1px solid #f3f4f6' }}>
-                <Layers className="w-3.5 h-3.5" style={{ color: '#9ca3af' }} />
-                <p className="text-[13px] font-bold" style={{ color: '#111827' }}>Banner Düzenle</p>
-              </div>
-
-              <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
-                {([
-                  { l: 'Başlık',        k: 'headline' as keyof BannerContent },
-                  { l: 'Alt Başlık',    k: 'subheadline' as keyof BannerContent },
-                  { l: 'İndirim Metni', k: 'discountLabel' as keyof BannerContent },
-                  { l: 'CTA',           k: 'ctaLabel' as keyof BannerContent },
-                  { l: 'Badge',         k: 'badge' as keyof BannerContent },
-                ] as Array<{ l: string; k: keyof BannerContent }>).map(({ l, k }) => (
-                  <div key={k}>
-                    <FL c={l} />
-                    <input value={content[k]} onChange={e => setT(k)(e.target.value)}
-                      className="w-full rounded-xl text-[12px] outline-none transition-all"
-                      style={{ padding: '8px 12px', background: '#f9fafb', border: '1.5px solid #e5e7eb', color: '#111827' }}
-                      onFocus={e => (e.currentTarget.style.borderColor = '#6c47ff')}
-                      onBlur={e => (e.currentTarget.style.borderColor = '#e5e7eb')} />
-                  </div>
-                ))}
-                <div>
-                  <FL c="Marka Rengi" />
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {ACCENT_COLORS.map(c => <button key={c} onClick={() => setC('accentColor')(c)} className="rounded-full" style={{ width: 24, height: 24, background: c, boxShadow: config.accentColor === c ? `0 0 0 2px #fff, 0 0 0 3.5px ${c}` : 'none' }} />)}
-                  </div>
-                </div>
-
-                {/* Preview info */}
-                <div className="rounded-xl p-3 space-y-1.5" style={{ background: '#f9fafb', border: '1px solid #f3f4f6' }}>
-                  <p className="text-[9px] font-bold uppercase tracking-wider" style={{ color: '#9ca3af' }}>Üretilen Formatlar</p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px]" style={{ color: '#374151' }}>🖥 Desktop</span>
-                    <span className={cn('text-[9px] font-bold px-1.5 py-0.5 rounded-full', desktopUrl ? 'text-green-700 bg-green-50' : 'text-gray-400 bg-gray-100')}>
-                      {desktopUrl ? '✓ 1200×600' : 'Yok'}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px]" style={{ color: '#374151' }}>📱 Mobile</span>
-                    <span className={cn('text-[9px] font-bold px-1.5 py-0.5 rounded-full', mobileUrl ? 'text-green-700 bg-green-50' : 'text-gray-400 bg-gray-100')}>
-                      {mobileUrl ? '✓ 600×800' : 'Yok'}
-                    </span>
+                  {/* Home bar */}
+                  <div className="flex justify-center mt-2">
+                    <div style={{ width: 100, height: 4, background: 'rgba(255,255,255,0.3)', borderRadius: 2 }} />
                   </div>
                 </div>
               </div>
-
-              {/* Actions */}
-              <div className="px-4 py-4 space-y-2 shrink-0" style={{ borderTop: '1px solid #f3f4f6' }}>
-                <div className="flex gap-2">
-                  <button onClick={copyHTML} className="flex-1 py-2.5 rounded-xl text-[12px] font-semibold flex items-center justify-center gap-1.5 transition-all" style={{ background: '#f9fafb', color: '#374151', border: '1px solid #e5e7eb' }}>
-                    {copied ? <><Check className="w-3.5 h-3.5" style={{ color: '#16a34a' }} /> Kopyalandı</> : <><Code2 className="w-3.5 h-3.5" /> HTML</>}
-                  </button>
-                  <button onClick={() => setTestMailOpen(true)} className="flex-1 py-2.5 rounded-xl text-[12px] font-semibold flex items-center justify-center gap-1.5" style={{ background: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0' }}>
-                    <Mail className="w-3.5 h-3.5" /> Test Mail
-                  </button>
-                </div>
-
-                <button onClick={handleDownload} disabled={downloading || (!desktopUrl && !mobileUrl)}
-                  className="w-full py-2.5 rounded-xl text-[12px] font-semibold flex items-center justify-center gap-1.5 transition-all"
-                  style={{ background: '#f5f3ff', color: '#6c47ff', border: '1px solid #ede9fe', opacity: (!desktopUrl && !mobileUrl) ? 0.4 : 1 }}>
-                  {downloading
-                    ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> İndiriliyor...</>
-                    : <><ImageIcon className="w-3.5 h-3.5" /> Görseli İndir</>}
-                </button>
-
-                <button onClick={() => setActionSheetOpen(true)}
-                  className="w-full py-3.5 rounded-2xl text-[14px] font-bold flex items-center justify-center gap-2 transition-all"
-                  style={{ background: 'linear-gradient(135deg,#6c47ff,#9c40ff)', color: '#fff', boxShadow: '0 6px 24px rgba(108,71,255,0.42)' }}>
-                  <Send className="w-4 h-4" />
-                  Kampanyada Kullan
-                </button>
-
-                <p className="text-[10px] text-center" style={{ color: '#9ca3af' }}>
-                  Yeni kampanya • Şablon • Otomasyon
-                </p>
-              </div>
-            </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
     </AppShell>
   )
