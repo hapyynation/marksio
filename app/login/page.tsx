@@ -109,7 +109,7 @@ function AuthForm() {
   const [tab, setTab] = useState<Tab>(initialTab)
   const [step, setStep] = useState<Step>('form')
   const [form, setForm] = useState({ name: '', email: '' })
-  const [otp, setOtp] = useState(['', '', '', '', '', ''])
+  const [otp, setOtp] = useState(['', '', '', '', '', '', '', ''])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(
     callbackError ? (ERROR_MESSAGES[callbackError] ?? 'Bir hata oluştu. Lütfen tekrar deneyin.') : ''
@@ -120,7 +120,7 @@ function AuthForm() {
   function switchTab(t: Tab) {
     setTab(t)
     setStep('form')
-    setOtp(['', '', '', '', '', ''])
+    setOtp(['', '', '', '', '', '', '', ''])
     setError('')
     setForm({ name: '', email: '' })
   }
@@ -160,7 +160,7 @@ function AuthForm() {
   function handleOtpChange(i: number, v: string) {
     if (!/^\d*$/.test(v)) return
     const n = [...otp]; n[i] = v.slice(-1); setOtp(n)
-    if (v && i < 5) otpRefs.current[i + 1]?.focus()
+    if (v && i < 7) otpRefs.current[i + 1]?.focus()
   }
 
   function handleOtpKey(i: number, e: React.KeyboardEvent) {
@@ -171,12 +171,12 @@ function AuthForm() {
 
   function handleOtpPaste(e: React.ClipboardEvent) {
     e.preventDefault()
-    const paste = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6)
+    const paste = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 8)
     if (paste.length > 0) {
-      const next = ['', '', '', '', '', '']
+      const next = ['', '', '', '', '', '', '', '']
       paste.split('').forEach((c, i) => { next[i] = c })
       setOtp(next)
-      otpRefs.current[Math.min(paste.length, 5)]?.focus()
+      otpRefs.current[Math.min(paste.length, 7)]?.focus()
     }
   }
 
@@ -184,12 +184,12 @@ function AuthForm() {
     e?.preventDefault()
     setError('')
     const token = otp.join('')
-    if (token.length !== 6) { setError('Lütfen 6 haneli kodu girin.'); return }
+    if (token.length !== 8) { setError('Lütfen 8 haneli kodu girin.'); return }
     setLoading(true)
     const { error: err } = await supabase.auth.verifyOtp({
       email: form.email,
       token,
-      type: tab === 'register' ? 'signup' : 'email',
+      type: 'email',
     })
     setLoading(false)
     if (err) {
@@ -340,7 +340,7 @@ function AuthForm() {
                     Doğrulama Kodunu Girin
                   </h2>
                   <p style={{ fontSize: 13, color: '#8C909F', marginTop: 6, fontFamily: 'Inter, sans-serif', lineHeight: 1.5 }}>
-                    <span style={{ color: '#C2C6D6' }}>{form.email}</span> adresine gönderilen 6 haneli kodu girin
+                    <span style={{ color: '#C2C6D6' }}>{form.email}</span> adresine gönderilen 8 haneli kodu girin
                   </p>
                 </div>
 
@@ -376,14 +376,14 @@ function AuthForm() {
                     ))}
                   </div>
 
-                  <button type="submit" disabled={loading || otp.join('').length !== 6}
+                  <button type="submit" disabled={loading || otp.join('').length !== 8}
                     className="w-full flex items-center justify-center gap-2 rounded-lg transition-all"
                     style={{
                       height: 40, background: '#3B82F6', color: '#fff',
                       fontFamily: 'Geist, Inter, sans-serif', fontSize: 14, fontWeight: 600,
-                      border: 'none', cursor: loading || otp.join('').length !== 6 ? 'not-allowed' : 'pointer',
-                      opacity: otp.join('').length !== 6 ? 0.5 : 1,
-                      boxShadow: otp.join('').length === 6 ? '0 0 20px rgba(59,130,246,0.3)' : 'none',
+                      border: 'none', cursor: loading || otp.join('').length !== 8 ? 'not-allowed' : 'pointer',
+                      opacity: otp.join('').length !== 8 ? 0.5 : 1,
+                      boxShadow: otp.join('').length === 8 ? '0 0 20px rgba(59,130,246,0.3)' : 'none',
                       transition: 'all 0.2s',
                     }}>
                     {loading
@@ -401,7 +401,7 @@ function AuthForm() {
                     </span>
                   </div>
                   <button
-                    onClick={() => { setError(''); setOtp(['', '', '', '', '', '']); handleSendOtp() }}
+                    onClick={() => { setError(''); setOtp(['', '', '', '', '', '', '', '']); handleSendOtp() }}
                     disabled={cooldown > 0}
                     style={{ fontSize: 13, color: cooldown > 0 ? '#424754' : '#C2C6D6', fontFamily: 'Inter, sans-serif', background: 'none', border: 'none', cursor: cooldown > 0 ? 'not-allowed' : 'pointer' }}
                     className="flex items-center gap-1.5 hover:text-white transition-colors disabled:hover:text-gray-600">
@@ -409,7 +409,7 @@ function AuthForm() {
                   </button>
                 </div>
 
-                <button onClick={() => { setStep('form'); setError(''); setOtp(['', '', '', '', '', '']) }}
+                <button onClick={() => { setStep('form'); setError(''); setOtp(['', '', '', '', '', '', '', '']) }}
                   className="mt-3 w-full text-center flex items-center justify-center gap-1.5 transition-colors"
                   style={{ fontSize: 13, color: '#424754', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}
                   onMouseEnter={e => ((e.currentTarget as HTMLButtonElement).style.color = '#8C909F')}
