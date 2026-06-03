@@ -29,6 +29,29 @@ function lsHeaders() {
   }
 }
 
+// Cache store ID so we only call the API once per process lifetime
+let cachedStoreId: string | null = null
+
+async function getStoreId(): Promise<string> {
+  // 1. Use env var if set
+  const fromEnv = env('LEMONSQUEEZY_STORE_ID')
+  if (fromEnv) return fromEnv
+
+  // 2. Already fetched
+  if (cachedStoreId) return cachedStoreId
+
+  // 3. Fetch from LS API
+  const res = await fetch(`${LS_API_URL}/stores`, { headers: lsHeaders() })
+  if (!res.ok) throw new Error(`Store listesi alınamadı (${res.status})`)
+
+  const json = await res.json() as { data: Array<{ id: string }> }
+  const first = json.data?.[0]?.id
+  if (!first) throw new Error('Lemon Squeezy hesabında mağaza bulunamadı')
+
+  cachedStoreId = first
+  return first
+}
+
 export interface CheckoutResult {
   url: string
   id: string
@@ -42,6 +65,8 @@ export async function createCheckout(params: {
   successUrl: string
   cancelUrl: string
 }): Promise<CheckoutResult> {
+  const storeId = await getStoreId()
+
   const res = await fetch(`${LS_API_URL}/checkouts`, {
     method: 'POST',
     headers: lsHeaders(),
@@ -63,7 +88,7 @@ export async function createCheckout(params: {
         },
         relationships: {
           store: {
-            data: { type: 'stores', id: env('LEMONSQUEEZY_STORE_ID') || '1112392' },
+            data: { type: 'stores', id: storeId },
           },
           variant: {
             data: { type: 'variants', id: params.variantId },
@@ -75,7 +100,7 @@ export async function createCheckout(params: {
 
   if (!res.ok) {
     const errText = await res.text().catch(() => res.statusText)
-    throw new Error(`Lemon Squeezy checkout hatası (${res.status}): ${errText.slice(0, 200)}`)
+    throw new Error(`Lemon Squeezy checkout hatası (${res.status}): ${errText.slice(0, 300)}`)
   }
 
   const json = await res.json() as { data: { id: string; attributes: { url: string } } }
