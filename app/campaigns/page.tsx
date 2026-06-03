@@ -6,11 +6,25 @@ import {
   Sparkles, Send, Loader2, Search, CheckCircle2, X,
   MoreHorizontal, Trash2, BarChart2, ArrowUpRight, ArrowDownRight,
   MousePointerClick, Zap, Bot, Tag, ChevronRight, Users,
+  Clock, Target, RefreshCw,
 } from 'lucide-react'
 import Link from 'next/link'
 import AppShell from '@/components/layout/AppShell'
 import { formatCurrency, formatNumber, cn } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
+
+interface AiSuggestion {
+  title: string
+  text: string
+  action: string
+  color: string
+  icon: string
+}
+
+const ICON_MAP: Record<string, React.ElementType> = {
+  mail: Mail, zap: Zap, users: Users, trending_up: TrendingUp,
+  target: Target, clock: Clock,
+}
 
 type CampaignType = 'email' | 'whatsapp'
 type CampaignStatus = 'draft' | 'active' | 'scheduled' | 'completed'
@@ -77,6 +91,8 @@ export default function CampaignsPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
   const [showNewPanel, setShowNewPanel] = useState(false)
+  const [aiSuggestions, setAiSuggestions] = useState<AiSuggestion[]>([])
+  const [aiLoading, setAiLoading] = useState(false)
 
   const showToast = useCallback((msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ msg, type })
@@ -97,6 +113,34 @@ export default function CampaignsPage() {
       .catch(() => setCampaigns(DEMO_CAMPAIGNS))
       .finally(() => setLoading(false))
   }, [])
+
+  const fetchAiSuggestions = useCallback(async (data: Campaign[]) => {
+    setAiLoading(true)
+    const sent   = data.reduce((s, c) => s + c.sent, 0)
+    const opened = data.reduce((s, c) => s + c.opened, 0)
+    const clicked= data.reduce((s, c) => s + c.clicked, 0)
+    const rev    = data.reduce((s, c) => s + c.revenue, 0)
+    try {
+      const res = await fetch('/api/ai/campaign-suggestions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          campaigns: data,
+          openRate: sent > 0 ? ((opened / sent) * 100).toFixed(1) : 0,
+          clickRate: sent > 0 ? ((clicked / sent) * 100).toFixed(1) : 0,
+          totalRevenue: rev,
+          totalSent: sent,
+        }),
+      })
+      const suggestions = await res.json()
+      if (Array.isArray(suggestions) && suggestions.length > 0) setAiSuggestions(suggestions)
+    } catch { /* silent */ }
+    finally { setAiLoading(false) }
+  }, [])
+
+  useEffect(() => {
+    if (!loading && campaigns.length > 0) fetchAiSuggestions(campaigns)
+  }, [loading, campaigns, fetchAiSuggestions])
 
   const handleSend = async (id: string) => {
     setSendingId(id)
@@ -430,54 +474,75 @@ export default function CampaignsPage() {
               </div>
               <div className="flex items-center gap-1.5">
                 <p className="text-[13px] font-semibold" style={{ color: '#eeeef4' }}>AI Önerileri</p>
-                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md" style={{ background: 'rgba(68,112,255,0.15)', color: '#99b4ff' }}>Beta</span>
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md" style={{ background: 'rgba(68,112,255,0.15)', color: '#99b4ff' }}>Groq</span>
               </div>
             </div>
+            <button onClick={() => fetchAiSuggestions(campaigns)} disabled={aiLoading}
+              className="p-1.5 rounded-lg transition-all disabled:opacity-40"
+              style={{ color: '#44445a' }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+              title="Yenile">
+              <RefreshCw className={`w-3 h-3 ${aiLoading ? 'animate-spin' : ''}`} />
+            </button>
           </div>
 
           <div className="p-4 flex-1 overflow-auto space-y-3">
-            <p className="text-[11px]" style={{ color: '#44445a' }}>Kampanyalarınızı daha iyi performans için optimize edin.</p>
+            <p className="text-[11px]" style={{ color: '#44445a' }}>
+              {aiLoading ? 'Groq AI kampanyalarınızı analiz ediyor…' : 'Kampanya verilerinize göre kişisel öneriler.'}
+            </p>
 
-            {/* AI Suggestions */}
-            {[
-              {
-                icon: Mail, color: '#f0a020', bg: 'rgba(240,160,32,0.08)',
-                title: 'Açılma Oranını Artır',
-                text: '"Yaz koleksiyonu" kampanyanızın açılma oranı ortalamanın altında. Konu satırını AI ile optimize edin.',
-                action: 'Konu Önerileri', href: '/campaigns/new?ai=subject',
-              },
-              {
-                icon: Zap, color: '#22c97a', bg: 'rgba(34,201,122,0.08)',
-                title: 'Gönderim Zamanı',
-                text: 'Müşterileriniz Salı günleri saat 11:00\'de daha aktif. Bu saatlerde gönderim yapmayı deneyin.',
-                action: 'Zamanla', href: '/campaigns/new',
-              },
-              {
-                icon: Users, color: '#99b4ff', bg: 'rgba(153,180,255,0.08)',
-                title: 'Segment Önerisi',
-                text: 'VIP segmentinize özel kampanyalarınız %23 daha yüksek gelir getiriyor. Benzer segment oluşturun.',
-                action: 'Segment Oluştur', href: '/segments',
-              },
-            ].map((s, i) => {
-              const Icon = s.icon
-              return (
-                <div key={i} className="p-3.5 rounded-xl cursor-default transition-all"
-                  style={{ background: s.bg, border: `1px solid ${s.color}20` }}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${s.color}18` }}>
-                      <Icon className="w-3.5 h-3.5" style={{ color: s.color }} />
-                    </div>
-                    <p className="text-[11px] font-bold" style={{ color: s.color }}>{s.title}</p>
+            {/* AI Suggestions — dynamic */}
+            {aiLoading ? (
+              [...Array(3)].map((_, i) => (
+                <div key={i} className="p-3.5 rounded-xl animate-pulse"
+                  style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                  <div className="flex items-center gap-2 mb-2.5">
+                    <div className="w-7 h-7 rounded-xl" style={{ background: 'rgba(255,255,255,0.06)' }} />
+                    <div className="h-3 rounded-md w-24" style={{ background: 'rgba(255,255,255,0.06)' }} />
                   </div>
-                  <p className="text-[11px] leading-relaxed mb-2.5" style={{ color: '#8080a0' }}>{s.text}</p>
-                  <Link href={s.href}
-                    className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-lg"
-                    style={{ background: `${s.color}18`, color: s.color }}>
-                    {s.action} <ChevronRight className="w-3 h-3" />
-                  </Link>
+                  <div className="space-y-1.5 mb-3">
+                    <div className="h-2.5 rounded w-full" style={{ background: 'rgba(255,255,255,0.04)' }} />
+                    <div className="h-2.5 rounded w-4/5" style={{ background: 'rgba(255,255,255,0.04)' }} />
+                  </div>
+                  <div className="h-6 rounded-lg w-24" style={{ background: 'rgba(255,255,255,0.05)' }} />
                 </div>
-              )
-            })}
+              ))
+            ) : aiSuggestions.length > 0 ? (
+              aiSuggestions.map((s, i) => {
+                const Icon = ICON_MAP[s.icon] ?? Sparkles
+                const bg = `${s.color}12`
+                return (
+                  <div key={i} className="p-3.5 rounded-xl transition-all"
+                    style={{ background: bg, border: `1px solid ${s.color}22` }}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${s.color}18` }}>
+                        <Icon className="w-3.5 h-3.5" style={{ color: s.color }} />
+                      </div>
+                      <p className="text-[11px] font-bold leading-tight" style={{ color: s.color }}>{s.title}</p>
+                    </div>
+                    <p className="text-[11px] leading-relaxed mb-2.5" style={{ color: '#8080a0' }}>{s.text}</p>
+                    <Link href="/campaigns/new"
+                      className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-lg"
+                      style={{ background: `${s.color}18`, color: s.color }}>
+                      {s.action} <ChevronRight className="w-3 h-3" />
+                    </Link>
+                  </div>
+                )
+              })
+            ) : (
+              <div className="py-6 text-center">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-3"
+                  style={{ background: 'rgba(159,122,250,0.08)', border: '1px solid rgba(159,122,250,0.15)' }}>
+                  <Bot className="w-4 h-4 text-violet-400" />
+                </div>
+                <p className="text-[11px] font-medium mb-1" style={{ color: '#44445a' }}>AI analiz hazır değil</p>
+                <button onClick={() => fetchAiSuggestions(campaigns)}
+                  className="text-[10px] font-semibold" style={{ color: '#9f7afa', background: 'none', border: 'none', cursor: 'pointer' }}>
+                  Tekrar dene
+                </button>
+              </div>
+            )}
 
             {/* Yeni Kampanya section */}
             <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 12 }}>
@@ -506,23 +571,15 @@ export default function CampaignsPage() {
             </div>
           </div>
 
-          {/* AI Asistan chat */}
+          {/* Yeni Kampanya CTA */}
           <div className="p-4 shrink-0" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-            <div className="p-3 rounded-xl mb-3" style={{ background: 'rgba(68,112,255,0.06)', border: '1px solid rgba(68,112,255,0.15)' }}>
-              <div className="flex items-center gap-2 mb-1.5">
-                <div className="w-5 h-5 rounded-lg flex items-center justify-center" style={{ background: 'rgba(68,112,255,0.15)' }}>
-                  <Sparkles className="w-3 h-3" style={{ color: '#99b4ff' }} />
-                </div>
-                <p className="text-[11px] font-semibold" style={{ color: '#99b4ff' }}>AI Asistan</p>
-              </div>
-              <p className="text-[11px]" style={{ color: '#8080a0' }}>Merhaba Admin! 👋 Kampanyalarınızla ilgili sorularınızı sorabilir veya öneri alabilirsiniz.</p>
-            </div>
-            <button className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-[12px] font-semibold transition-all"
-              style={{ background: 'rgba(68,112,255,0.1)', color: '#99b4ff', border: '1px solid rgba(68,112,255,0.2)' }}
-              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(68,112,255,0.18)' }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(68,112,255,0.1)' }}>
-              <Sparkles className="w-3.5 h-3.5" /> Sohbete Başla
-            </button>
+            <Link href="/campaigns/new"
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[12px] font-bold transition-all"
+              style={{ background: 'linear-gradient(135deg,rgba(68,112,255,0.18),rgba(159,122,250,0.12))', color: '#c4cfff', border: '1px solid rgba(68,112,255,0.25)' }}
+              onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => { e.currentTarget.style.background = 'linear-gradient(135deg,rgba(68,112,255,0.28),rgba(159,122,250,0.18))' }}
+              onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => { e.currentTarget.style.background = 'linear-gradient(135deg,rgba(68,112,255,0.18),rgba(159,122,250,0.12))' }}>
+              <Sparkles className="w-3.5 h-3.5" /> AI ile Kampanya Oluştur
+            </Link>
           </div>
         </div>
       </div>
