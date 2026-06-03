@@ -13,6 +13,8 @@ export interface BannerStyleDef {
   name: string
   description: string
   previewImage: string
+  /** Filename under public/templates — used server-side for Fal upload */
+  imageFile: string
   accentColor: string
   icon: string
 }
@@ -23,6 +25,7 @@ export const BANNER_HERO_STYLES: BannerStyleDef[] = [
     name: 'Premium Studio',
     description: 'Sinematik stüdyo, dramatik ışık ve temiz zemin',
     previewImage: '/templates/email-blackfriday.jpeg',
+    imageFile: 'email-blackfriday.jpeg',
     accentColor: '#4470ff',
     icon: '🎬',
   },
@@ -31,6 +34,7 @@ export const BANNER_HERO_STYLES: BannerStyleDef[] = [
     name: 'Model Üzerinde',
     description: 'Profesyonel model ürünü kullanıyor veya giyiyor',
     previewImage: '/templates/email-indirim.jpeg',
+    imageFile: 'email-indirim.jpeg',
     accentColor: '#9f7afa',
     icon: '👤',
   },
@@ -39,6 +43,7 @@ export const BANNER_HERO_STYLES: BannerStyleDef[] = [
     name: 'Premium Pedestal',
     description: 'Mermer kaide, ambient ışık ve lüks atmosfer',
     previewImage: '/templates/email-premium.jpeg',
+    imageFile: 'email-premium.jpeg',
     accentColor: '#c9a227',
     icon: '🏛️',
   },
@@ -47,6 +52,7 @@ export const BANNER_HERO_STYLES: BannerStyleDef[] = [
     name: 'Flat Lay',
     description: 'Kuşbakışı düzenleme, mermer yüzey ve aksesuarlar',
     previewImage: '/templates/email-minimal.jpeg',
+    imageFile: 'email-minimal.jpeg',
     accentColor: '#22c97a',
     icon: '🗺️',
   },
@@ -55,6 +61,7 @@ export const BANNER_HERO_STYLES: BannerStyleDef[] = [
     name: 'Lifestyle Outdoor',
     description: 'Doğal ışık, gerçekçi ortam ve lifestyle anlatı',
     previewImage: '/templates/email-sepetterk.jpeg',
+    imageFile: 'email-sepetterk.jpeg',
     accentColor: '#f0a020',
     icon: '🌿',
   },
@@ -63,6 +70,7 @@ export const BANNER_HERO_STYLES: BannerStyleDef[] = [
     name: 'Campaign Banner',
     description: 'Güçlü gradient, kampanya enerjisi ve ticari etki',
     previewImage: '/templates/email-yeniurun.jpeg',
+    imageFile: 'email-yeniurun.jpeg',
     accentColor: '#e84545',
     icon: '⚡',
   },
