@@ -513,7 +513,7 @@ export default function CampaignsPage() {
                 const Icon = ICON_MAP[s.icon] ?? Sparkles
                 const bg = `${s.color}12`
                 return (
-                  <div key={i} className="p-3.5 rounded-xl transition-all"
+                  <div key={i} className="p-3.5 rounded-xl"
                     style={{ background: bg, border: `1px solid ${s.color}22` }}>
                     <div className="flex items-center gap-2 mb-2">
                       <div className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${s.color}18` }}>
@@ -522,11 +522,10 @@ export default function CampaignsPage() {
                       <p className="text-[11px] font-bold leading-tight" style={{ color: s.color }}>{s.title}</p>
                     </div>
                     <p className="text-[11px] leading-relaxed mb-2.5" style={{ color: '#8080a0' }}>{s.text}</p>
-                    <Link href="/campaigns/new"
-                      className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-lg"
-                      style={{ background: `${s.color}18`, color: s.color }}>
-                      {s.action} <ChevronRight className="w-3 h-3" />
-                    </Link>
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md"
+                      style={{ background: `${s.color}14`, color: s.color }}>
+                      {s.action}
+                    </span>
                   </div>
                 )
               })
@@ -544,31 +543,6 @@ export default function CampaignsPage() {
               </div>
             )}
 
-            {/* Yeni Kampanya section */}
-            <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 12 }}>
-              <p className="text-[10px] font-bold uppercase tracking-widest mb-2.5" style={{ color: '#3e3e54' }}>Yeni Kampanya</p>
-              <div className="space-y-1.5">
-                {[
-                  { icon: Mail,          label: 'E-posta Kampanyası',  color: '#99b4ff', href: '/campaigns/new?type=email' },
-                  { icon: MessageSquare, label: 'WhatsApp Mesajı',      color: '#22c97a', href: '/campaigns/new?type=whatsapp' },
-                ].map(item => {
-                  const ItemIcon = item.icon
-                  return (
-                    <Link key={item.label} href={item.href}
-                      className="flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all"
-                      style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
-                      onMouseEnter={e => { e.currentTarget.style.background = `${item.color}08`; e.currentTarget.style.borderColor = `${item.color}20` }}
-                      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)' }}>
-                      <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${item.color}15` }}>
-                        <ItemIcon className="w-3 h-3" style={{ color: item.color }} />
-                      </div>
-                      <span className="text-[11px] font-medium flex-1" style={{ color: '#eeeef4' }}>{item.label}</span>
-                      <ChevronRight className="w-3 h-3 shrink-0" style={{ color: '#33334a' }} />
-                    </Link>
-                  )
-                })}
-              </div>
-            </div>
           </div>
 
           {/* Yeni Kampanya CTA */}
