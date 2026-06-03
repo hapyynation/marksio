@@ -1,11 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth-options'
+﻿import { NextRequest, NextResponse } from 'next/server'
+import { getApiSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { registerWebhooks } from '@/lib/shopify'
+import { registerWebhooks, registerScriptTag } from '@/lib/shopify'
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions)
+  const session = await getApiSession()
   if (!session?.user?.id) return NextResponse.json({ error: 'Yetkisiz' }, { status: 401 })
 
   const { shopDomain, accessToken } = await req.json()
@@ -47,14 +46,17 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    // Register webhooks async (non-blocking)
+    // Register webhooks + Script Tag async (non-blocking)
     const appUrl = process.env.NEXTAUTH_URL ?? process.env.APP_URL ?? ''
     if (appUrl) {
-      registerWebhooks(domain, accessToken, appUrl)
+      Promise.all([
+        registerWebhooks(domain, accessToken, appUrl),
+        registerScriptTag(domain, accessToken, appUrl),
+      ])
         .then(() =>
           prisma.integration.update({
             where: { id: integration.id },
-            data: { meta: JSON.stringify({ shopName, webhooksRegistered: true }) },
+            data: { meta: JSON.stringify({ shopName, webhooksRegistered: true, scriptTagInstalled: true }) },
           }),
         )
         .catch(console.error)

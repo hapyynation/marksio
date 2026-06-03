@@ -175,10 +175,11 @@ function UserTemplateCard({ template, onDelete }: { template: UserTemplate; onDe
   const router = useRouter()
   const [hovered, setHovered] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [confirmDel, setConfirmDel] = useState(false)
 
   async function handleDelete(e: React.MouseEvent) {
     e.stopPropagation()
-    if (!confirm('Bu şablonu silmek istiyor musunuz?')) return
+    if (!confirmDel) { setConfirmDel(true); return }
     setDeleting(true)
     await fetch(`/api/templates/${template.id}`, { method: 'DELETE' })
     onDelete(template.id)
@@ -215,7 +216,7 @@ function UserTemplateCard({ template, onDelete }: { template: UserTemplate; onDe
           <button onClick={handleDelete} disabled={deleting}
             className="flex items-center gap-2 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 text-xs font-semibold rounded-xl transition-all border border-red-500/20">
             {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-            Sil
+            {confirmDel ? 'Emin misiniz?' : 'Sil'}
           </button>
         </div>
       </div>

@@ -1,6 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth-options'
+﻿import { NextRequest, NextResponse } from 'next/server'
+import { getApiSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { groq, GROQ_MODEL } from '@/lib/groq'
 
@@ -70,7 +69,7 @@ function normalizePhone(phone: string): string {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions)
+  const session = await getApiSession()
   const userId = (session?.user as { id?: string })?.id
   if (!userId) return NextResponse.json({ error: 'Yetkisiz' }, { status: 401 })
 

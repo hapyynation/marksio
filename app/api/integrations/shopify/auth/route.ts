@@ -1,12 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth-options'
+﻿import { NextRequest, NextResponse } from 'next/server'
+import { getApiSession } from '@/lib/auth'
 import { randomBytes } from 'crypto'
 
 const SCOPES = 'read_customers,write_customers,read_orders,read_checkouts,read_products'
 
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions)
+  const session = await getApiSession()
   if (!session?.user) return NextResponse.json({ error: 'Yetkisiz' }, { status: 401 })
 
   const shop = req.nextUrl.searchParams.get('shop')

@@ -5,7 +5,7 @@ import { Check, Zap, Star, Building2, Rocket, ArrowRight } from 'lucide-react'
 import AppShell from '@/components/layout/AppShell'
 import Header from '@/components/layout/Header'
 import { cn } from '@/lib/utils'
-import { useSession } from 'next-auth/react'
+import { useSession } from '@/lib/hooks/use-session'
 
 const plans = [
   {
@@ -168,12 +168,12 @@ export default function PlansPage() {
 
                   <div className="mb-5">
                     <div className="flex items-end gap-1">
-                      <span className="text-3xl font-black" style={{ color: '#e5e2e1' }}>${price}</span>
+                      <span className="text-3xl font-black" style={{ color: '#e5e2e1' }}>₺{price}</span>
                       <span className="text-xs mb-1" style={{ color: '#8c90a1' }}>/ay</span>
                     </div>
                     {billing === 'yearly' && plan.price.monthly > 0 && (
                       <p className="text-[10px] mt-0.5">
-                        <span className="line-through" style={{ color: '#424656' }}>${plan.price.monthly}/ay</span>
+                        <span className="line-through" style={{ color: '#424656' }}>₺{plan.price.monthly}/ay</span>
                         <span className="ml-1" style={{ color: '#34d399' }}>%20 tasarruf</span>
                       </p>
                     )}
@@ -188,7 +188,13 @@ export default function PlansPage() {
                     ))}
                   </ul>
 
-                  <button disabled={isCurrent}
+                  <button
+                    disabled={isCurrent}
+                    onClick={() => {
+                      if (!isCurrent && plan.id !== 'free') {
+                        window.open('mailto:destek@marksio.com?subject=Plan Yükseltme - ' + plan.name, '_blank')
+                      }
+                    }}
                     className={cn(
                       'w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all',
                       isCurrent ? 'cursor-default' : 'cursor-pointer',

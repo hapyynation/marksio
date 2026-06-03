@@ -1,13 +1,9 @@
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth-options'
+import { getApiSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { Resend } from 'resend'
-
-const resend = new Resend(process.env.RESEND_API_KEY)
 
 export async function GET() {
-  const session = await getServerSession(authOptions)
+  const session = await getApiSession()
   if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const user = await prisma.user.findUnique({ where: { email: session.user.email } })
@@ -21,42 +17,43 @@ export async function GET() {
   return NextResponse.json({ domains })
 }
 
-export async function POST(req: Request) {
-  const session = await getServerSession(authOptions)
+// Custom domain registration is disabled — Resend free plan supports a single
+// verified domain (mg.marksio.com). Re-enable by restoring Resend domain.create
+// call when the plan is upgraded.
+export async function POST() {
+  return NextResponse.json(
+    { error: 'Özel domain bağlama şu an devre dışıdır. Tüm gönderimler mg.marksio.com üzerinden yapılmaktadır.' },
+    { status: 503 }
+  )
+}
+
+// PATCH — update sender settings for an existing domain
+export async function PATCH(req: Request) {
+  const session = await getApiSession()
   if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { domain } = await req.json()
-  if (!domain) return NextResponse.json({ error: 'Domain gerekli' }, { status: 400 })
-
-  const cleanDomain = domain.replace(/^https?:\/\//, '').replace(/\/$/, '').toLowerCase()
+  const body = await req.json() as { domainId: string; fromPrefix?: string; senderName?: string }
+  if (!body.domainId) return NextResponse.json({ error: 'domainId gerekli' }, { status: 400 })
 
   const user = await prisma.user.findUnique({ where: { email: session.user.email } })
   if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 })
 
-  const existing = await prisma.emailDomain.findUnique({
-    where: { userId_domain: { userId: user.id, domain: cleanDomain } },
+  type DomainWithSender = { id: string; domain: string; fromPrefix?: string; senderName?: string | null; fromEmail?: string | null }
+  const domain = await prisma.emailDomain.findFirst({
+    where: { id: body.domainId, userId: user.id },
+  }) as DomainWithSender | null
+  if (!domain) return NextResponse.json({ error: 'Domain bulunamadı' }, { status: 404 })
+
+  const fromPrefix = body.fromPrefix
+    ? body.fromPrefix.toLowerCase().replace(/[^a-z0-9._-]/g, '')
+    : (domain.fromPrefix ?? 'kampanya')
+  const senderName = body.senderName !== undefined ? body.senderName.trim() || null : (domain.senderName ?? null)
+
+  const updated = await prisma.emailDomain.update({
+    where: { id: domain.id },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    data: { fromPrefix, senderName, fromEmail: `${fromPrefix}@${domain.domain}` } as any,
   })
-  if (existing) return NextResponse.json({ error: 'Bu domain zaten ekli' }, { status: 409 })
 
-  try {
-    const resendDomain = await resend.domains.create({ name: cleanDomain })
-
-    const dnsRecords = resendDomain.data?.records ?? []
-
-    const emailDomain = await prisma.emailDomain.create({
-      data: {
-        userId: user.id,
-        domain: cleanDomain,
-        resendId: resendDomain.data?.id,
-        status: 'pending',
-        dnsRecords: JSON.stringify(dnsRecords),
-        fromEmail: `kampanya@${cleanDomain}`,
-      },
-    })
-
-    return NextResponse.json({ domain: emailDomain, dnsRecords })
-  } catch (err) {
-    console.error('Resend domain create error:', err)
-    return NextResponse.json({ error: 'Domain oluşturulamadı. Resend API anahtarını kontrol edin.' }, { status: 500 })
-  }
+  return NextResponse.json({ domain: updated })
 }

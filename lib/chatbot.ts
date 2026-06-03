@@ -15,6 +15,14 @@ interface Campaign {
   segment: string
 }
 
+interface BotSettings {
+  tone: string
+  responseLength: string
+  emojiUsage: string
+  fallbackMessage: string
+  botName: string
+}
+
 interface ChatbotParams {
   storeName: string
   customerName?: string | null
@@ -22,10 +30,31 @@ interface ChatbotParams {
   activeCampaigns: Campaign[]
   currency: string
   userMessage: string
+  botSettings?: BotSettings
+}
+
+const TONE_INSTRUCTIONS: Record<string, string> = {
+  short_professional: 'Kısa, profesyonel ve direkt yanıtlar ver. Gereksiz kelime kullanma.',
+  friendly: 'Samimi ve yardımsever bir ton kullan. Müşteriyi rahatlatıcı bir şekilde yanıtla.',
+  premium_sales: 'Premium bir satış asistanı gibi davran. Değer ve kaliteyi ön plana çıkar.',
+  support_focused: 'Destek odaklı ol. Müşterinin sorununu anlamaya ve çözmeye odaklan.',
+}
+
+const EMOJI_INSTRUCTIONS: Record<string, string> = {
+  none: 'Kesinlikle emoji kullanma.',
+  low: 'Çok az emoji kullanabilirsin (maks 1).',
+  normal: 'Gerektiğinde emoji kullanabilirsin.',
 }
 
 export async function buildChatbotReply(params: ChatbotParams): Promise<string> {
-  const { storeName, customerName, customerOrders, activeCampaigns, currency, userMessage } = params
+  const { storeName, customerName, customerOrders, activeCampaigns, currency, userMessage, botSettings } = params
+
+  const tone = botSettings?.tone ?? 'friendly'
+  const responseLength = botSettings?.responseLength ?? 'medium'
+  const emojiUsage = botSettings?.emojiUsage ?? 'low'
+  const botName = botSettings?.botName ?? storeName
+
+  const maxSentences = responseLength === 'short' ? 2 : 4
 
   const customerSection = customerName
     ? `Müşteri adı: ${customerName}
@@ -41,20 +70,20 @@ ${customerOrders.length
     ? activeCampaigns.map(c => `- ${c.name} (${c.type})`).join('\n')
     : 'Aktif kampanya yok.'
 
-  const systemPrompt = `Sen "${storeName}" adlı e-ticaret mağazasının WhatsApp müşteri hizmetleri asistanısın.
+  const systemPrompt = `Sen "${storeName}" adlı e-ticaret mağazasının WhatsApp asistanısın. Adın: ${botName}
 
 ${customerSection}
 
 Aktif kampanyalar:
 ${campaignSection}
 
-Kurallar:
-- Kısa, net ve samimi yanıt ver (maks 3 cümle)
-- Sipariş durumu sorulursa yukarıdaki verileri kullan
-- Bilmediğin bir şey sorulursa "Sizi mağazamızın ekibiyle bağlayabilirim" de
-- Türkçe yanıt ver
-- Emoji kullanabilirsin ama abartma
-- Asla markdown kullanma, düz metin yaz`
+Yanıt kuralları:
+- ${TONE_INSTRUCTIONS[tone] ?? TONE_INSTRUCTIONS.friendly}
+- Maksimum ${maxSentences} cümle yaz.
+- ${EMOJI_INSTRUCTIONS[emojiUsage] ?? EMOJI_INSTRUCTIONS.low}
+- Bilmediğin bir şey sorulursa "Sizi mağazamızın ekibiyle bağlayabilirim" de.
+- Türkçe yanıt ver.
+- Asla markdown kullanma, düz metin yaz.`
 
   try {
     const response = await groq.chat.completions.create({
@@ -63,13 +92,13 @@ Kurallar:
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userMessage },
       ],
-      max_tokens: 300,
+      max_tokens: responseLength === 'short' ? 150 : 300,
       temperature: 0.6,
     })
 
-    return response.choices[0]?.message?.content?.trim() ?? fallbackReply(storeName)
+    return response.choices[0]?.message?.content?.trim() ?? (botSettings?.fallbackMessage ?? fallbackReply(storeName))
   } catch {
-    return fallbackReply(storeName)
+    return botSettings?.fallbackMessage ?? fallbackReply(storeName)
   }
 }
 

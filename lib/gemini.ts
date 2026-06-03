@@ -15,7 +15,6 @@ Mağaza verileri (güncel):
 - Aktif kampanya: ${storeStats.activeCampaigns}
 - Ortalama sipariş değeri: ${formatCurrency(storeStats.avgOrderValue)}
 - Email açılma oranı: %${storeStats.emailOpenRate}
-- SMS tıklama oranı: %${storeStats.smsClickRate}
 - WhatsApp okunma oranı: %${storeStats.whatsappReadRate}
 
 Müşteri segmentleri:

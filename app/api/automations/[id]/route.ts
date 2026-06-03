@@ -1,17 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth-options'
+
+import { getApiSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions)
+  const session = await getApiSession()
   if (!session?.user) return NextResponse.json({ error: 'Yetkisiz' }, { status: 401 })
 
-  const userId = (session.user as any).id
+  const userId = (session.user as { id: string }).id
   const existing = await prisma.automation.findFirst({ where: { id: params.id, userId } })
   if (!existing) return NextResponse.json({ error: 'Bulunamadı' }, { status: 404 })
 
-  const body = await req.json()
+  const body = await req.json() as {
+    name?: string; status?: string; steps?: unknown[]
+    segment?: string | null; flowData?: unknown; trigger?: string
+  }
   const updated = await prisma.automation.update({
     where: { id: params.id },
     data: {
@@ -28,10 +31,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 }
 
 export async function DELETE(_: NextRequest, { params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions)
+  const session = await getApiSession()
   if (!session?.user) return NextResponse.json({ error: 'Yetkisiz' }, { status: 401 })
 
-  const userId = (session.user as any).id
+  const userId = (session.user as { id: string }).id
   const existing = await prisma.automation.findFirst({ where: { id: params.id, userId } })
   if (!existing) return NextResponse.json({ error: 'Bulunamadı' }, { status: 404 })
 

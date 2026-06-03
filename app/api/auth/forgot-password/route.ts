@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
+import { getSystemFromAddress } from '@/lib/mail-from'
 import crypto from 'crypto'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
@@ -29,7 +30,7 @@ export async function POST(req: NextRequest) {
     const resetUrl = `${BASE_URL}/reset-password?token=${token}`
 
     await resend.emails.send({
-      from: 'Marksio <noreply@marksio.com>',
+      from: getSystemFromAddress(),
       to: email,
       subject: 'Şifre Sıfırlama — Marksio',
       html: `

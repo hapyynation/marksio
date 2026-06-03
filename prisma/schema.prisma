@@ -31,6 +31,11 @@ model User {
   integrations Integration[]
   orders       Order[]
   emailDomains EmailDomain[]
+
+  whatsappSettings     WhatsAppSettings?
+  whatsappQuickReplies WhatsAppQuickReply[]
+  whatsappConversations WhatsAppConversation[]
+  whatsappCampaigns    WhatsAppCampaign[]
 }
 
 model Campaign {
@@ -176,8 +181,12 @@ model Customer {
   platformId  String?   // Shopify customer ID, WooCommerce ID vb.
   source      String    @default("manual") // "shopify" | "woocommerce" | "trendyol" | "manual" | "csv"
 
-  unsubscribed     Boolean  @default(false)
-  unsubscribeToken String   @default(cuid())
+  unsubscribed     Boolean   @default(false)
+  unsubscribeToken String    @default(cuid())
+  bounced          Boolean   @default(false)
+  bouncedAt        DateTime?
+  complained       Boolean   @default(false)
+  complainedAt     DateTime?
 
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -310,6 +319,76 @@ model Automation {
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  runs        AutomationRun[]
+}
+
+// ─── Automation Runtime ───────────────────────────────────────────────────────
+
+model AutomationRun {
+  id            String    @id @default(cuid())
+  automationId  String
+  automation    Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  userId        String
+  customerId    String
+
+  status        String    @default("running") // running | waiting | completed | failed | stopped
+  currentNodeId String?
+  context       String    @default("{}") // JSON: { triggerData, vars }
+  resumeAt      DateTime?
+  completedAt   DateTime?
+  failedAt      DateTime?
+  failReason    String?
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  steps         AutomationRunStep[]
+  logs          AutomationLog[]
+
+  @@index([automationId, status])
+  @@index([userId, status])
+  @@index([customerId])
+  @@index([resumeAt])
+}
+
+model AutomationRunStep {
+  id        String        @id @default(cuid())
+  runId     String
+  run       AutomationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  nodeId    String
+  nodeType  String
+  nodeLabel String?
+  status    String        @default("pending") // pending | running | completed | failed | skipped | waiting
+  input     String        @default("{}")
+  output    String        @default("{}")
+  error     String?
+  startedAt DateTime?
+  endedAt   DateTime?
+
+  createdAt DateTime       @default(now())
+
+  @@index([runId])
+}
+
+model AutomationLog {
+  id           String        @id @default(cuid())
+  runId        String
+  run          AutomationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  automationId String
+  userId       String
+  customerId   String
+
+  level        String        // info | warn | error
+  message      String
+  data         String        @default("{}")
+
+  createdAt    DateTime      @default(now())
+
+  @@index([runId])
+  @@index([automationId, createdAt])
+  @@index([userId, createdAt])
 }
 
 model FlowExecution {
@@ -339,9 +418,11 @@ model Segment {
   description String?
   type        String   @default("custom")
   rules       String   @default("[]")
+  matchType   String   @default("all")
   count       Int      @default(0)
   color       String   @default("violet")
   icon        String   @default("Users")
+  active      Boolean  @default(true)
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -387,9 +468,120 @@ model EmailDomain {
   status      String   @default("pending") // pending | verified | failed
   dnsRecords  String   @default("[]")      // JSON array of DNS records
   fromEmail   String?
+  fromPrefix  String   @default("kampanya") // e.g. "info", "hello", "kampanya"
+  senderName  String?                       // overrides User.storeName in From header
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@unique([userId, domain])
+}
+
+// ─── WhatsApp AI ──────────────────────────────────────────────────────────────
+
+model WhatsAppSettings {
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  botName              String   @default("Marksio Asistan")
+  welcomeMessage       String   @default("Merhaba! Size nasıl yardımcı olabilirim?")
+  fallbackMessage      String   @default("Üzgünüm, bu konuda yardımcı olamıyorum. Ekibimiz en kısa sürede iletişime geçecek.")
+  tone                 String   @default("friendly")
+  responseLength       String   @default("medium")
+  emojiUsage           String   @default("low")
+  humanHandoffMessage  String   @default("Sizi mağaza ekibimizle bağlıyorum.")
+  businessHoursMessage String   @default("Mesai saatlerimiz dışında yazıyorsunuz. En kısa sürede yanıt vereceğiz.")
+  language             String   @default("tr")
+
+  autoResponseEnabled  Boolean  @default(true)
+  businessHoursEnabled Boolean  @default(false)
+  businessHoursStart   String   @default("09:00")
+  businessHoursEnd     String   @default("18:00")
+
+  metaAccessToken      String?
+  phoneNumberId        String?
+  businessAccountId    String?
+  webhookVerifyToken   String?
+  appSecret            String?
+  connectionStatus     String   @default("disconnected")
+
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model WhatsAppQuickReply {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title           String
+  triggerKeywords String
+  responseText    String
+  isActive        Boolean  @default(true)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model WhatsAppConversation {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  customerPhone String
+  customerName  String?
+  status        String   @default("open")
+  resolvedBy    String?
+  lastMessage   String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  messages      WhatsAppMessage[]
+
+  @@index([userId, status])
+}
+
+model WhatsAppMessage {
+  id             String               @id @default(cuid())
+  conversationId String
+  conversation   WhatsAppConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  role           String
+  content        String
+  externalId     String?  // Meta message ID (for status tracking)
+  status         String?  // sent | delivered | read | failed
+  deliveredAt    DateTime?
+  readAt         DateTime?
+  failedAt       DateTime?
+  createdAt      DateTime @default(now())
+
+  @@index([conversationId])
+  @@index([externalId])
+}
+
+model WhatsAppCampaign {
+  id                  String    @id @default(cuid())
+  userId              String
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name                String
+  audienceSegmentId   String?
+  message             String
+  status              String    @default("draft")
+  scheduledAt         DateTime?
+  sentCount           Int       @default(0)
+  failedCount         Int       @default(0)
+  delivered           Int       @default(0)
+  opened              Int       @default(0) // read receipts
+  externalMessageId   String?   // last Meta message ID for status tracking
+
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([externalMessageId])
 }

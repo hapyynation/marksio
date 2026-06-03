@@ -1,10 +1,12 @@
 'use client'
 
-import { useSession } from 'next-auth/react'
+import { useSession } from '@/lib/hooks/use-session'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 import { SidebarProvider, useSidebar } from '@/lib/sidebar-context'
+import { SettingsDrawerProvider } from '@/lib/settings-drawer-context'
 import Sidebar from './Sidebar'
+import SettingsDrawer from '@/components/settings/SettingsDrawer'
 import ChatWidget from '@/components/ChatWidget'
 
 function AppShellInner({ children }: { children: React.ReactNode }) {
@@ -31,24 +33,18 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
         {children}
       </main>
 
+      <SettingsDrawer />
       <ChatWidget />
     </div>
   )
 }
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
-  const { status } = useSession()
-  const router = useRouter()
-
-  useEffect(() => {
-    if (status === 'unauthenticated') router.replace('/login')
-  }, [status, router])
-
-  if (status === 'unauthenticated') return null
-
   return (
     <SidebarProvider>
-      <AppShellInner>{children}</AppShellInner>
+      <SettingsDrawerProvider>
+        <AppShellInner>{children}</AppShellInner>
+      </SettingsDrawerProvider>
     </SidebarProvider>
   )
 }

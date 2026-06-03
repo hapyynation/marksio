@@ -1,55 +1,96 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth-options'
+import { getApiSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { matchesRules, seedDefaultSegments, type SegmentRule } from '@/lib/segment-engine'
+
+// ─── GET /api/segments ────────────────────────────────────────────────────────
 
 export async function GET() {
-  const session = await getServerSession(authOptions)
+  const session = await getApiSession()
   if (!session?.user) return NextResponse.json({ error: 'Yetkisiz' }, { status: 401 })
+  const userId = (session.user as { id: string }).id
 
-  const userId = (session.user as any).id
   try {
-    const segments = await prisma.segment.findMany({
+    let segments = await prisma.segment.findMany({
       where: { userId },
-      orderBy: [{ type: 'asc' }, { createdAt: 'asc' }],
+      orderBy: [{ type: 'desc' }, { createdAt: 'asc' }],
     })
-    const customerCounts = await prisma.customer.groupBy({
-      by: ['segment'],
+
+    // First visit: seed default segments
+    if (segments.length === 0) {
+      segments = await seedDefaultSegments(userId)
+    }
+
+    // Compute real counts from customer data
+    const customers = await prisma.customer.findMany({
       where: { userId },
-      _count: { segment: true },
+      select: {
+        totalSpent: true, totalOrders: true, avgOrder: true,
+        lastOrder: true, tags: true, source: true, segment: true, score: true,
+      },
     })
-    const countMap: Record<string, number> = {}
-    customerCounts.forEach(c => { countMap[c.segment] = c._count.segment })
-    return NextResponse.json(segments.map(s => ({
-      ...s,
-      rules: (() => { try { return JSON.parse(s.rules) } catch { return [] } })(),
-      count: countMap[s.name.toLowerCase().replace(/ /g, '_')] ?? s.count,
-    })))
+
+    return NextResponse.json(
+      segments.map(s => {
+        let rules: SegmentRule[] = []
+        try { rules = JSON.parse(s.rules) } catch { /* */ }
+        const matchType = (s.matchType ?? 'all') as 'all' | 'any'
+        const count = customers.filter(c => matchesRules(c, rules, matchType)).length
+        return { ...s, rules, count }
+      })
+    )
   } catch (err) {
     console.error('[Segments GET]', err)
     return NextResponse.json({ error: 'Sunucu hatası' }, { status: 500 })
   }
 }
 
-export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user) return NextResponse.json({ error: 'Yetkisiz' }, { status: 401 })
+// ─── POST /api/segments ───────────────────────────────────────────────────────
 
-  const userId = (session.user as any).id
+export async function POST(req: NextRequest) {
+  const session = await getApiSession()
+  if (!session?.user) return NextResponse.json({ error: 'Yetkisiz' }, { status: 401 })
+  const userId = (session.user as { id: string }).id
+
   try {
-    const body = await req.json()
+    const body = await req.json() as {
+      name: string; description?: string; rules?: SegmentRule[]
+      matchType?: string; color?: string; icon?: string
+    }
+
+    if (!body.name?.trim()) {
+      return NextResponse.json({ error: 'Segment adı gerekli' }, { status: 400 })
+    }
+
+    const rules = body.rules ?? []
+    const matchType = (body.matchType ?? 'all') as 'all' | 'any'
+
+    // Compute initial count
+    const customers = await prisma.customer.findMany({
+      where: { userId },
+      select: {
+        totalSpent: true, totalOrders: true, avgOrder: true,
+        lastOrder: true, tags: true, source: true, segment: true, score: true,
+      },
+    })
+    const count = customers.filter(c => matchesRules(c, rules, matchType)).length
+
     const segment = await prisma.segment.create({
       data: {
         userId,
-        name: body.name,
-        description: body.description,
-        type: 'custom',
-        rules: JSON.stringify(body.rules ?? []),
-        color: body.color ?? 'violet',
-        icon: body.icon ?? 'Users',
+        name:        body.name.trim(),
+        description: body.description?.trim() ?? null,
+        type:        'custom',
+        rules:       JSON.stringify(rules),
+        matchType,
+        color:       body.color ?? '#4470ff',
+        icon:        body.icon ?? '👥',
+        count,
+        active:      true,
       },
     })
-    return NextResponse.json({ ...segment, rules: JSON.parse(segment.rules) }, { status: 201 })
+
+    return NextResponse.json({ ...segment, rules, count }, { status: 201 })
   } catch (err) {
     console.error('[Segments POST]', err)
     return NextResponse.json({ error: 'Sunucu hatası' }, { status: 500 })

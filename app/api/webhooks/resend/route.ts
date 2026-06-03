@@ -5,7 +5,7 @@ import crypto from 'crypto'
 const SECRET = process.env.RESEND_WEBHOOK_SECRET ?? ''
 
 function verifySignature(body: string, svixId: string, svixTimestamp: string, svixSignature: string): boolean {
-  if (!SECRET) return true // skip verification if no secret configured
+  if (!SECRET) return true
   try {
     const secretBytes = Buffer.from(SECRET.replace(/^whsec_/, ''), 'base64')
     const toSign = `${svixId}.${svixTimestamp}.${body}`
@@ -20,19 +20,19 @@ function verifySignature(body: string, svixId: string, svixTimestamp: string, sv
 }
 
 const TYPE_MAP: Record<string, string> = {
-  'email.sent': 'sent',
-  'email.delivered': 'delivered',
-  'email.opened': 'opened',
-  'email.clicked': 'clicked',
-  'email.bounced': 'bounced',
-  'email.complained': 'complained',
+  'email.sent':        'sent',
+  'email.delivered':   'delivered',
+  'email.opened':      'opened',
+  'email.clicked':     'clicked',
+  'email.bounced':     'bounced',
+  'email.complained':  'complained',
+  'email.unsubscribed':'unsubscribed',
 }
 
 export async function POST(req: NextRequest) {
   const body = await req.text()
-
-  const svixId = req.headers.get('svix-id') ?? ''
-  const svixTs = req.headers.get('svix-timestamp') ?? ''
+  const svixId  = req.headers.get('svix-id') ?? ''
+  const svixTs  = req.headers.get('svix-timestamp') ?? ''
   const svixSig = req.headers.get('svix-signature') ?? ''
 
   if (SECRET && svixSig && !verifySignature(body, svixId, svixTs, svixSig)) {
@@ -46,44 +46,81 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  const eventType = payload.type
-  const data = payload.data ?? {}
+  const eventType       = payload.type
+  const data            = payload.data ?? {}
   const resendMessageId = String(data.email_id ?? '')
-  const mappedType = TYPE_MAP[eventType]
+  const mappedType      = TYPE_MAP[eventType]
 
   if (!mappedType || !resendMessageId) {
     return NextResponse.json({ ok: true, skipped: true })
   }
 
   try {
-    const event = await prisma.emailEvent.findFirst({
-      where: { resendMessageId },
-    })
+    const event = await prisma.emailEvent.findFirst({ where: { resendMessageId } })
+    if (!event) return NextResponse.json({ ok: true, skipped: true })
 
-    if (event) {
-      const updateData: Record<string, unknown> = { type: mappedType }
-      if (mappedType === 'opened') updateData.openedAt = new Date()
-      if (mappedType === 'clicked') updateData.clickedAt = new Date()
-      if (mappedType === 'bounced') {
-        updateData.bouncedAt = new Date()
-        const bounce = data.bounce as Record<string, unknown> | undefined
-        updateData.failedReason = String(bounce?.message ?? 'bounce')
-      }
+    // ── Build event update ────────────────────────────────────────────────────
+    const eventUpdate: Record<string, unknown> = { type: mappedType }
 
-      await prisma.emailEvent.update({ where: { id: event.id }, data: updateData })
+    if (mappedType === 'opened')  eventUpdate.openedAt  = new Date()
+    if (mappedType === 'clicked') eventUpdate.clickedAt = new Date()
 
-      // Update campaign counter
-      const counterMap: Record<string, string> = {
-        opened: 'opened',
-        clicked: 'clicked',
-      }
-      const counter = counterMap[mappedType]
-      if (counter) {
-        await prisma.campaign.update({
-          where: { id: event.campaignId },
-          data: { [counter]: { increment: 1 } },
-        })
-      }
+    if (mappedType === 'bounced') {
+      eventUpdate.bouncedAt = new Date()
+      const bounce = data.bounce as Record<string, unknown> | undefined
+      eventUpdate.failedReason = String(bounce?.message ?? 'bounce')
+    }
+
+    await prisma.emailEvent.update({ where: { id: event.id }, data: eventUpdate })
+
+    // ── Side-effects per event type ───────────────────────────────────────────
+
+    // 1. Increment campaign counters for opened / clicked
+    const campaignCounters: Record<string, string> = { opened: 'opened', clicked: 'clicked' }
+    const counter = campaignCounters[mappedType]
+    if (counter) {
+      await prisma.campaign.update({
+        where: { id: event.campaignId },
+        data: { [counter]: { increment: 1 } },
+      }).catch(() => null)
+    }
+
+    // 2. Bounce → mark customer as bounced (suppress from future sends)
+    if (mappedType === 'bounced' && event.customerId) {
+      await prisma.customer.update({
+        where: { id: event.customerId },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        data: { bounced: true, bouncedAt: new Date() } as any,
+      }).catch(() => null)
+
+      // Record unsubscribed EmailEvent so dashboards reflect this
+      await prisma.emailEvent.create({
+        data: {
+          campaignId:      event.campaignId,
+          customerId:      event.customerId,
+          email:           event.email,
+          type:            'failed',
+          resendMessageId: null,
+          metadata:        JSON.stringify({ reason: 'bounce_suppressed' }),
+        },
+      }).catch(() => null)
+    }
+
+    // 3. Complaint → immediately unsubscribe customer
+    if (mappedType === 'complained' && event.customerId) {
+      await prisma.customer.update({
+        where: { id: event.customerId },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        data: { unsubscribed: true, complained: true, complainedAt: new Date() } as any,
+      }).catch(() => null)
+    }
+
+    // 4. Unsubscribe event from Resend → sync to customer
+    if (mappedType === 'unsubscribed' && event.customerId) {
+      await prisma.customer.update({
+        where: { id: event.customerId },
+        data: { unsubscribed: true },
+      }).catch(() => null)
     }
 
     return NextResponse.json({ ok: true })

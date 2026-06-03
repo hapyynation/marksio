@@ -1,34 +1,35 @@
-﻿'use client'
+'use client'
 
 import { useEffect, useState, useMemo } from 'react'
 import {
-  AreaChart, Area, LineChart, Line,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  BarChart, Bar, Cell,
 } from 'recharts'
 import {
-  TrendingUp, TrendingDown, Users, Megaphone, ShoppingCart, Mail,
-  MessageSquare, Zap, ShoppingBag, AlertTriangle, RefreshCw,
-  Crown, Heart, AlertOctagon, Flame, Circle, Plus, ChevronRight,
-  BarChart3, Target, Activity, Sparkles, ArrowUpRight, ArrowDownRight,
-  MousePointerClick, Send, Eye, CheckCheck,
+  TrendingUp, TrendingDown, Users, Mail, MessageSquare, Zap,
+  ShoppingBag, AlertTriangle, RefreshCw, Crown, Heart, AlertOctagon,
+  Flame, Circle, Plus, ChevronRight, BarChart3, Target, Activity,
+  Sparkles, ArrowUpRight, ArrowDownRight, MousePointerClick, Send,
+  Eye, CheckCheck, Megaphone, ArrowRight, Cpu, Globe, Link2,
+  ShoppingCart, Star, Bell, Package, CheckCircle2, XCircle,
+  Clock, Play, Pause, LayoutGrid, Layers, Radio, Download,
 } from 'lucide-react'
 import Link from 'next/link'
+import Image from 'next/image'
 import AppShell from '@/components/layout/AppShell'
-import Header from '@/components/layout/Header'
 import { formatCurrency, formatNumber, cn } from '@/lib/utils'
-import { useSession } from 'next-auth/react'
+import { useSession } from '@/lib/hooks/use-session'
 import LiveActivityDashboard from '@/components/ui/live-activity-dashboard'
 import { DashboardSkeleton } from '@/components/ui/page-skeleton'
 
-/* â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-
+/* ─── Types ─── */
 interface RecentOpen {
   id: string; openedAt: string; channel: string
   campaign: { name: string; type: string }
   customer: { name: string; email: string; segment: string; totalSpent: number } | null
 }
-
 interface DashboardData {
+  isDemo?: boolean
   stats: {
     revenue: { value: number; change: number }
     customers: { value: number; change: number; newThisMonth: number }
@@ -37,7 +38,6 @@ interface DashboardData {
   }
   channelStats: {
     email: { sent: number; opened: number; clicked: number; openRate: number; clickRate: number; revenue: number }
-    sms: { sent: number; revenue: number }
     whatsapp: { sent: number; revenue: number }
   }
   recentOpens: RecentOpen[]
@@ -51,94 +51,96 @@ interface DashboardData {
     sent: number; converted: number; revenue: number
   }>
   integration?: { shopDomain: string; lastSyncAt?: string } | null
+  kpiExtended?: {
+    emailRevenue: number; waRevenue: number; automationRevenue: number; totalRevenue: number
+    cartAbandonRate: number; activeSubscribers: number; waSubscribers: number
+  }
 }
+type Tab = 'overview' | 'live'
+type TimeRange = '1m' | '1w' | '24h'
 
-type Channel   = 'email' | 'whatsapp'
-type TimeRange = 'all' | '1m' | '1w' | '24h'
-
-const TIME_RANGES: { id: TimeRange; label: string }[] = [
-  { id: 'all', label: 'TÃ¼m Zamanlar' },
-  { id: '1m',  label: '1 Ay' },
-  { id: '1w',  label: '1 Hafta' },
-  { id: '24h', label: '24 Saat' },
+/* ─── Demo enrichment ─── */
+const DEMO_ATTRIBUTION = [
+  { label: 'Email',      value: 84200,  color: '#99b4ff' },
+  { label: 'WhatsApp',   value: 42800,  color: '#2dd4bf' },
+  { label: 'Otomasyon',  value: 38600,  color: '#a78bfa' },
+  { label: 'Kampanya',   value: 27100,  color: '#fb923c' },
+  { label: 'Organik',    value: 9300,   color: '#34d399' },
 ]
 
-/* â”€â”€ Seed-based variation (no jitter) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-function v(i: number, s = 7) { return 0.65 + Math.abs(Math.sin(i * s + 1)) * 0.7 }
+const DEMO_SEGMENTS = [
+  { key: 'vip',      label: 'VIP',           count: 142, pct: 11, icon: Crown,        color: '#f59e0b', bg: 'rgba(245,158,11,0.08)',   border: 'rgba(245,158,11,0.2)'   },
+  { key: 'abandon',  label: 'Sepet Terk',    count: 384, pct: 31, icon: ShoppingCart, color: '#f87171', bg: 'rgba(248,113,113,0.08)',  border: 'rgba(248,113,113,0.2)'  },
+  { key: 'inactive', label: 'Pasif',         count: 291, pct: 23, icon: Circle,       color: '#666680', bg: 'rgba(102,102,128,0.08)',  border: 'rgba(102,102,128,0.2)'  },
+  { key: 'intent',   label: 'Yüksek Niyet',  count: 167, pct: 13, icon: Target,       color: '#a78bfa', bg: 'rgba(167,139,250,0.08)',  border: 'rgba(167,139,250,0.2)'  },
+  { key: 'active30', label: 'Son 30 Gün',    count: 263, pct: 21, icon: Flame,        color: '#34d399', bg: 'rgba(52,211,153,0.08)',   border: 'rgba(52,211,153,0.2)'   },
+]
 
-/* â”€â”€ Chart builders â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-function buildEmailChart(
-  rev: DashboardData['revenueChart'],
-  stats: DashboardData['channelStats']['email'],
-  range: TimeRange,
-) {
+const DEMO_FLOWS = [
+  { name: 'Sepet Terk',    status: 'active', sent: 1240, conv: 18.4, revenue: 32400, icon: ShoppingCart, color: '#f87171' },
+  { name: 'Hoş Geldin',    status: 'active', sent: 880,  conv: 24.1, revenue: 18700, icon: Heart,        color: '#34d399' },
+  { name: 'Win-back',      status: 'active', sent: 540,  conv: 12.8, revenue: 11200, icon: RefreshCw,    color: '#a78bfa' },
+  { name: 'Sipariş Sonrası', status: 'active', sent: 920, conv: 31.2, revenue: 24800, icon: Package,     color: '#fb923c' },
+]
+
+const DEMO_INTEGRATIONS = [
+  { label: 'Shopify Bağlantısı',      ok: true,  detail: 'mystore.myshopify.com' },
+  { label: 'Müşteri Senkronizasyonu', ok: true,  detail: '1,248 müşteri senkron' },
+  { label: 'Ürün Senkronizasyonu',    ok: true,  detail: '384 ürün aktarıldı' },
+  { label: 'Email Domain',            ok: false, detail: 'DNS doğrulaması bekleniyor' },
+  { label: 'WhatsApp API',            ok: false, detail: 'Meta Business hesabı bağlı değil' },
+]
+
+const DEMO_AI_INSIGHTS = [
+  { type: 'revenue', color: '#34d399', bg: 'rgba(52,211,153,0.08)', border: 'rgba(52,211,153,0.15)', icon: TrendingUp,   title: 'Gelir Fırsatı', text: '384 sepet terk eden müşteri bugün hedeflense ₺28K+ potansiyel.', action: 'Kampanya Oluştur', href: '/campaigns/new' },
+  { type: 'ai',      color: '#a78bfa', bg: 'rgba(167,139,250,0.08)', border: 'rgba(167,139,250,0.15)', icon: Sparkles,    title: 'AI Önerisi', text: 'Salı 10–12 arası gönderimlerin açılma oranı %23 daha yüksek.', action: 'Planla', href: '/campaigns/new' },
+  { type: 'segment', color: '#99b4ff', bg: 'rgba(153,180,255,0.08)', border: 'rgba(153,180,255,0.15)', icon: Layers,      title: 'Segment Önerisi', text: '142 VIP müşterin 60 gündür kampanya görmedi. Re-engage et.', action: 'Segment Gör', href: '/segments' },
+  { type: 'risk',    color: '#fb923c', bg: 'rgba(251,146,60,0.08)',  border: 'rgba(251,146,60,0.15)',  icon: AlertTriangle, title: 'Risk Uyarısı', text: 'Email domain DNS doğrulaması yapılmadı, teslimatta sorun olabilir.', action: 'Ayarlar', href: '/settings' },
+]
+
+const DEMO_CHANNELS = [
+  { id: 'email',    label: 'Email',      Icon: Mail,         sent: 12400, conv: 3.8, revenue: 84200, status: 'active', color: '#99b4ff' },
+  { id: 'whatsapp', label: 'WhatsApp',   Icon: MessageSquare, sent: 4800, conv: 7.2, revenue: 42800, status: 'active', color: '#2dd4bf' },
+  { id: 'auto',     label: 'Otomasyon',  Icon: Zap,          sent: 3580,  conv: 21.4, revenue: 38600, status: 'active', color: '#a78bfa' },
+  { id: 'push',     label: 'Web Push',   Icon: Bell,         sent: 0,     conv: 0,    revenue: 0,     status: 'inactive', color: '#666680' },
+]
+
+const CHECKLIST = [
+  { key: 'store',      label: 'Mağazanı bağla',          href: '/settings#integrations', done: false },
+  { key: 'domain',     label: 'Email domain doğrula',     href: '/settings#email',        done: false },
+  { key: 'segment',    label: 'İlk segmenti oluştur',     href: '/segments',              done: false },
+  { key: 'campaign',   label: 'İlk kampanyayı oluştur',   href: '/campaigns/new',         done: false },
+  { key: 'automation', label: 'İlk otomasyonu aktif et',  href: '/automations',           done: false },
+] as const
+
+/* ─── Chart helpers ─── */
+function v(i: number, s = 7) { return 0.6 + Math.abs(Math.sin(i * s + 1)) * 0.8 }
+function buildChart(rev: DashboardData['revenueChart'], range: TimeRange) {
   if (range === '24h') {
     return Array.from({ length: 24 }, (_, i) => {
       const biz = i >= 8 && i <= 22
-      const f = biz ? v(i, 5) : 0.08
-      return {
-        label: `${String(i).padStart(2, '0')}:00`,
-        'AÃ§Ä±lma (%)': +(stats.openRate * f).toFixed(1),
-        'TÄ±klama (%)': +(stats.clickRate * f).toFixed(1),
-        'Gelir': 0,
-      }
+      return { label: `${String(i).padStart(2,'0')}:00`, rev: biz ? Math.round(1200 * v(i,5)) : 0, email: biz ? Math.round(800*v(i,4)) : 0, wa: biz ? Math.round(400*v(i,6)) : 0 }
     })
   }
-  const slice = range === '1w' ? 7 : range === '1m' ? 30 : rev.length
-  return rev.slice(-slice).map((d, i) => ({
-    label: d.label,
-    'AÃ§Ä±lma (%)': +(stats.openRate * v(i, 5)).toFixed(1),
-    'TÄ±klama (%)': +(stats.clickRate * v(i, 3)).toFixed(1),
-    'Gelir': d.value,
+  const slice = range === '1w' ? 7 : 30
+  return (rev.length ? rev : Array.from({length:slice},(_,i)=>({label:`G${i+1}`,value:Math.round(3000+Math.random()*5000)}))).slice(-slice).map((d,i) => ({
+    label: d.label, rev: d.value, email: Math.round(d.value*0.52), wa: Math.round(d.value*0.26),
   }))
 }
 
-function buildWaChart(
-  rev: DashboardData['revenueChart'],
-  stats: DashboardData['channelStats']['whatsapp'],
-  range: TimeRange,
-) {
-  const total = stats.sent || 0
-  if (range === '24h') {
-    return Array.from({ length: 24 }, (_, i) => {
-      const biz = i >= 9 && i <= 21
-      const cnt = biz ? Math.round(total / 30 / 12 * v(i, 4)) : 0
-      return { label: `${String(i).padStart(2, '0')}:00`, 'GÃ¶nderilen': cnt, 'Okundu': Math.round(cnt * 0.96), 'Gelir': 0 }
-    })
-  }
-  const slice = range === '1w' ? 7 : range === '1m' ? 30 : rev.length
-  const pts = rev.slice(-slice)
-  return pts.map((d, i) => {
-    const cnt = pts.length ? Math.round(total / pts.length * v(i, 4)) : 0
-    return { label: d.label, 'GÃ¶nderilen': cnt, 'Okundu': Math.round(cnt * 0.96), 'Gelir': d.value }
-  })
-}
-
-/* â”€â”€ Segment config â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-const segmentConfig: Record<string, { label: string; icon: React.ElementType; color: string; bg: string }> = {
-  vip:      { label: 'VIP',    icon: Crown,        color: 'text-[#99b4ff]',  bg: 'bg-[#99b4ff]/10 border-[#99b4ff]/20' },
-  loyal:    { label: 'SadÄ±k',  icon: Heart,        color: 'text-emerald-300', bg: 'bg-emerald-500/10 border-emerald-500/20' },
-  at_risk:  { label: 'Riskli', icon: AlertOctagon, color: 'text-red-300',    bg: 'bg-red-500/10 border-red-500/20' },
-  new:      { label: 'Yeni',   icon: Flame,        color: 'text-cyan-300',   bg: 'bg-cyan-500/10 border-cyan-500/20' },
-  inactive: { label: 'Pasif',  icon: Circle,       color: 'text-[#8080a0]',  bg: 'bg-white/[0.04] border-white/[0.06]' },
-}
-
-/* â”€â”€ Tooltip â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-const CustomTooltip = ({ active, payload, label }: {
-  active?: boolean; payload?: Array<{ name: string; value: number; color: string }>; label?: string
-}) => {
+/* ─── Tooltip ─── */
+function PremiumTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{name:string;value:number;color:string}>; label?: string }) {
   if (!active || !payload?.length) return null
   return (
-    <div className="bg-[#0f0f0f] border border-white/[0.06] rounded-xl p-3 text-xs shadow-2xl backdrop-blur min-w-[140px]">
-      <p className="font-semibold text-[#8080a0] mb-2" style={{ fontFamily: 'JetBrains Mono, monospace' }}>{label}</p>
+    <div className="rounded-xl px-3.5 py-2.5 shadow-2xl" style={{ background:'#141420', border:'1px solid rgba(255,255,255,0.1)' }}>
+      <p className="text-[10px] font-semibold mb-2" style={{ color:'#666688', fontFamily:'JetBrains Mono,monospace' }}>{label}</p>
       {payload.map(p => (
-        <div key={p.name} className="flex items-center justify-between gap-4 mb-1">
-          <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full" style={{ background: p.color }} />
-            <span className="text-[#8080a0]">{p.name}</span>
+        <div key={p.name} className="flex items-center justify-between gap-5 mb-1 last:mb-0">
+          <span className="flex items-center gap-1.5 text-[11px]" style={{ color:'#8888aa' }}>
+            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background:p.color }} />{p.name}
           </span>
-          <span className="font-bold text-[#eeeef4]">
-            {p.name === 'Gelir' ? formatCurrency(p.value) : p.name.includes('%') ? `%${p.value}` : formatNumber(p.value)}
+          <span className="text-[11px] font-bold tabular-nums" style={{ color:'#f0f0f8', fontFamily:'JetBrains Mono,monospace' }}>
+            {formatCurrency(p.value)}
           </span>
         </div>
       ))}
@@ -146,75 +148,125 @@ const CustomTooltip = ({ active, payload, label }: {
   )
 }
 
-/* â”€â”€ Metric Card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-function MetricCard({ label, value, sub, icon: Icon, accent, change }: {
-  label: string; value: string; sub?: string; change?: number
-  icon: React.ElementType; accent: string
+/* ─── KpiCard ─── */
+function KpiCard({ label, value, sub, icon: Icon, accent, accentBg, change }: {
+  label:string; value:string; sub?:string; icon:React.ElementType; accent:string; accentBg:string; change?:number
 }) {
   const positive = (change ?? 0) >= 0
   return (
-    <div className="stat-card group">
-      <div className="flex items-start justify-between mb-3">
-        <p className="label">{label}</p>
-        <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center', accent)}>
-          <Icon className="w-4 h-4" />
+    <div className="relative rounded-2xl p-5 overflow-hidden cursor-default"
+      style={{ background:'rgba(255,255,255,0.025)', border:'1px solid rgba(255,255,255,0.07)', transition:'all .2s' }}
+      onMouseEnter={e=>{e.currentTarget.style.background='rgba(255,255,255,0.04)';e.currentTarget.style.transform='translateY(-1px)';e.currentTarget.style.boxShadow='0 20px 60px rgba(0,0,0,0.4)'}}
+      onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,0.025)';e.currentTarget.style.transform='none';e.currentTarget.style.boxShadow='none'}}>
+      <div className="absolute top-0 left-4 right-4 h-px rounded-full" style={{ background:`linear-gradient(90deg,transparent,${accent}44,transparent)` }} />
+      <div className="flex items-start justify-between mb-4">
+        <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color:'#44445a' }}>{label}</p>
+        <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ background:accentBg }}>
+          <Icon className="w-4 h-4" style={{ color:accent }} />
         </div>
       </div>
-      <p className="text-2xl font-black tracking-tight mb-1 transition-colors duration-200 "
-        style={{ color: '#eeeef4' }}>{value}</p>
-      {sub && <p className="text-[11px]" style={{ color: '#8080a0' }}>{sub}</p>}
+      <p className="text-[26px] font-bold tracking-tight leading-none mb-1.5" style={{ color:'#f0f0f8', letterSpacing:'-0.02em' }}>{value}</p>
+      {sub && <p className="text-[11px]" style={{ color:'#44445a' }}>{sub}</p>}
       {change !== undefined && change !== 0 && (
-        <div className={cn('inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md mt-2',
-          positive ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10')}>
-          {positive ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-          {Math.abs(change).toFixed(1)}% geÃ§en aya gÃ¶re
+        <div className={cn('inline-flex items-center gap-1 text-[10px] font-semibold mt-3 px-2 py-1 rounded-lg', positive ? 'text-emerald-400':'text-red-400')}
+          style={{ background: positive ? 'rgba(52,211,153,0.08)' : 'rgba(248,113,113,0.08)' }}>
+          {positive ? <ArrowUpRight className="w-3 h-3"/> : <ArrowDownRight className="w-3 h-3"/>}
+          %{Math.abs(change).toFixed(1)} geçen aya göre
         </div>
       )}
     </div>
   )
 }
 
-/* â”€â”€ AI Insights â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-function generateInsights(data: DashboardData | null, ch: Channel) {
-  if (!data) return [
-    { icon: TrendingUp, color: 'text-emerald-400', text: 'WhatsApp kampanyalarÄ± email\'e gÃ¶re %87 daha yÃ¼ksek okunma oranÄ± saÄŸlar.' },
-    { icon: Target,     color: 'text-[#99b4ff]',   text: 'SalÄ± 10-12 arasÄ± gÃ¶nderilen emailler %23 daha fazla aÃ§Ä±lÄ±yor.' },
-    { icon: Sparkles,   color: 'text-amber-400',   text: 'VIP segmenti ortalama sipariÅŸ deÄŸeri diÄŸerlerinin 3 katÄ±.' },
-    { icon: AlertTriangle, color: 'text-orange-400', text: 'Sepet terk akÄ±ÅŸÄ±nÄ± kurun â€” %15-32 geri kazanÄ±m saÄŸlar.' },
-  ]
-
-  const email = data.channelStats?.email
-  const wa    = data.channelStats?.whatsapp
-
-  if (ch === 'email') return [
-    email.openRate > 30
-      ? { icon: TrendingUp, color: 'text-emerald-400', text: `AÃ§Ä±lma oranÄ±nÄ±z %${email.openRate} â€” sektÃ¶r ortalamasÄ±nÄ±n Ã¼zerinde.` }
-      : { icon: TrendingUp, color: 'text-amber-400',   text: `AÃ§Ä±lma oranÄ±nÄ±z %${email.openRate}. Konu satÄ±rÄ±nÄ± kiÅŸiselleÅŸtirerek %25+ hedefleyin.` },
-    { icon: Target,    color: 'text-[#99b4ff]',   text: 'SalÄ± 10-12 arasÄ± gÃ¶nderilen emailler %23 daha fazla aÃ§Ä±lÄ±yor. Zamanlama testini deneyin.' },
-    { icon: Sparkles,  color: 'text-violet-400',   text: `${formatNumber(email.clicked)} tÄ±klama elde edildi. A/B testi ile CTA oranÄ±nÄ± artÄ±rÄ±n.` },
-    { icon: AlertTriangle, color: 'text-orange-400', text: 'Pasif mÃ¼ÅŸteriyle win-back akÄ±ÅŸÄ± aÃ§Ä±lma oranÄ±nÄ± %18 artÄ±rÄ±r.' },
-  ]
-
-  return [
-    { icon: CheckCheck, color: 'text-emerald-400', text: `${formatNumber(wa.sent)} WhatsApp mesajÄ± gÃ¶nderildi. Ortalama %96 teslim oranÄ± bekleniyor.` },
-    { icon: Sparkles,   color: 'text-teal-400',    text: 'WhatsApp mesajlarÄ± emaille kÄ±yasla 5 kat daha hÄ±zlÄ± okunuyor.' },
-    { icon: Target,     color: 'text-[#99b4ff]',   text: 'AlÄ±ÅŸveriÅŸ terk bildirimlerini WhatsApp ile gÃ¶ndererek dÃ¶nÃ¼ÅŸÃ¼mÃ¼ %31 artÄ±rÄ±n.' },
-    { icon: AlertTriangle, color: 'text-amber-400', text: 'MÃ¼ÅŸteri onayÄ± almadan WhatsApp pazarlama yasaktÄ±r. Opt-in oranÄ±nÄ±zÄ± takip edin.' },
-  ]
+/* ─── Section header ─── */
+function SectionHeader({ title, sub, href, hrefLabel }: { title:string; sub?:string; href?:string; hrefLabel?:string }) {
+  return (
+    <div className="flex items-center justify-between mb-4">
+      <div>
+        <h2 className="text-[13px] font-bold" style={{ color:'#eeeef4' }}>{title}</h2>
+        {sub && <p className="text-[11px] mt-0.5" style={{ color:'#44445a' }}>{sub}</p>}
+      </div>
+      {href && (
+        <Link href={href} className="flex items-center gap-1 text-[11px] font-semibold transition-colors"
+          style={{ color:'#44445a' }}
+          onMouseEnter={e=>(e.currentTarget.style.color='#99b4ff')}
+          onMouseLeave={e=>(e.currentTarget.style.color='#44445a')}>
+          {hrefLabel ?? 'Tümü'} <ChevronRight className="w-3 h-3"/>
+        </Link>
+      )}
+    </div>
+  )
 }
 
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   MAIN COMPONENT
-â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+/* ─── Card shell ─── */
+function Card({ children, className, style }: { children:React.ReactNode; className?:string; style?: React.CSSProperties }) {
+  return (
+    <div className={cn('rounded-2xl overflow-hidden', className)}
+      style={{ background:'rgba(255,255,255,0.02)', border:'1px solid rgba(255,255,255,0.07)', ...style }}>
+      {children}
+    </div>
+  )
+}
+
+/* ─── Onboarding ─── */
+function OnboardingSection({ onHide }: { onHide:()=>void }) {
+  const done = CHECKLIST.filter(c => c.done).length
+  const total = CHECKLIST.length
+  const pct = Math.round((done / total) * 100)
+  const circumference = 2 * Math.PI * 16
+  return (
+    <div className="rounded-2xl overflow-hidden" style={{ background:'rgba(68,112,255,0.04)', border:'1px solid rgba(68,112,255,0.14)' }}>
+      <div className="absolute top-0 inset-x-0 h-px" style={{ background:'linear-gradient(90deg,transparent,rgba(68,112,255,0.5),transparent)' }}/>
+      <div className="p-5">
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-3">
+            <div className="relative w-10 h-10 shrink-0">
+              <svg className="w-10 h-10 -rotate-90" viewBox="0 0 40 40">
+                <circle cx="20" cy="20" r="16" fill="none" stroke="rgba(68,112,255,0.12)" strokeWidth="3"/>
+                <circle cx="20" cy="20" r="16" fill="none" stroke="#4470ff" strokeWidth="3"
+                  strokeDasharray={circumference} strokeDashoffset={circumference*(1-pct/100)}
+                  strokeLinecap="round" className="transition-all duration-700"/>
+              </svg>
+              <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold" style={{ color:'#4470ff' }}>{done}/{total}</span>
+            </div>
+            <div>
+              <p className="text-[13px] font-semibold" style={{ color:'#eeeef4' }}>Kurulum Tamamlama</p>
+              <p className="text-[11px]" style={{ color:'#55556a' }}>%{pct} tamamlandı · hızlı kur, hızlı kazan</p>
+            </div>
+          </div>
+          <button onClick={onHide} className="text-[11px] px-2.5 py-1 rounded-lg" style={{ color:'#55556a', background:'rgba(255,255,255,0.04)' }}>Gizle</button>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
+          {CHECKLIST.map((item, i) => (
+            <Link key={item.key} href={item.href}
+              className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl transition-all"
+              style={{ background: item.done ? 'rgba(52,211,153,0.06)' : 'rgba(255,255,255,0.03)', border: item.done ? '1px solid rgba(52,211,153,0.15)' : '1px solid rgba(255,255,255,0.06)' }}
+              onMouseEnter={e=>{ if(!item.done) e.currentTarget.style.borderColor='rgba(68,112,255,0.3)' }}
+              onMouseLeave={e=>{ if(!item.done) e.currentTarget.style.borderColor='rgba(255,255,255,0.06)' }}>
+              <div className={cn('w-5 h-5 rounded-full flex items-center justify-center shrink-0', item.done ? 'bg-emerald-500/20 border border-emerald-500/40' : 'border border-white/[0.12]')}>
+                {item.done ? <CheckCheck className="w-2.5 h-2.5 text-emerald-400"/> : <span className="text-[9px] font-bold" style={{ color:'#44445a' }}>{i+1}</span>}
+              </div>
+              <span className="text-[11px] font-medium leading-tight" style={{ color: item.done ? '#34d399' : '#aaaacc', textDecoration: item.done ? 'line-through' : 'none' }}>
+                {item.label}
+              </span>
+            </Link>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ─── Main ─── */
 export default function DashboardPage() {
   const { data: session } = useSession()
-  const [data, setData]         = useState<DashboardData | null>(null)
-  const [loading, setLoading]   = useState(true)
-  const [activeTab, setActiveTab] = useState<'overview' | 'live'>('overview')
-  const [channel, setChannel]   = useState<Channel>('email')
+  const [data, setData] = useState<DashboardData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState<Tab>('overview')
   const [timeRange, setTimeRange] = useState<TimeRange>('1m')
+  const [showChecklist, setShowChecklist] = useState(true)
 
-  const firstName = session?.user?.name?.split(' ')[0] ?? 'HoÅŸ geldin'
+  const firstName = session?.user?.name?.split(' ')[0] ?? ''
 
   useEffect(() => {
     fetch('/api/dashboard')
@@ -223,583 +275,586 @@ export default function DashboardPage() {
       .catch(() => setLoading(false))
   }, [])
 
-  const emailStats = data?.channelStats?.email  ?? { sent: 0, opened: 0, clicked: 0, openRate: 0, clickRate: 0, revenue: 0 }
-  const waStats    = data?.channelStats?.whatsapp ?? { sent: 0, revenue: 0 }
-  const rev        = data?.revenueChart ?? []
+  const email = data?.channelStats?.email ?? { sent:0, opened:0, clicked:0, openRate:0, clickRate:0, revenue:0 }
+  const wa    = data?.channelStats?.whatsapp ?? { sent:0, revenue:0 }
+  const rev   = data?.revenueChart ?? []
 
-  const chartData = useMemo(() =>
-    channel === 'email'
-      ? buildEmailChart(rev, emailStats, timeRange)
-      : buildWaChart(rev, waStats, timeRange),
-  [channel, timeRange, rev, emailStats, waStats])
+  const chartData = useMemo(() => buildChart(rev, timeRange), [timeRange, rev])
 
-  const insights = useMemo(() => generateInsights(data, channel), [data, channel])
+  const totalRevenue   = data?.stats?.revenue?.value ?? 202000
+  const campaignRev    = data ? Math.round(totalRevenue * 0.42) : 84840
+  const automationRev  = data ? Math.round(totalRevenue * 0.19) : 38380
+  const waRev          = wa.revenue || Math.round(totalRevenue * 0.21)
+  const customerCount  = data?.stats?.customers?.value ?? 1248
+  const convRate       = 3.8
 
-  /* â”€â”€ Loading â”€â”€ */
+  const today = new Date().toLocaleDateString('tr-TR', { weekday:'long', day:'numeric', month:'long' })
+
   if (loading) {
-    return (
-      <AppShell>
-        <Header title="Dashboard" subtitle="Marksio Enterprise Console" />
-        <DashboardSkeleton />
-      </AppShell>
-    )
+    return <AppShell><div className="p-6 pt-4"><DashboardSkeleton/></div></AppShell>
   }
-
-  const noIntegration = !data?.integration
 
   return (
     <AppShell>
-      <Header
-        title="Dashboard"
-        subtitle="Marksio Enterprise Console"
-        action={{ label: 'Kampanya OluÅŸtur', href: '/campaigns/new' }}
-      />
-
-      {/* â”€â”€ Tab bar â”€â”€ */}
-      <div className="ds-tabs px-6 sticky top-0 z-10" style={{ background: 'rgba(5,5,5,0.92)', backdropFilter: 'blur(20px)' }}>
-        {[
-          { key: 'overview', label: 'Genel BakÄ±ÅŸ', icon: BarChart3 },
-          { key: 'live',     label: 'CanlÄ± Takip', icon: Activity, dot: true },
-        ].map(tab => {
-          const Icon = tab.icon
-          return (
-            <button key={tab.key} onClick={() => setActiveTab(tab.key as 'overview' | 'live')}
-              className={cn('ds-tab', activeTab === tab.key && 'active')}>
-              <Icon className="w-3.5 h-3.5"/>
-              {tab.label}
-              {tab.dot && (
-                <span className="relative flex h-1.5 w-1.5 ml-0.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"/>
-                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"/>
-                </span>
-              )}
-            </button>
-          )
-        })}
-      </div>
-
-      {/* â”€â”€ AI Ticker Strip â”€â”€ */}
-      <div className="overflow-hidden relative h-8 flex items-center" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'rgba(0,0,0,0.4)' }}>
-        <div className="flex animate-ticker whitespace-nowrap">
-          {[
-            { label: 'Toplam Gelir', value: data?.stats?.revenue?.value ? formatCurrency(data.stats.revenue.value) : 'â‚º0', color: 'text-emerald-400' },
-            { label: 'MÃ¼ÅŸteri', value: data?.stats?.customers?.value ? formatNumber(data.stats.customers.value) : '0', color: 'text-[#99b4ff]' },
-            { label: 'Email GÃ¶nderim', value: data?.channelStats?.email?.sent ? formatNumber(data.channelStats.email.sent) : '0', color: 'text-[#99b4ff]' },
-            { label: 'AÃ§Ä±lma OranÄ±', value: data?.channelStats?.email?.openRate ? `%${data.channelStats.email.openRate}` : '%0', color: 'text-violet-400' },
-            { label: 'Kampanya', value: data?.recentCampaigns?.length ? `${data.recentCampaigns.length} aktif` : 'â€”', color: 'text-amber-400' },
-            { label: 'DÃ¶nÃ¼ÅŸÃ¼m', value: data?.stats?.campaigns?.clicked ? formatNumber(data.stats.campaigns.clicked) : '0', color: 'text-teal-400' },
-            { label: 'WhatsApp', value: data?.channelStats?.whatsapp?.sent ? formatNumber(data.channelStats.whatsapp.sent) : '0', color: 'text-emerald-400' },
-            { label: 'Sepet Terk', value: data?.stats?.cartAbandons ? formatNumber(data.stats.cartAbandons) : '0', color: 'text-red-400' },
-          ].flatMap(item => [item, item]).map((item, i) => (
-            <span key={i} className="inline-flex items-center gap-1.5 px-6 text-[10px] font-semibold">
-              <span className="text-[#8080a0]">{item.label}</span>
-              <span className={item.color} style={{ fontFamily: 'JetBrains Mono, monospace' }}>{item.value}</span>
-              <span className="text-[#272a33] mx-2">Â·</span>
-            </span>
-          ))}
+      {/* ── Top bar ── */}
+      <div className="sticky top-0 z-20 flex items-center justify-between px-6 h-14 shrink-0"
+        style={{ background:'rgba(10,10,15,0.9)', backdropFilter:'blur(24px)', borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
+        <div className="flex items-center gap-1">
+          {([
+            { key:'overview' as Tab, label:'Genel Bakış', icon:LayoutGrid },
+            { key:'live'     as Tab, label:'Canlı',       icon:Radio,  pulse:true },
+          ]).map(tab => {
+            const Icon = tab.icon
+            const active = activeTab === tab.key
+            return (
+              <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[12px] font-semibold transition-all"
+                style={active ? { background:'rgba(255,255,255,0.07)', color:'#eeeef4' } : { color:'#55556a' }}>
+                <Icon className="w-3.5 h-3.5"/>
+                {tab.label}
+                {'pulse' in tab && tab.pulse && (
+                  <span className="relative flex w-1.5 h-1.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"/>
+                    <span className="relative inline-flex rounded-full w-1.5 h-1.5 bg-emerald-500"/>
+                  </span>
+                )}
+              </button>
+            )
+          })}
         </div>
-      </div>
-
-      {/* â”€â”€ Live tab â”€â”€ */}
-      {activeTab === 'live' && (
-        <div className="p-4 lg:p-6 flex-1 bg-transparent">
-          <LiveActivityDashboard/>
-        </div>
-      )}
-
-      {/* â”€â”€ Overview tab â”€â”€ */}
-      {activeTab === 'overview' && (
-      <div className="p-4 lg:p-6 space-y-4 flex-1 bg-transparent animate-fade-in">
-
-        {/* Welcome strip */}
-        <div className="bento-card px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
-          <div>
-            <p className="label">Merhaba, {firstName}</p>
-            <h2 className="text-lg font-black" style={{ color: '#eeeef4' }}>
-              {data?.stats?.revenue.value
-                ? <>Bu ay <span className="ai-gradient-text">{formatCurrency(data.stats.revenue.value)}</span> gelir elde edildi</>
-                : <>KampanyanÄ±zÄ± oluÅŸturun ve bÃ¼yÃ¼meye baÅŸlayÄ±n</>}
-            </h2>
-          </div>
-          <div className="flex items-center gap-2">
-            <Link href="/campaigns/new?type=email"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/[0.06] text-xs font-semibold text-[#8080a0] hover:text-[#eeeef4] hover:border-[#99b4ff]/30 transition-all bg-white/[0.04]">
-              <Mail className="w-3.5 h-3.5" /> Email
-            </Link>
-            <Link href="/campaigns/new?type=whatsapp"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/[0.06] text-xs font-semibold text-[#8080a0] hover:text-[#eeeef4] hover:border-[#99b4ff]/30 transition-all bg-white/[0.04]">
-              <MessageSquare className="w-3.5 h-3.5" /> WhatsApp
-            </Link>
-            <Link href="/automations/new"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0062ff] hover:bg-[#0052d4] text-white text-xs font-semibold transition-all">
-              <Zap className="w-3.5 h-3.5" /> Otomasyon
-            </Link>
-          </div>
-        </div>
-
-        {/* Integration banners */}
-        {noIntegration && (
-          <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4 flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-amber-300">MaÄŸazanÄ±z baÄŸlÄ± deÄŸil</p>
-              <p className="text-xs text-amber-400/70 mt-0.5">GerÃ§ek sipariÅŸ ve mÃ¼ÅŸteri verisi iÃ§in Shopify maÄŸazanÄ±zÄ± baÄŸlayÄ±n.</p>
-            </div>
-            <Link href="/settings"
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-amber-500 text-black rounded-lg hover:bg-amber-400 transition-colors whitespace-nowrap shrink-0">
-              <ShoppingBag className="w-3.5 h-3.5" /> BaÄŸla
-            </Link>
-          </div>
-        )}
-        {data?.integration && (
-          <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl px-4 py-3 flex items-center gap-3">
-            <div className="w-2 h-2 rounded-full bg-emerald-500 shrink-0 animate-pulse" />
-            <p className="text-sm text-emerald-300">
-              <span className="font-semibold">{data.integration.shopDomain}</span> baÄŸlÄ±
-              {data.integration.lastSyncAt && (
-                <span className="text-emerald-500/60 font-normal ml-2" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
-                  Â· Son sync: {new Date(data.integration.lastSyncAt).toLocaleString('tr-TR')}
-                </span>
-              )}
-            </p>
-            <Link href="/settings" className="ml-auto text-xs text-emerald-400 hover:text-emerald-300 flex items-center gap-1.5 shrink-0">
-              <RefreshCw className="w-3 h-3" /> Senkronize Et
-            </Link>
-          </div>
-        )}
-
-        {/* â”€â”€ CHANNEL + TIME FILTER BAR â”€â”€ */}
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          {/* Channel toggle */}
-          <div className="flex items-center p-1 gap-1 rounded-xl" style={{ background: '#0a0a0a', border: '1px solid rgba(255,255,255,0.06)' }}>
-            <button
-              onClick={() => setChannel('email')}
-              className={cn(
-                'flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all',
-                channel === 'email'
-                  ? 'bg-[#99b4ff]/15 text-[#99b4ff] border border-[#99b4ff]/25'
-                  : 'text-[#8080a0] hover:text-[#eeeef4]',
-              )}>
-              <Mail className="w-3.5 h-3.5" />
-              Email
-              <span className={cn('text-[9px] font-bold px-1.5 py-0.5 rounded',
-                channel === 'email' ? 'bg-[#99b4ff]/20 text-[#99b4ff]' : 'bg-white/[0.04] text-[#8080a0]')}
-                style={{ fontFamily: 'JetBrains Mono, monospace' }}>
-                %{emailStats.openRate} aÃ§Ä±lma
-              </span>
-            </button>
-            <button
-              onClick={() => setChannel('whatsapp')}
-              className={cn(
-                'flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all',
-                channel === 'whatsapp'
-                  ? 'bg-teal-500/15 text-teal-300 border border-teal-500/25'
-                  : 'text-[#8080a0] hover:text-[#eeeef4]',
-              )}>
-              <MessageSquare className="w-3.5 h-3.5" />
-              WhatsApp
-              <span className={cn('text-[9px] font-bold px-1.5 py-0.5 rounded',
-                channel === 'whatsapp' ? 'bg-teal-500/20 text-teal-300' : 'bg-white/[0.04] text-[#8080a0]')}
-                style={{ fontFamily: 'JetBrains Mono, monospace' }}>
-                {formatNumber(waStats.sent)} gÃ¶nderildi
-              </span>
-            </button>
-          </div>
-
-          {/* Time range */}
-          <div className="flex items-center p-1 gap-1 rounded-xl" style={{ background: '#0a0a0a', border: '1px solid rgba(255,255,255,0.06)' }}>
-            {TIME_RANGES.map(tr => (
-              <button key={tr.id}
-                onClick={() => setTimeRange(tr.id)}
-                className={cn(
-                  'px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all',
-                  timeRange === tr.id
-                    ? 'bg-white/[0.04] text-[#eeeef4]'
-                    : 'text-[#8080a0] hover:text-[#eeeef4]',
-                )}>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-0.5 p-0.5 rounded-lg" style={{ background:'rgba(0,0,0,0.4)', border:'1px solid rgba(255,255,255,0.06)' }}>
+            {([{id:'24h' as TimeRange,label:'24s'},{id:'1w' as TimeRange,label:'7g'},{id:'1m' as TimeRange,label:'30g'}]).map(tr => (
+              <button key={tr.id} onClick={() => setTimeRange(tr.id)}
+                className="px-3 py-1 rounded-md text-[11px] font-semibold transition-all"
+                style={timeRange===tr.id ? {background:'rgba(255,255,255,0.08)',color:'#eeeef4'} : {color:'#44445a'}}>
                 {tr.label}
               </button>
             ))}
           </div>
+          <button className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[12px] font-semibold transition-all"
+            style={{ background:'rgba(255,255,255,0.04)', color:'#8080a0', border:'1px solid rgba(255,255,255,0.08)' }}>
+            <Download className="w-3.5 h-3.5"/> Raporu İndir
+          </button>
+          <Link href="/campaigns/new"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[12px] font-semibold transition-all"
+            style={{ background:'#4470ff', color:'#fff' }}>
+            <Plus className="w-3.5 h-3.5"/> Kampanya Oluştur
+          </Link>
         </div>
+      </div>
 
-        {/* â”€â”€ METRIC CARDS â€” channel-specific â”€â”€ */}
-        {channel === 'email' ? (
-          <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-            <MetricCard
-              label="AÃ§Ä±lma OranÄ±"
-              value={`%${emailStats.openRate}`}
-              sub={`${formatNumber(emailStats.opened)} email aÃ§Ä±ldÄ±`}
-              icon={Eye}
-              accent="bg-[#99b4ff]/15 text-[#99b4ff]"
-            />
-            <MetricCard
-              label="TÄ±klama OranÄ±"
-              value={`%${emailStats.clickRate}`}
-              sub={`${formatNumber(emailStats.clicked)} tÄ±klama`}
-              icon={MousePointerClick}
-              accent="bg-violet-500/15 text-violet-400"
-            />
-            <MetricCard
-              label="GÃ¶nderilen"
-              value={formatNumber(emailStats.sent)}
-              sub="toplam email"
-              icon={Send}
-              accent="bg-cyan-500/15 text-cyan-400"
-            />
-            <MetricCard
-              label="Email Geliri"
-              value={formatCurrency(emailStats.revenue)}
-              change={data?.stats?.revenue.change ?? 0}
-              icon={TrendingUp}
-              accent="bg-emerald-500/15 text-emerald-400"
-            />
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-            <MetricCard
-              label="GÃ¶nderilen"
-              value={formatNumber(waStats.sent)}
-              sub="WhatsApp mesajÄ±"
-              icon={Send}
-              accent="bg-teal-500/15 text-teal-400"
-            />
-            <MetricCard
-              label="Tahmini Okunma"
-              value="%96"
-              sub="teslimat oranÄ±"
-              icon={CheckCheck}
-              accent="bg-emerald-500/15 text-emerald-400"
-            />
-            <MetricCard
-              label="WhatsApp Geliri"
-              value={formatCurrency(waStats.revenue)}
-              icon={TrendingUp}
-              accent="bg-[#99b4ff]/15 text-[#99b4ff]"
-            />
-            <MetricCard
-              label="MÃ¼ÅŸteri TabanÄ±"
-              value={formatNumber(data?.stats?.customers.value ?? 0)}
-              change={data?.stats?.customers.change ?? 0}
-              icon={Users}
-              accent="bg-violet-500/15 text-violet-400"
-            />
-          </div>
-        )}
+      {/* ── Live tab ── */}
+      {activeTab === 'live' && <div className="p-6 flex-1"><LiveActivityDashboard/></div>}
 
-        {/* â”€â”€ CHART + AI INSIGHTS â”€â”€ */}
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+      {/* ── Overview tab ── */}
+      {activeTab === 'overview' && (
+        <div className="p-6 pb-12 space-y-8 flex-1 max-w-[1400px] mx-auto w-full">
 
-          {/* Performance Chart */}
-          <div className="xl:col-span-2 bento-card p-5">
-            <div className="flex items-center justify-between mb-5 flex-wrap gap-2">
-              <div>
-                <h3 className="text-sm font-semibold text-[#eeeef4]">
-                  {channel === 'email' ? 'Email PerformansÄ±' : 'WhatsApp PerformansÄ±'}
-                </h3>
-                <p className="text-[11px] text-[#8080a0] mt-0.5" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
-                  {TIME_RANGES.find(t => t.id === timeRange)?.label}
-                </p>
+          {/* Hero */}
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div>
+              <p className="text-[11px] font-medium mb-1" style={{ color:'#33334a' }}>{today}</p>
+              <div className="flex items-center gap-3 mb-1">
+                <Image src="/marksio-logo.png" alt="Marksio" width={36} height={36} className="rounded-[10px]" style={{ objectFit:'contain' }}/>
+                <h1 className="text-[24px] font-bold leading-tight" style={{ color:'#eeeef4', letterSpacing:'-0.025em' }}>
+                  {firstName ? `Merhaba, ${firstName}.` : 'Dashboard'}
+                  {' '}<span style={{ background:'linear-gradient(135deg,#4470ff,#00d4ff)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent' }}>
+                    AI Growth OS
+                  </span>
+                </h1>
               </div>
-              {/* Legend */}
-              <div className="flex items-center gap-4">
-                {channel === 'email' ? (
-                  <>
-                    <span className="flex items-center gap-1.5 text-[11px] text-[#8080a0]">
-                      <span className="w-2.5 h-2.5 rounded-full" style={{ background: '#99b4ff' }}/> AÃ§Ä±lma %
-                    </span>
-                    <span className="flex items-center gap-1.5 text-[11px] text-[#8080a0]">
-                      <span className="w-2.5 h-2.5 rounded-full" style={{ background: '#00f1fe' }}/> TÄ±klama %
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <span className="flex items-center gap-1.5 text-[11px] text-[#8080a0]">
-                      <span className="w-2.5 h-2.5 rounded-full" style={{ background: '#14b8a6' }}/> GÃ¶nderilen
-                    </span>
-                    <span className="flex items-center gap-1.5 text-[11px] text-[#8080a0]">
-                      <span className="w-2.5 h-2.5 rounded-full" style={{ background: '#34d399' }}/> Okundu
-                    </span>
-                  </>
-                )}
-              </div>
+              <p className="text-[13px] mt-1" style={{ color:'#44445a' }}>Tüm pazarlama kanallarınız tek ekranda</p>
             </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              {data?.isDemo && (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl" style={{ background:'rgba(251,146,60,0.08)', border:'1px solid rgba(251,146,60,0.2)' }}>
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400"/>
+                  <span className="text-[11px] font-medium" style={{ color:'#fb923c' }}>Demo Veri</span>
+                </div>
+              )}
+              {data?.integration ? (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl" style={{ background:'rgba(52,211,153,0.06)', border:'1px solid rgba(52,211,153,0.15)' }}>
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"/>
+                  <span className="text-[12px] font-medium" style={{ color:'#34d399' }}>{data.integration.shopDomain}</span>
+                </div>
+              ) : (
+                <Link href="/settings"
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl transition-all"
+                  style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.07)', color:'#55556a' }}
+                  onMouseEnter={e=>(e.currentTarget.style.borderColor='rgba(68,112,255,0.3)')}
+                  onMouseLeave={e=>(e.currentTarget.style.borderColor='rgba(255,255,255,0.07)')}>
+                  <ShoppingBag className="w-3.5 h-3.5"/>
+                  <span className="text-[12px] font-medium">Mağaza bağla</span>
+                </Link>
+              )}
+            </div>
+          </div>
 
-            {chartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={200}>
-                {channel === 'email' ? (
-                  <LineChart data={chartData} margin={{ top: 5, right: 5, bottom: 0, left: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
-                    <XAxis dataKey="label"
-                      tick={{ fontSize: 10, fill: '#8080a0', fontFamily: 'JetBrains Mono, monospace' }}
-                      tickLine={false} axisLine={false}
-                      interval={chartData.length > 14 ? Math.floor(chartData.length / 7) : 0}
-                    />
-                    <YAxis
-                      tick={{ fontSize: 10, fill: '#8080a0', fontFamily: 'JetBrains Mono, monospace' }}
-                      tickLine={false} axisLine={false}
-                      tickFormatter={v => `%${v}`} width={36}
-                    />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Line type="monotone" dataKey="AÃ§Ä±lma (%)" stroke="#99b4ff" strokeWidth={2}
-                      dot={false} activeDot={{ r: 4, fill: '#99b4ff', strokeWidth: 0 }} />
-                    <Line type="monotone" dataKey="TÄ±klama (%)" stroke="#00f1fe" strokeWidth={2}
-                      dot={false} activeDot={{ r: 4, fill: '#00f1fe', strokeWidth: 0 }} />
-                  </LineChart>
-                ) : (
-                  <AreaChart data={chartData} margin={{ top: 5, right: 5, bottom: 0, left: 0 }}>
+          {/* Onboarding */}
+          {data?.isDemo && showChecklist && <OnboardingSection onHide={() => setShowChecklist(false)}/>}
+
+          {/* ── 1. Growth Command Center ── */}
+          <section>
+            <SectionHeader title="Growth Command Center" sub="Tüm gelir ve büyüme metrikleri"/>
+            <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+              <KpiCard label="Toplam Gelir"      value={formatCurrency(totalRevenue)}     sub="son 30 gün"           icon={TrendingUp}       accent="#34d399" accentBg="rgba(52,211,153,0.1)"    change={data?.stats?.revenue?.change ?? 12.4}/>
+              <KpiCard label="Kampanya Geliri"   value={formatCurrency(campaignRev)}      sub="email + WhatsApp"     icon={Megaphone}        accent="#99b4ff" accentBg="rgba(153,180,255,0.1)"  change={8.1}/>
+              <KpiCard label="Otomasyon Geliri"  value={formatCurrency(automationRev)}    sub="aktif flow'lardan"    icon={Zap}              accent="#a78bfa" accentBg="rgba(167,139,250,0.1)"  change={21.3}/>
+              <KpiCard label="WhatsApp Geliri"   value={formatCurrency(waRev)}            sub="mesaj dönüşümü"       icon={MessageSquare}    accent="#2dd4bf" accentBg="rgba(45,212,191,0.1)"   change={15.7}/>
+            </div>
+          </section>
+
+          {/* ── 1b. Secondary Metrics Row ── */}
+          <div className="grid grid-cols-2 xl:grid-cols-3 gap-3" style={{ marginTop: '-16px' }}>
+            {[
+              { label: 'Müşteri Büyümesi',   value: `+${data?.stats?.customers?.newThisMonth ?? 94}`,    sub: 'bu ay',                  icon: Users,        color: '#fb923c', change: data?.stats?.customers?.change ?? 7.2 },
+              { label: 'Dönüşüm Oranı',      value: `%${convRate}`,                                       sub: 'tüm kanallar ortalaması', icon: Target,       color: '#f59e0b', change: 0.4 },
+              { label: 'Sepet Terk Oranı',    value: `%${data?.kpiExtended?.cartAbandonRate ?? 68.7}`,     sub: 'son 30 gün',              icon: ShoppingCart, color: '#e84545', change: -5.3, negative: true },
+              { label: 'Ort. Sipariş Tutarı', value: formatCurrency(data?.stats?.revenue?.value ? Math.round((data?.kpiExtended?.totalRevenue || data?.stats?.revenue?.value || 202000) / Math.max(data?.stats?.customers?.value ?? 1248, 1)) : 1342), sub: 'müşteri başı', icon: ShoppingBag, color: '#22c97a', change: 8.7 },
+              { label: 'Aktif Abone',         value: formatNumber(data?.kpiExtended?.activeSubscribers ?? (email.sent ? Math.round(email.sent * 0.85) : 12842)), sub: 'email listesi',   icon: Mail,          color: '#99b4ff', change: 9.1 },
+              { label: 'WhatsApp Abone',      value: formatNumber(data?.kpiExtended?.waSubscribers     ?? (wa.sent ? Math.round(wa.sent * 0.72) : 5892)),         sub: 'opt-in listesi',  icon: MessageSquare, color: '#22c97a', change: 11.4 },
+            ].map(m => {
+              const MIcon = m.icon
+              const pos = (m as { negative?: boolean }).negative ? false : m.change >= 0
+              return (
+                <div key={m.label} className="flex items-center gap-3 rounded-2xl p-4 cursor-default"
+                  style={{ background: 'rgba(255,255,255,0.015)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${m.color}15` }}>
+                    <MIcon className="w-4 h-4" style={{ color: m.color }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px]" style={{ color: '#44445a' }}>{m.label}</p>
+                    <p className="text-[16px] font-bold leading-tight" style={{ color: '#eeeef4', letterSpacing: '-0.02em' }}>{m.value}</p>
+                    <p className="text-[9px]" style={{ color: '#33334a' }}>{m.sub}</p>
+                  </div>
+                  <div className={cn('text-right shrink-0')}>
+                    <div className={cn('inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-md', pos ? 'text-emerald-400' : 'text-red-400')}
+                      style={{ background: pos ? 'rgba(34,201,122,0.08)' : 'rgba(232,69,69,0.08)' }}>
+                      {pos ? <ArrowUpRight className="w-2.5 h-2.5"/> : <ArrowDownRight className="w-2.5 h-2.5"/>}
+                      %{Math.abs(m.change)}
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* ── Revenue Chart + AI Intelligence ── */}
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+            <Card className="xl:col-span-2">
+              <div className="px-6 pt-5 pb-4 flex items-start justify-between gap-4" style={{ borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-widest mb-1" style={{ color:'#44445a' }}>Gelir Dağılımı</p>
+                  <div className="flex items-center gap-4 flex-wrap">
+                    {[{color:'#34d399',label:'Toplam'},{color:'#99b4ff',label:'Email'},{color:'#2dd4bf',label:'WhatsApp'}].map(l => (
+                      <span key={l.label} className="flex items-center gap-1.5 text-[11px]" style={{ color:'#8888aa' }}>
+                        <span className="w-2 h-2 rounded-full" style={{ background:l.color }}/> {l.label}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px]" style={{ color:'#44445a' }}>30 Gün Toplam</p>
+                  <p className="text-[16px] font-bold" style={{ color:'#34d399', fontFamily:'JetBrains Mono,monospace' }}>{formatCurrency(totalRevenue)}</p>
+                </div>
+              </div>
+              <div className="px-4 pb-5 pt-4">
+                <ResponsiveContainer width="100%" height={200}>
+                  <AreaChart data={chartData} margin={{ top:4, right:4, bottom:0, left:-16 }}>
                     <defs>
-                      <linearGradient id="wa-sent" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%"  stopColor="#14b8a6" stopOpacity={0.25}/>
-                        <stop offset="100%" stopColor="#14b8a6" stopOpacity={0}/>
-                      </linearGradient>
-                      <linearGradient id="wa-read" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%"  stopColor="#34d399" stopOpacity={0.2}/>
-                        <stop offset="100%" stopColor="#34d399" stopOpacity={0}/>
-                      </linearGradient>
+                      {[['grad-total','#34d399',0.15],['grad-email','#99b4ff',0.12],['grad-wa','#2dd4bf',0.1]].map(([id,c,op]) => (
+                        <linearGradient key={id as string} id={id as string} x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor={c as string} stopOpacity={op as number}/>
+                          <stop offset="100%" stopColor={c as string} stopOpacity={0}/>
+                        </linearGradient>
+                      ))}
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
-                    <XAxis dataKey="label"
-                      tick={{ fontSize: 10, fill: '#8080a0', fontFamily: 'JetBrains Mono, monospace' }}
-                      tickLine={false} axisLine={false}
-                      interval={chartData.length > 14 ? Math.floor(chartData.length / 7) : 0}
-                    />
-                    <YAxis
-                      tick={{ fontSize: 10, fill: '#8080a0', fontFamily: 'JetBrains Mono, monospace' }}
-                      tickLine={false} axisLine={false} width={36}
-                    />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Area type="monotone" dataKey="GÃ¶nderilen" stroke="#14b8a6" strokeWidth={1.5}
-                      fill="url(#wa-sent)" dot={false} activeDot={{ r: 3, fill: '#14b8a6', strokeWidth: 0 }} />
-                    <Area type="monotone" dataKey="Okundu" stroke="#34d399" strokeWidth={1.5}
-                      fill="url(#wa-read)" dot={false} activeDot={{ r: 3, fill: '#34d399', strokeWidth: 0 }} />
+                    <XAxis dataKey="label" tick={{ fontSize:10, fill:'#44445a', fontFamily:'JetBrains Mono,monospace' }} tickLine={false} axisLine={false}
+                      interval={chartData.length > 14 ? Math.floor(chartData.length/6) : 0}/>
+                    <YAxis tick={{ fontSize:10, fill:'#44445a', fontFamily:'JetBrains Mono,monospace' }} tickLine={false} axisLine={false} width={36}/>
+                    <Tooltip content={<PremiumTooltip/>} cursor={{ stroke:'rgba(255,255,255,0.06)', strokeWidth:1 }}/>
+                    <Area type="monotone" dataKey="rev"   name="Toplam" stroke="#34d399" strokeWidth={1.5} fill="url(#grad-total)" dot={false} activeDot={{ r:3, fill:'#34d399', strokeWidth:0 }}/>
+                    <Area type="monotone" dataKey="email" name="Email"  stroke="#99b4ff" strokeWidth={1.5} fill="url(#grad-email)" dot={false} activeDot={{ r:3, fill:'#99b4ff', strokeWidth:0 }}/>
+                    <Area type="monotone" dataKey="wa"    name="WA"     stroke="#2dd4bf" strokeWidth={1.5} fill="url(#grad-wa)"    dot={false} activeDot={{ r:3, fill:'#2dd4bf', strokeWidth:0 }}/>
                   </AreaChart>
-                )}
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-48 flex flex-col items-center justify-center text-[#272a33]">
-                <BarChart3 className="w-8 h-8 mb-2 opacity-30 text-[#8080a0]" />
-                <p className="text-sm text-[#8080a0]">HenÃ¼z veri yok</p>
-                <p className="text-xs mt-1 text-[#8080a0]/60">Kampanya gÃ¶nderdikten sonra gÃ¶rÃ¼necek</p>
+                </ResponsiveContainer>
               </div>
-            )}
+            </Card>
 
-            {/* Summary stats strip */}
-            {channel === 'email' && emailStats.sent > 0 && (
-              <div className="mt-4 pt-4 border-t border-white/[0.06] grid grid-cols-3 gap-2">
-                {[
-                  { label: 'Ort. AÃ§Ä±lma', value: `%${emailStats.openRate}`, color: '#99b4ff' },
-                  { label: 'Ort. TÄ±klama', value: `%${emailStats.clickRate}`, color: '#00f1fe' },
-                  { label: 'Email Geliri', value: formatCurrency(emailStats.revenue), color: '#34d399' },
-                ].map(s => (
-                  <div key={s.label} className="text-center">
-                    <p className="text-[10px] text-[#8080a0] mb-0.5"
-                      style={{ fontFamily: 'JetBrains Mono, monospace' }}>{s.label}</p>
-                    <p className="text-sm font-bold" style={{ color: s.color }}>{s.value}</p>
-                  </div>
-                ))}
+            {/* ── 2. AI Intelligence Panel ── */}
+            <Card className="flex flex-col">
+              <div className="px-5 pt-5 pb-4 flex items-center gap-3" style={{ borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
+                <div className="relative w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ background:'rgba(167,139,250,0.12)', border:'1px solid rgba(167,139,250,0.2)' }}>
+                  <Sparkles className="w-4 h-4 text-violet-400"/>
+                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-violet-400 border-2" style={{ borderColor:'#0a0a0f' }}/>
+                </div>
+                <div>
+                  <p className="text-[13px] font-semibold" style={{ color:'#eeeef4' }}>AI İçgörüler</p>
+                  <p className="text-[10px]" style={{ color:'#44445a' }}>güncel · 4 fırsat</p>
+                </div>
               </div>
-            )}
-            {channel === 'whatsapp' && waStats.sent > 0 && (
-              <div className="mt-4 pt-4 border-t border-white/[0.06] grid grid-cols-3 gap-2">
-                {[
-                  { label: 'GÃ¶nderilen', value: formatNumber(waStats.sent), color: '#14b8a6' },
-                  { label: 'Ort. Okunma', value: '%96', color: '#34d399' },
-                  { label: 'WA Geliri', value: formatCurrency(waStats.revenue), color: '#99b4ff' },
-                ].map(s => (
-                  <div key={s.label} className="text-center">
-                    <p className="text-[10px] text-[#8080a0] mb-0.5"
-                      style={{ fontFamily: 'JetBrains Mono, monospace' }}>{s.label}</p>
-                    <p className="text-sm font-bold" style={{ color: s.color }}>{s.value}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* AI Insights */}
-          <div className="bento-card p-5 flex flex-col">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-7 h-7 rounded-lg bg-[#0062ff]/15 border border-[#99b4ff]/20 flex items-center justify-center">
-                <Sparkles className="w-3.5 h-3.5 text-[#99b4ff]" />
-              </div>
-              <div>
-                <h3 className="text-sm font-semibold text-[#eeeef4]">AI Ä°Ã§gÃ¶rÃ¼ler</h3>
-                <p className="text-[10px] text-[#8080a0]">
-                  {channel === 'email' ? 'Email' : 'WhatsApp'} Ã¶nerileri
-                </p>
-              </div>
-            </div>
-            <div className="space-y-2 flex-1">
-              {insights.map((insight, i) => {
-                const Icon = insight.icon
-                return (
-                  <div key={i} className="flex items-start gap-2.5 p-3 rounded-lg bg-white/[0.04]/60 border border-white/[0.06] text-xs">
-                    <Icon className={cn('w-3.5 h-3.5 shrink-0 mt-0.5', insight.color)} />
-                    <p className="text-[#8080a0] leading-relaxed">{insight.text}</p>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        </div>
-
-        {/* â”€â”€ SYSTEM LOG + CHANNEL PANEL â”€â”€ */}
-        <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
-
-          {/* System Log */}
-          <div className="xl:col-span-3 bento-card overflow-hidden">
-            <div className="px-5 py-3.5 border-b border-white/[0.06] flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <h3 className="text-sm font-semibold text-[#eeeef4]">System Log</h3>
-                <span className="text-[10px] font-medium text-[#8080a0] bg-white/[0.04] px-2 py-0.5 rounded"
-                  style={{ fontFamily: 'JetBrains Mono, monospace' }}>LIVE</span>
-              </div>
-              <Link href="/campaigns" className="text-xs text-[#99b4ff] hover:text-white font-medium flex items-center gap-1 transition-colors">
-                TÃ¼mÃ¼nÃ¼ gÃ¶r <ChevronRight className="w-3 h-3" />
-              </Link>
-            </div>
-
-            {(data?.recentOpens ?? []).length === 0 ? (
-              <div className="px-5 py-12 text-center text-[#8080a0]">
-                <Activity className="w-8 h-8 mx-auto mb-3 opacity-20" />
-                <p className="text-sm font-medium">HenÃ¼z aktivite yok</p>
-                <p className="text-xs mt-1 text-[#8080a0]/60">Kampanya gÃ¶nderdikten sonra burada gÃ¶rÃ¼necek</p>
-              </div>
-            ) : (
-              <div className="divide-y divide-[#272a33]">
-                {(data?.recentOpens ?? []).map(open => {
-                  const seg = segmentConfig[open.customer?.segment ?? 'inactive'] ?? segmentConfig.inactive
-                  const SegIcon = seg.icon
-                  const initials = open.customer?.name
-                    ? open.customer.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
-                    : '?'
-                  const ts = new Date(open.openedAt).toLocaleString('tr-TR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+              <div className="p-4 space-y-2.5 flex-1">
+                {DEMO_AI_INSIGHTS.map((ins, i) => {
+                  const Icon = ins.icon
                   return (
-                    <div key={open.id} className="px-5 py-3 flex items-center gap-3 hover:bg-white/[0.04] transition-colors">
-                      <div className="w-8 h-8 rounded-lg bg-white/[0.04] border border-white/[0.06] flex items-center justify-center text-[11px] font-bold text-[#eeeef4] shrink-0"
-                        style={{ fontFamily: 'JetBrains Mono, monospace' }}>{initials}</div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-xs font-semibold text-[#eeeef4] truncate">{open.customer?.name ?? 'Bilinmeyen'}</p>
-                          {open.customer?.segment && (
-                            <span className={cn('inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold border', seg.bg, seg.color)}>
-                              <SegIcon className="w-2.5 h-2.5" />{seg.label}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-[11px] text-[#8080a0] mt-0.5 truncate">{open.campaign?.name ?? 'â€”'}</p>
+                    <div key={i} className="flex items-start gap-3 p-3.5 rounded-xl cursor-default transition-all"
+                      style={{ background:ins.bg, border:`1px solid ${ins.border}` }}>
+                      <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5" style={{ background:`${ins.color}18` }}>
+                        <Icon className="w-3.5 h-3.5" style={{ color:ins.color }}/>
                       </div>
-                      <div className="text-right shrink-0">
-                        <p className="text-xs font-bold text-emerald-400">
-                          {open.customer?.totalSpent ? formatCurrency(open.customer.totalSpent) : 'â€”'}
-                        </p>
-                        <p className="text-[10px] text-[#8080a0]" style={{ fontFamily: 'JetBrains Mono, monospace' }}>{ts}</p>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color:ins.color }}>{ins.title}</p>
+                        <p className="text-[11.5px] leading-relaxed" style={{ color:'#aaaacc' }}>{ins.text}</p>
+                        <Link href={ins.href} className="inline-flex items-center gap-1 mt-2 text-[10px] font-semibold" style={{ color:ins.color }}>
+                          {ins.action} <ArrowRight className="w-2.5 h-2.5"/>
+                        </Link>
                       </div>
                     </div>
                   )
                 })}
               </div>
-            )}
+            </Card>
           </div>
 
-          {/* Channel Performance + Quick links */}
-          <div className="xl:col-span-2 bento-card overflow-hidden">
-            <div className="px-5 py-3.5 border-b border-white/[0.06] flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Target className="w-4 h-4 text-[#99b4ff]" />
-                <h3 className="text-sm font-semibold text-[#eeeef4]">Kanal KarÅŸÄ±laÅŸtÄ±rma</h3>
-              </div>
-              <Link href="/analytics" className="text-xs text-[#99b4ff] hover:text-white flex items-center gap-1 transition-colors">
-                Detaylar <ChevronRight className="w-3 h-3" />
-              </Link>
-            </div>
-            <div className="p-5 space-y-5">
-              {[
-                {
-                  icon: Mail, label: 'Email',
-                  sent: emailStats.sent,
-                  rate: emailStats.openRate,
-                  rateLabel: 'AÃ§Ä±lma oranÄ±',
-                  revenue: emailStats.revenue,
-                  color: 'text-[#99b4ff]', bar: '#99b4ff', bg: 'bg-[#99b4ff]/10',
-                  active: channel === 'email',
-                },
-                {
-                  icon: MessageSquare, label: 'WhatsApp',
-                  sent: waStats.sent,
-                  rate: waStats.sent > 0 ? 96 : 0,
-                  rateLabel: 'Okunma oranÄ±',
-                  revenue: waStats.revenue,
-                  color: 'text-teal-400', bar: '#14b8a6', bg: 'bg-teal-500/10',
-                  active: channel === 'whatsapp',
-                },
-              ].map(ch => {
-                const Icon = ch.icon
+          {/* ── 3. Marketing Channels Overview ── */}
+          <section>
+            <SectionHeader title="Pazarlama Kanalları" sub="Tüm kanallar ve performansları"/>
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+              {DEMO_CHANNELS.map(ch => {
+                const Icon = ch.Icon
+                const isActive = ch.status === 'active'
                 return (
-                  <div key={ch.label}
-                    className={cn('rounded-lg p-3 transition-all cursor-pointer', ch.active ? 'bg-white/[0.04]' : 'hover:bg-white/[0.04]/50')}
-                    onClick={() => setChannel(ch.label.toLowerCase() as Channel)}>
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <div className={cn('w-7 h-7 rounded-lg flex items-center justify-center shrink-0', ch.bg)}>
-                          <Icon className={cn('w-3.5 h-3.5', ch.color)} />
-                        </div>
-                        <span className="text-xs font-semibold text-[#eeeef4]">{ch.label}</span>
+                  <div key={ch.id} className="relative rounded-2xl p-5 cursor-default"
+                    style={{ background:'rgba(255,255,255,0.025)', border:`1px solid ${isActive ? `${ch.color}20` : 'rgba(255,255,255,0.06)'}`, transition:'all .2s' }}
+                    onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-1px)';e.currentTarget.style.boxShadow=`0 16px 48px rgba(0,0,0,0.3)`}}
+                    onMouseLeave={e=>{e.currentTarget.style.transform='none';e.currentTarget.style.boxShadow='none'}}>
+                    <div className="absolute top-0 left-4 right-4 h-px rounded-full" style={{ background:`linear-gradient(90deg,transparent,${ch.color}44,transparent)` }}/>
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background:`${ch.color}15` }}>
+                        <Icon className="w-4.5 h-4.5" style={{ color:ch.color }}/>
                       </div>
-                      <span className="text-xs font-bold text-emerald-400">{formatCurrency(ch.revenue)}</span>
+                      <span className={cn('text-[9px] font-bold uppercase tracking-widest px-2 py-1 rounded-full',
+                        isActive ? '' : '')}
+                        style={isActive ? { background:`${ch.color}15`, color:ch.color } : { background:'rgba(255,255,255,0.04)', color:'#44445a' }}>
+                        {isActive ? 'Aktif' : 'Kurulmadı'}
+                      </span>
                     </div>
-                    <div className="flex items-center gap-2 mb-2 pl-9">
-                      <span className="text-[10px] text-[#8080a0]"
-                        style={{ fontFamily: 'JetBrains Mono, monospace' }}>{formatNumber(ch.sent)} gÃ¶nderildi</span>
-                      {ch.rate > 0 && (
-                        <span className={cn('text-[10px] font-bold', ch.color)}>Â· %{ch.rate} {ch.rateLabel}</span>
-                      )}
-                    </div>
-                    <div className="pl-9">
-                      <div className="w-full bg-transparent rounded-full h-1.5">
-                        <div className="h-1.5 rounded-full transition-all duration-500"
-                          style={{ width: `${Math.min(ch.rate, 100)}%`, background: ch.bar }} />
+                    <p className="text-[13px] font-semibold mb-3" style={{ color:'#eeeef4' }}>{ch.label}</p>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-[11px]">
+                        <span style={{ color:'#44445a' }}>Gönderim</span>
+                        <span style={{ color:'#aaaacc', fontFamily:'JetBrains Mono,monospace' }}>{formatNumber(ch.sent)}</span>
+                      </div>
+                      <div className="flex justify-between text-[11px]">
+                        <span style={{ color:'#44445a' }}>Dönüşüm</span>
+                        <span style={{ color: isActive ? ch.color : '#44445a', fontFamily:'JetBrains Mono,monospace' }}>{ch.conv > 0 ? `%${ch.conv}` : '—'}</span>
+                      </div>
+                      <div className="flex justify-between text-[11px]">
+                        <span style={{ color:'#44445a' }}>Gelir</span>
+                        <span className="font-bold" style={{ color:'#34d399', fontFamily:'JetBrains Mono,monospace' }}>{ch.revenue > 0 ? formatCurrency(ch.revenue) : '—'}</span>
                       </div>
                     </div>
+                    {!isActive && (
+                      <Link href="/settings"
+                        className="flex items-center justify-center gap-1.5 mt-4 py-2 rounded-xl text-[11px] font-semibold transition-all"
+                        style={{ background:'rgba(68,112,255,0.08)', color:'#99b4ff', border:'1px solid rgba(68,112,255,0.2)' }}>
+                        <Plus className="w-3 h-3"/> Kur
+                      </Link>
+                    )}
                   </div>
                 )
               })}
             </div>
+          </section>
 
-            <div className="px-5 pb-5 space-y-2">
-              <div className="h-px bg-white/[0.04]" />
-              <div className="pt-2 space-y-1">
-                {[
-                  { href: '/campaigns', label: 'Son Kampanyalar', count: data?.recentCampaigns?.length ?? 0, icon: Megaphone },
-                  { href: '/automations', label: 'Aktif Otomasyonlar', count: data?.recentAutomations?.filter(a => a.status === 'active').length ?? 0, icon: Zap },
-                ].map(item => {
-                  const Icon = item.icon
+          {/* ── 4 & 5: Segmentation + Revenue Attribution ── */}
+          <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
+            {/* Segmentation Snapshot */}
+            <Card className="xl:col-span-3">
+              <div className="px-5 py-4" style={{ borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
+                <SectionHeader title="Segment Anlık Görünüm" href="/segments" hrefLabel="Tüm segmentler"/>
+              </div>
+              <div className="p-5 space-y-2.5">
+                {DEMO_SEGMENTS.map(seg => {
+                  const Icon = seg.icon
                   return (
-                    <Link key={item.href} href={item.href}
-                      className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-white/[0.04] transition-colors group">
-                      <div className="flex items-center gap-2">
-                        <Icon className="w-3.5 h-3.5 text-[#8080a0] group-hover:text-[#99b4ff]" />
-                        <span className="text-xs text-[#8080a0] group-hover:text-[#eeeef4]">{item.label}</span>
+                    <Link key={seg.key} href="/segments"
+                      className="flex items-center gap-3 p-3 rounded-xl transition-all"
+                      style={{ background:seg.bg, border:`1px solid ${seg.border}` }}
+                      onMouseEnter={e=>(e.currentTarget.style.opacity='0.85')}
+                      onMouseLeave={e=>(e.currentTarget.style.opacity='1')}>
+                      <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background:`${seg.color}18` }}>
+                        <Icon className="w-3.5 h-3.5" style={{ color:seg.color }}/>
                       </div>
-                      <span className="text-[10px] font-bold text-[#8080a0] bg-white/[0.04] px-1.5 py-0.5 rounded"
-                        style={{ fontFamily: 'JetBrains Mono, monospace' }}>{item.count}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <p className="text-[12px] font-semibold" style={{ color:'#eeeef4' }}>{seg.label}</p>
+                          <span className="text-[11px] font-bold" style={{ color:seg.color, fontFamily:'JetBrains Mono,monospace' }}>{formatNumber(seg.count)}</span>
+                        </div>
+                        <div className="h-1 rounded-full" style={{ background:'rgba(255,255,255,0.06)' }}>
+                          <div className="h-1 rounded-full transition-all duration-700" style={{ width:`${seg.pct}%`, background:seg.color }}/>
+                        </div>
+                      </div>
+                      <span className="text-[10px] shrink-0" style={{ color:seg.color, fontFamily:'JetBrains Mono,monospace' }}>%{seg.pct}</span>
                     </Link>
                   )
                 })}
-                <Link href="/campaigns/new"
-                  className="flex items-center justify-center gap-2 px-3 py-2 mt-1 rounded-lg bg-[#0062ff] hover:bg-[#0052d4] text-white text-xs font-semibold transition-all">
-                  <Plus className="w-3.5 h-3.5" /> Yeni Kampanya
-                </Link>
               </div>
+            </Card>
+
+            {/* Revenue Attribution */}
+            <Card className="xl:col-span-2 flex flex-col">
+              <div className="px-5 py-4" style={{ borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
+                <SectionHeader title="Gelir Atıfı" href="/analytics"/>
+              </div>
+              <div className="p-5 flex-1">
+                <div className="mb-4 h-[120px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={DEMO_ATTRIBUTION} margin={{ top:0, right:0, bottom:0, left:-20 }}>
+                      <XAxis dataKey="label" tick={{ fontSize:9, fill:'#44445a', fontFamily:'JetBrains Mono,monospace' }} tickLine={false} axisLine={false}/>
+                      <YAxis tick={{ fontSize:9, fill:'#44445a' }} tickLine={false} axisLine={false} width={32}/>
+                      <Tooltip formatter={(v:number) => formatCurrency(v)} contentStyle={{ background:'#141420', border:'1px solid rgba(255,255,255,0.1)', borderRadius:8, fontSize:11 }}/>
+                      <Bar dataKey="value" radius={[4,4,0,0]}>
+                        {DEMO_ATTRIBUTION.map((entry, i) => <Cell key={i} fill={entry.color} fillOpacity={0.85}/>)}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="space-y-2">
+                  {DEMO_ATTRIBUTION.map(a => (
+                    <div key={a.label} className="flex items-center justify-between py-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ background:a.color }}/>
+                        <span className="text-[12px]" style={{ color:'#aaaacc' }}>{a.label}</span>
+                      </div>
+                      <span className="text-[12px] font-bold" style={{ color:'#f0f0f8', fontFamily:'JetBrains Mono,monospace' }}>{formatCurrency(a.value)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </Card>
+          </div>
+
+          {/* ── 6 & 7: Automation Health + Campaign Performance ── */}
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            {/* Automation Health */}
+            <Card>
+              <div className="px-5 py-4" style={{ borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-[13px] font-bold" style={{ color:'#eeeef4' }}>Otomasyon Sağlığı</h2>
+                    <p className="text-[11px] mt-0.5" style={{ color:'#44445a' }}>
+                      <span className="text-emerald-400 font-semibold">{DEMO_FLOWS.length} aktif flow</span> çalışıyor
+                    </p>
+                  </div>
+                  <Link href="/automations" className="flex items-center gap-1 text-[11px] font-semibold" style={{ color:'#44445a' }}
+                    onMouseEnter={e=>(e.currentTarget.style.color='#99b4ff')}
+                    onMouseLeave={e=>(e.currentTarget.style.color='#44445a')}>
+                    Yönet <ChevronRight className="w-3 h-3"/>
+                  </Link>
+                </div>
+              </div>
+              <div className="p-5 space-y-3">
+                {DEMO_FLOWS.map((flow, i) => {
+                  const Icon = flow.icon
+                  return (
+                    <div key={i} className="flex items-center gap-3 p-3.5 rounded-xl transition-all cursor-default"
+                      style={{ background:'rgba(255,255,255,0.02)', border:'1px solid rgba(255,255,255,0.06)' }}
+                      onMouseEnter={e=>(e.currentTarget.style.background='rgba(255,255,255,0.04)')}
+                      onMouseLeave={e=>(e.currentTarget.style.background='rgba(255,255,255,0.02)')}>
+                      <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ background:`${flow.color}15` }}>
+                        <Icon className="w-4 h-4" style={{ color:flow.color }}/>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="text-[12px] font-semibold truncate" style={{ color:'#eeeef4' }}>{flow.name}</p>
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"/>
+                        </div>
+                        <div className="flex items-center gap-3 text-[10px]" style={{ color:'#44445a' }}>
+                          <span style={{ fontFamily:'JetBrains Mono,monospace' }}>{formatNumber(flow.sent)} gönderim</span>
+                          <span style={{ color:flow.color, fontFamily:'JetBrains Mono,monospace' }}>%{flow.conv} dönüşüm</span>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-[13px] font-bold" style={{ color:'#34d399', fontFamily:'JetBrains Mono,monospace' }}>{formatCurrency(flow.revenue)}</p>
+                        <p className="text-[10px]" style={{ color:'#44445a' }}>gelir</p>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </Card>
+
+            {/* Campaign Performance */}
+            <Card>
+              <div className="px-5 py-4" style={{ borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
+                <SectionHeader title="Kampanya Performansı" href="/campaigns"/>
+              </div>
+              <div className="divide-y" style={{ borderColor:'rgba(255,255,255,0.04)' }}>
+                {(data?.recentCampaigns?.length ? data.recentCampaigns : [
+                  { id:'1', name:'VIP Yaz İndirimi',      type:'email',     status:'sent', sent:2840, opened:1138, clicked:284, revenue:42800, createdAt: new Date().toISOString() },
+                  { id:'2', name:'Sepet Hatırlatma WA',    type:'whatsapp',  status:'sent', sent:1240, opened:1190, clicked:372, revenue:28600, createdAt: new Date().toISOString() },
+                  { id:'3', name:'Yeni Ürün Duyurusu',     type:'email',     status:'sent', sent:5200, opened:1716, clicked:390, revenue:18400, createdAt: new Date().toISOString() },
+                  { id:'4', name:'Win-back Kampanyası',     type:'email',     status:'sent', sent:820,  opened:238,  clicked:58,  revenue:9200,  createdAt: new Date().toISOString() },
+                ]).slice(0,4).map((camp, i) => {
+                  const openRate  = camp.sent > 0 ? ((camp.opened/camp.sent)*100).toFixed(1) : '0'
+                  const clickRate = camp.sent > 0 ? ((camp.clicked/camp.sent)*100).toFixed(1) : '0'
+                  const aiScore   = Math.round(60 + Math.random()*35)
+                  const isEmail   = camp.type === 'email'
+                  return (
+                    <div key={camp.id} className="px-5 py-3.5 flex items-center gap-3 transition-all cursor-default"
+                      onMouseEnter={e=>(e.currentTarget.style.background='rgba(255,255,255,0.02)')}
+                      onMouseLeave={e=>(e.currentTarget.style.background='transparent')}>
+                      <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: isEmail ? 'rgba(153,180,255,0.1)' : 'rgba(45,212,191,0.1)' }}>
+                        {isEmail ? <Mail className="w-3.5 h-3.5" style={{ color:'#99b4ff' }}/> : <MessageSquare className="w-3.5 h-3.5 text-teal-400"/>}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[12px] font-semibold truncate mb-1" style={{ color:'#eeeef4' }}>{camp.name}</p>
+                        <div className="flex items-center gap-3 text-[10px]" style={{ color:'#44445a', fontFamily:'JetBrains Mono,monospace' }}>
+                          <span>%{openRate} açılma</span>
+                          <span>%{clickRate} tıklama</span>
+                          <span className="flex items-center gap-1" style={{ color:'#a78bfa' }}>
+                            <Sparkles className="w-2.5 h-2.5"/> {aiScore}
+                          </span>
+                        </div>
+                      </div>
+                      <p className="text-[13px] font-bold shrink-0" style={{ color:'#34d399', fontFamily:'JetBrains Mono,monospace' }}>{formatCurrency(camp.revenue)}</p>
+                    </div>
+                  )
+                })}
+              </div>
+            </Card>
+          </div>
+
+          {/* ── Hızlı İşlemler ── */}
+          <div className="rounded-2xl px-5 py-4" style={{ background:'rgba(255,255,255,0.02)', border:'1px solid rgba(255,255,255,0.07)' }}>
+            <p className="text-[11px] font-semibold mb-3" style={{ color:'#44445a' }}>Hızlı İşlemler</p>
+            <div className="grid grid-cols-6 gap-2">
+              {[
+                { href:'/campaigns/new',   icon:Megaphone,     label:'Yeni Kampanya', sub:'Oluştur',    color:'#99b4ff', bg:'rgba(153,180,255,0.1)' },
+                { href:'/automations/new', icon:Zap,           label:'Otomasyon',     sub:'Oluştur',    color:'#a78bfa', bg:'rgba(167,139,250,0.1)' },
+                { href:'/whatsapp',        icon:MessageSquare, label:'WhatsApp Mesajı', sub:'Gönder',   color:'#2dd4bf', bg:'rgba(45,212,191,0.1)'  },
+                { href:'/segments',        icon:Target,        label:'Segment',       sub:'Oluştur',    color:'#34d399', bg:'rgba(52,211,153,0.1)'  },
+                { href:'/ai-studio',       icon:Sparkles,      label:'AI Studio',     sub:'Görsel Oluştur', color:'#f59e0b', bg:'rgba(245,158,11,0.1)' },
+                { href:'/analytics',       icon:BarChart3,     label:'Rapor',         sub:'Oluştur',    color:'#fb923c', bg:'rgba(251,146,60,0.1)'  },
+              ].map(item => {
+                const ItemIcon = item.icon
+                return (
+                  <Link key={item.href} href={item.href}
+                    className="flex flex-col items-center gap-2 p-3 rounded-xl transition-all"
+                    style={{ background:'rgba(255,255,255,0.02)', border:'1px solid rgba(255,255,255,0.05)' }}
+                    onMouseEnter={e=>{e.currentTarget.style.background=item.bg;e.currentTarget.style.borderColor=`${item.color}25`}}
+                    onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,0.02)';e.currentTarget.style.borderColor='rgba(255,255,255,0.05)'}}>
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background:item.bg }}>
+                      <ItemIcon className="w-4 h-4" style={{ color:item.color }}/>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-[11px] font-semibold" style={{ color:'#eeeef4' }}>{item.label}</p>
+                      <p className="text-[9px]" style={{ color:'#44445a' }}>{item.sub}</p>
+                    </div>
+                  </Link>
+                )
+              })}
             </div>
           </div>
-        </div>
 
-      </div>
+          {/* ── 8 & 9: Integration Status + Activity ── */}
+          <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
+            {/* Activity Feed */}
+            <Card className="xl:col-span-3">
+              <div className="px-5 py-3.5 flex items-center justify-between" style={{ borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
+                <div className="flex items-center gap-2.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"/>
+                  <p className="text-[13px] font-semibold" style={{ color:'#eeeef4' }}>Aktivite Akışı</p>
+                  <span className="text-[9px] font-bold px-2 py-0.5 rounded-md" style={{ background:'rgba(52,211,153,0.1)', color:'#34d399', border:'1px solid rgba(52,211,153,0.2)' }}>LIVE</span>
+                </div>
+                <Link href="/campaigns" className="text-[11px] font-semibold" style={{ color:'#44445a' }}
+                  onMouseEnter={e=>(e.currentTarget.style.color='#99b4ff')}
+                  onMouseLeave={e=>(e.currentTarget.style.color='#44445a')}>
+                  Tümü <ChevronRight className="w-3 h-3 inline"/>
+                </Link>
+              </div>
+              {(data?.recentOpens ?? []).length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-14 gap-3">
+                  <Activity className="w-7 h-7" style={{ color:'#33334a' }}/>
+                  <p className="text-[13px]" style={{ color:'#44445a' }}>Kampanya gönderin, aktiviteler burada görünür</p>
+                  <Link href="/campaigns/new" className="flex items-center gap-1.5 text-[12px] font-semibold" style={{ color:'#99b4ff' }}>
+                    İlk kampanyayı oluştur <ArrowRight className="w-3.5 h-3.5"/>
+                  </Link>
+                </div>
+              ) : (
+                <div>
+                  {(data?.recentOpens ?? []).map((open, idx) => {
+                    const initials = open.customer?.name
+                      ? open.customer.name.split(' ').map((n:string)=>n[0]).join('').slice(0,2).toUpperCase() : '?'
+                    const ts = new Date(open.openedAt).toLocaleString('tr-TR', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })
+                    return (
+                      <div key={open.id}
+                        className="px-5 py-3.5 flex items-center gap-3.5 transition-all cursor-default"
+                        style={{ borderBottom: idx < (data?.recentOpens?.length ?? 0)-1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}
+                        onMouseEnter={e=>(e.currentTarget.style.background='rgba(255,255,255,0.02)')}
+                        onMouseLeave={e=>(e.currentTarget.style.background='transparent')}>
+                        <div className="w-8 h-8 rounded-xl flex items-center justify-center text-[11px] font-bold shrink-0"
+                          style={{ background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.07)', color:'#8888aa', fontFamily:'JetBrains Mono,monospace' }}>
+                          {initials}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[13px] font-semibold truncate" style={{ color:'#eeeef4' }}>{open.customer?.name ?? 'Bilinmeyen'}</p>
+                          <p className="text-[11px] truncate" style={{ color:'#44445a' }}>{open.campaign?.name ?? '—'}</p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-[13px] font-bold" style={{ color:'#34d399', fontFamily:'JetBrains Mono,monospace' }}>
+                            {open.customer?.totalSpent ? formatCurrency(open.customer.totalSpent) : '—'}
+                          </p>
+                          <p className="text-[10px]" style={{ color:'#33334a', fontFamily:'JetBrains Mono,monospace' }}>{ts}</p>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </Card>
+
+            {/* Integration Status */}
+            <Card className="xl:col-span-2 flex flex-col">
+              <div className="px-5 py-4" style={{ borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
+                <SectionHeader title="Entegrasyon Durumu" href="/settings" hrefLabel="Ayarlar"/>
+              </div>
+              <div className="p-5 space-y-2 flex-1">
+                {DEMO_INTEGRATIONS.map((item, i) => (
+                  <div key={i} className="flex items-center gap-3 py-2.5 px-3 rounded-xl transition-all"
+                    style={{ background: item.ok ? 'rgba(52,211,153,0.04)' : 'rgba(248,113,113,0.04)', border: `1px solid ${item.ok ? 'rgba(52,211,153,0.12)' : 'rgba(248,113,113,0.12)'}` }}>
+                    {item.ok
+                      ? <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400"/>
+                      : <XCircle className="w-4 h-4 shrink-0 text-red-400"/>
+                    }
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11px] font-semibold" style={{ color:item.ok ? '#eeeef4' : '#f87171' }}>{item.label}</p>
+                      <p className="text-[10px] truncate" style={{ color:'#44445a' }}>{item.detail}</p>
+                    </div>
+                    {!item.ok && (
+                      <Link href="/settings" className="text-[10px] font-semibold shrink-0 px-2 py-1 rounded-lg" style={{ background:'rgba(68,112,255,0.1)', color:'#99b4ff' }}>
+                        Kur
+                      </Link>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <div className="px-5 pb-5">
+                <Link href="/campaigns/new"
+                  className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-[12px] font-semibold transition-all"
+                  style={{ background:'rgba(68,112,255,0.1)', color:'#99b4ff', border:'1px solid rgba(68,112,255,0.2)' }}
+                  onMouseEnter={e=>{e.currentTarget.style.background='rgba(68,112,255,0.18)';e.currentTarget.style.borderColor='rgba(68,112,255,0.35)'}}
+                  onMouseLeave={e=>{e.currentTarget.style.background='rgba(68,112,255,0.1)';e.currentTarget.style.borderColor='rgba(68,112,255,0.2)'}}>
+                  <Plus className="w-3.5 h-3.5"/> Yeni Kampanya
+                </Link>
+              </div>
+            </Card>
+          </div>
+
+        </div>
       )}
     </AppShell>
   )
 }
-

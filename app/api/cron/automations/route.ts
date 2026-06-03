@@ -1,33 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { resumeWaitingRuns, processUnhandledEvents, scanTimedTriggers } from '@/lib/automation/engine'
 
-const AUTOMATION_RUN_URL = process.env.NEXTAUTH_URL
-  ? `${process.env.NEXTAUTH_URL}/api/automations/run`
-  : 'http://localhost:3001/api/automations/run'
+const CRON_SECRET = process.env.CRON_SECRET ?? ''
 
-// Vercel Cron: GET /api/cron/automations
-// vercel.json schedule: "*/15 * * * *" (her 15 dakikada bir)
 export async function GET(req: NextRequest) {
-  const authHeader = req.headers.get('authorization')
-  const cronSecret = process.env.CRON_SECRET
-
-  // Vercel Cron kendi CRON_SECRET'ini header'a koyar,
-  // ya da doğrudan Vercel internal call olduğundan bearer ile kontrol et.
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (CRON_SECRET) {
+    const auth = req.headers.get('authorization')
+    if (auth !== `Bearer ${CRON_SECRET}`) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
   }
 
-  try {
-    const res = await fetch(AUTOMATION_RUN_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${cronSecret ?? ''}`,
-      },
-    })
+  const [resumed, processed, triggered] = await Promise.all([
+    resumeWaitingRuns(),
+    processUnhandledEvents(),
+    scanTimedTriggers(),
+  ])
 
-    const data = await res.json()
-    return NextResponse.json({ ok: true, ...data })
-  } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 })
-  }
+  return NextResponse.json({ ok: true, resumed, processed, triggered, ts: new Date().toISOString() })
+}
+
+export async function POST(req: NextRequest) {
+  return GET(req)
 }

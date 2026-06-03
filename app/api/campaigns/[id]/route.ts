@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth-options'
+
+import { getApiSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
 async function getAuthorized(id: string, userId: string) {
@@ -8,7 +8,7 @@ async function getAuthorized(id: string, userId: string) {
 }
 
 export async function GET(_: NextRequest, { params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions)
+  const session = await getApiSession()
   if (!session?.user) return NextResponse.json({ error: 'Yetkisiz' }, { status: 401 })
 
   const userId = (session.user as any).id
@@ -19,7 +19,7 @@ export async function GET(_: NextRequest, { params }: { params: { id: string } }
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions)
+  const session = await getApiSession()
   if (!session?.user) return NextResponse.json({ error: 'Yetkisiz' }, { status: 401 })
 
   const userId = (session.user as any).id
@@ -46,7 +46,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 }
 
 export async function DELETE(_: NextRequest, { params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions)
+  const session = await getApiSession()
   if (!session?.user) return NextResponse.json({ error: 'Yetkisiz' }, { status: 401 })
 
   const userId = (session.user as any).id

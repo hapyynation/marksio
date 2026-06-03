@@ -1,5 +1,5 @@
 export type Segment = 'vip' | 'loyal' | 'at_risk' | 'new' | 'inactive'
-export type CampaignType = 'email' | 'sms' | 'whatsapp'
+export type CampaignType = 'email' | 'whatsapp'
 export type CampaignStatus = 'draft' | 'scheduled' | 'active' | 'completed'
 
 export interface Customer {
@@ -43,7 +43,6 @@ export interface RevenuePoint {
   month: string
   total: number
   email: number
-  sms: number
   whatsapp: number
   orders: number
 }
@@ -131,8 +130,8 @@ export const campaigns: Campaign[] = [
   },
   {
     id: 'camp2',
-    name: 'Sepet Terk SMS Kampanyası',
-    type: 'sms',
+    name: 'Sepet Terk WhatsApp Mesajı',
+    type: 'whatsapp',
     status: 'active',
     segment: 'at_risk',
     metrics: { sent: 342, clicked: 128, converted: 41, revenue: 8920 },
@@ -156,8 +155,8 @@ export const campaigns: Campaign[] = [
   },
   {
     id: 'camp4',
-    name: 'Yaz Koleksiyonu SMS Kampanyası',
-    type: 'sms',
+    name: 'Yaz Koleksiyonu E-posta Kampanyası',
+    type: 'email',
     status: 'active',
     segment: 'new',
     metrics: { sent: 2400, clicked: 412, converted: 89, revenue: 14200 },
@@ -183,8 +182,8 @@ export const campaigns: Campaign[] = [
   },
   {
     id: 'camp6',
-    name: 'Sadık Müşteri Ödül SMS',
-    type: 'sms',
+    name: 'Sadık Müşteri Ödül E-postası',
+    type: 'email',
     status: 'draft',
     segment: 'loyal',
     metrics: { sent: 0, clicked: 0, converted: 0, revenue: 0 },
@@ -196,18 +195,18 @@ export const campaigns: Campaign[] = [
 ]
 
 export const revenueData: RevenuePoint[] = [
-  { month: 'Haz\'25', total: 36600, email: 18500, sms: 9200, whatsapp: 8900, orders: 312 },
-  { month: 'Tem\'25', total: 43800, email: 21200, sms: 11400, whatsapp: 11200, orders: 381 },
-  { month: 'Ağu\'25', total: 39800, email: 19800, sms: 9800, whatsapp: 10200, orders: 348 },
-  { month: 'Eyl\'25', total: 50500, email: 24500, sms: 13200, whatsapp: 12800, orders: 428 },
-  { month: 'Eki\'25', total: 61200, email: 29200, sms: 16400, whatsapp: 15600, orders: 512 },
-  { month: 'Kas\'25', total: 80700, email: 38500, sms: 21800, whatsapp: 20400, orders: 684 },
-  { month: 'Ara\'25', total: 118400, email: 55800, sms: 32400, whatsapp: 30200, orders: 981 },
-  { month: 'Oca\'26', total: 56600, email: 26800, sms: 15200, whatsapp: 14600, orders: 468 },
-  { month: 'Şub\'26', total: 59200, email: 28100, sms: 15900, whatsapp: 15200, orders: 492 },
-  { month: 'Mar\'26', total: 69500, email: 32800, sms: 18800, whatsapp: 17900, orders: 578 },
-  { month: 'Nis\'26', total: 75800, email: 35700, sms: 20600, whatsapp: 19500, orders: 634 },
-  { month: 'May\'26', total: 89800, email: 42500, sms: 24200, whatsapp: 23100, orders: 748 },
+  { month: 'Haz\'25', total: 36600, email: 18500, whatsapp: 8900, orders: 312 },
+  { month: 'Tem\'25', total: 43800, email: 21200, whatsapp: 11200, orders: 381 },
+  { month: 'Ağu\'25', total: 39800, email: 19800, whatsapp: 10200, orders: 348 },
+  { month: 'Eyl\'25', total: 50500, email: 24500, whatsapp: 12800, orders: 428 },
+  { month: 'Eki\'25', total: 61200, email: 29200, whatsapp: 15600, orders: 512 },
+  { month: 'Kas\'25', total: 80700, email: 38500, whatsapp: 20400, orders: 684 },
+  { month: 'Ara\'25', total: 118400, email: 55800, whatsapp: 30200, orders: 981 },
+  { month: 'Oca\'26', total: 56600, email: 26800, whatsapp: 14600, orders: 468 },
+  { month: 'Şub\'26', total: 59200, email: 28100, whatsapp: 15200, orders: 492 },
+  { month: 'Mar\'26', total: 69500, email: 32800, whatsapp: 17900, orders: 578 },
+  { month: 'Nis\'26', total: 75800, email: 35700, whatsapp: 19500, orders: 634 },
+  { month: 'May\'26', total: 89800, email: 42500, whatsapp: 23100, orders: 748 },
 ]
 
 export const automations: Automation[] = [
@@ -216,7 +215,7 @@ export const automations: Automation[] = [
     name: 'Sepet Terk Akışı',
     trigger: 'Sepet terk edildiğinde',
     status: 'active',
-    channels: ['email', 'sms'],
+    channels: ['email', 'whatsapp'],
     triggered: 2840,
     converted: 684,
     revenue: 142800,
@@ -238,7 +237,7 @@ export const automations: Automation[] = [
     name: 'VIP Doğum Günü',
     trigger: 'Müşteri doğum günü',
     status: 'active',
-    channels: ['email', 'whatsapp', 'sms'],
+    channels: ['email', 'whatsapp'],
     triggered: 380,
     converted: 215,
     revenue: 48200,
@@ -260,7 +259,7 @@ export const automations: Automation[] = [
     name: 'Sipariş Sonrası Upsell',
     trigger: 'Sipariş tamamlandığında',
     status: 'draft',
-    channels: ['email', 'sms'],
+    channels: ['email'],
     triggered: 0,
     converted: 0,
     revenue: 0,
@@ -287,6 +286,5 @@ export const storeStats = {
   aovGrowth: 5.7,
   conversionRate: 3.8,
   emailOpenRate: 42.6,
-  smsClickRate: 18.4,
   whatsappReadRate: 87.2,
 }

@@ -3,7 +3,7 @@
 import { useRef, useState, useEffect, Suspense, useCallback } from 'react'
 import dynamic from 'next/dynamic'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useSession } from 'next-auth/react'
+import { useSession } from '@/lib/hooks/use-session'
 import {
   ArrowLeft, Loader2, Check, BookmarkPlus, Wand2,
   Crown, TrendingUp, Type, Zap, Star, Target,
@@ -68,7 +68,7 @@ function EditorInner() {
   const [scanning, setScanning] = useState(false)
 
   const templateId = searchParams.get('template')
-  const storeName = (session?.user as Record<string, string>)?.storeName || 'Mağazanız'
+  const storeName = session?.user?.storeName || 'Mağazanız'
 
   const onEditorReady = useCallback(() => {
     setEditorReady(true)

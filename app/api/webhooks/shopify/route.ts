@@ -9,6 +9,7 @@ import {
   detectProductCategory,
   type ShopifyProduct,
 } from '@/lib/shopify'
+import { processUnhandledEvents } from '@/lib/automation/engine'
 
 export async function POST(req: NextRequest) {
   const topic = req.headers.get('x-shopify-topic') ?? ''
@@ -42,16 +43,21 @@ export async function POST(req: NextRequest) {
       case 'orders/create':
       case 'orders/updated':
         await handleOrder(userId, integration.id, payload)
+        // Anlık otomasyon tetikle — order_placed event'ini hemen işle
+        processUnhandledEvents(userId).catch(err => console.error('[Webhook Auto]', err))
         break
 
       case 'customers/create':
       case 'customers/update':
         await handleCustomer(userId, payload)
+        processUnhandledEvents(userId).catch(err => console.error('[Webhook Auto]', err))
         break
 
       case 'checkouts/create':
       case 'checkouts/update':
         await handleCheckout(userId, payload)
+        // Sepet terk otomasyonunu hemen tetikle — cron bekleme
+        processUnhandledEvents(userId).catch(err => console.error('[Webhook Auto]', err))
         break
 
       case 'products/create':
@@ -165,7 +171,9 @@ async function handleCustomer(userId: string, c: Record<string, unknown>) {
   const email = (c.email as string | undefined)?.toLowerCase()
   if (!email) return
 
-  await prisma.customer.upsert({
+  const existing = await prisma.customer.findUnique({ where: { userId_email: { userId, email } } })
+
+  const customer = await prisma.customer.upsert({
     where: { userId_email: { userId, email } },
     create: {
       userId,
@@ -181,6 +189,19 @@ async function handleCustomer(userId: string, c: Record<string, unknown>) {
       platformId: String(c.id),
     },
   })
+
+  /* Fire new_customer trigger only on first creation */
+  if (!existing) {
+    await prisma.customerEvent.create({
+      data: {
+        userId,
+        customerId: customer.id,
+        type: 'new_customer',
+        source: 'shopify',
+        data: JSON.stringify({ email, source: 'shopify', platformId: String(c.id) }),
+      },
+    })
+  }
 }
 
 // ─── Checkout (sepet terk) event handler ─────────────────────────────────
@@ -200,7 +221,23 @@ async function handleCheckout(userId: string, ch: Record<string, unknown>) {
   })
   if (!customer) return
 
-  // Aynı checkout için zaten event var mı?
+  /* Fire checkout_started once per checkout */
+  const existingStarted = await prisma.customerEvent.findFirst({
+    where: { customerId: customer.id, type: 'checkout_started', data: { contains: checkoutId } },
+  })
+  if (!existingStarted) {
+    await prisma.customerEvent.create({
+      data: {
+        userId,
+        customerId: customer.id,
+        type: 'checkout_started',
+        source: 'shopify',
+        data: JSON.stringify({ checkoutId, total: ch.total_price, currency: ch.currency }),
+      },
+    })
+  }
+
+  /* Fire cart_abandoned (de-duplicated) */
   const existingEvent = await prisma.customerEvent.findFirst({
     where: { customerId: customer.id, type: 'cart_abandoned', data: { contains: checkoutId } },
   })

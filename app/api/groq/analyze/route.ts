@@ -24,7 +24,7 @@ export async function GET() {
 Mağaza Verileri:
 - Aylık gelir: ${formatCurrency(storeStats.totalRevenue)}, büyüme: +${storeStats.revenueGrowth}%
 - Toplam müşteri: ${storeStats.totalCustomers}
-- Email açılma: %${storeStats.emailOpenRate}, SMS tıklama: %${storeStats.smsClickRate}
+- Email açılma: %${storeStats.emailOpenRate}
 - Ortalama sipariş: ${formatCurrency(storeStats.avgOrderValue)}
 
 Segmentler:

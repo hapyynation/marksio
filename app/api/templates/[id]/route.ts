@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth-options'
+
+import { getApiSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getPresetById } from '@/lib/email-template-presets'
 
 // GET /api/templates/[id]
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions)
+  const session = await getApiSession()
   if (!session?.user?.id) return NextResponse.json({ error: 'Yetkisiz' }, { status: 401 })
 
   // Preset template
@@ -37,7 +37,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
 // PUT /api/templates/[id]
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions)
+  const session = await getApiSession()
   if (!session?.user?.id) return NextResponse.json({ error: 'Yetkisiz' }, { status: 401 })
 
   if (params.id.startsWith('preset:')) {
@@ -61,7 +61,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 
 // DELETE /api/templates/[id]
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions)
+  const session = await getApiSession()
   if (!session?.user?.id) return NextResponse.json({ error: 'Yetkisiz' }, { status: 401 })
 
   if (params.id.startsWith('preset:')) {

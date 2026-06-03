@@ -1,0 +1,671 @@
+# MARKSIO MASTER SYSTEM ARCHITECTURE
+
+# ÜRÜN TANIMI
+
+Marksio:
+AI destekli marketing automation ve growth operating system platformu.
+
+Amaç:
+E-ticaret markalarının:
+- email marketing
+- WhatsApp marketing
+- AI campaign generation
+- customer intelligence
+- automation
+- revenue attribution
+- segmentation
+- analytics
+işlemlerini tek merkezden yönetebilmesi.
+
+Marksio:
+- klasik CRM değildir
+- basit email tool değildir
+- sadece automation tool değildir
+
+Marksio:
+AI-powered Growth Operating System’dir.
+
+Platform:
+Klaviyo + Shopify Marketing + AI Automation + WhatsApp AI + modern SaaS birleşimi gibi hissettirmeli.
+
+Asla:
+- template admin paneli
+- generic dashboard
+- amatör SaaS
+gibi görünmemeli.
+
+---
+
+# DOMAIN MİMARİSİ
+
+## marksio.com
+Marketing / Landing sitesi.
+
+Amaç:
+- SEO
+- ürün tanıtımı
+- özellikler
+- fiyatlandırma
+- blog
+- CTA
+- demo
+
+Sayfalar:
+- /
+- /features
+- /pricing
+- /about
+- /blog
+- /faq
+- /contact
+
+Navbar:
+- Giriş Yap
+- Ücretsiz Başla
+- Demo Gör
+- Fiyatlandırma
+
+CTA:
+- app.marksio.com/login
+- app.marksio.com/register
+
+---
+
+## app.marksio.com
+Gerçek SaaS uygulaması.
+
+Sayfalar:
+- /login
+- /register
+- /onboarding
+- /dashboard
+- /kampanyalar
+- /otomasyonlar
+- /müşteriler
+- /segmentler
+- /analitik
+- /whatsapp-ai
+- /ai-stüdyo
+- /şablonlar
+- /entegrasyonlar
+- /planlar
+- /ayarlar
+
+---
+
+# TASARIM SİSTEMİ
+
+## TASARIM DİLİ
+
+İlham:
+- Linear
+- Stripe
+- Vercel
+- Arc Browser
+- Notion AI
+- modern Klaviyo
+- Framer
+
+## TEMA
+
+- ultra dark graphite background
+- electric blue accent
+- subtle purple glow
+- premium contrast
+- minimal glassmorphism
+- smooth animations
+- soft gradients
+- modern borders
+
+## TYPOGRAPHY
+
+- güçlü başlık sistemi
+- modern SaaS typography
+- büyük dashboard title’ları
+- okunabilir secondary text
+- consistent hierarchy
+
+## SPACING
+
+- geniş nefes alan layout
+- premium padding sistemi
+- tutarlı margin sistemi
+- adaptive responsive spacing
+
+## KART SİSTEMİ
+
+Kartlar:
+- premium hover glow
+- modern border
+- subtle gradients
+- soft shadows
+- interactive hover states
+- responsive adaptive layout
+
+---
+
+# SOL PANEL MİMARİSİ
+
+## Sidebar Bölümleri
+
+### Dashboard
+AI Growth Command Center.
+
+### Kampanyalar
+Email ve WhatsApp campaign management.
+
+### Otomasyonlar
+Visual automation builder.
+
+### Müşteriler
+Customer intelligence system.
+
+### Segmentler
+Dynamic audience management.
+
+### Analitik
+Revenue-first analytics engine.
+
+### WhatsApp AI
+AI powered WhatsApp operations.
+
+### AI Stüdyo
+AI campaign generation center.
+
+### Şablonlar
+Premium template ecosystem.
+
+### Entegrasyonlar
+Third-party platform integrations.
+
+### Planlar
+Subscription and usage.
+
+### Ayarlar
+Workspace settings.
+
+---
+
+# DASHBOARD
+
+## Amaç
+
+Kullanıcı giriş yaptığında:
+ürünün değerini ilk 10 saniyede anlamalı.
+
+Dashboard:
+AI Growth Operating Center gibi hissettirmeli.
+
+## Bölümler
+
+### Growth Command Center
+- toplam revenue
+- campaign revenue
+- automation revenue
+- WhatsApp revenue
+- active customers
+- conversion rate
+- recurring revenue
+
+### AI Intelligence Center
+AI:
+- revenue fırsatları
+- segment önerileri
+- düşük performans uyarıları
+- send time recommendations
+- automation suggestions
+- campaign score
+
+### Revenue Attribution
+- email revenue
+- WhatsApp revenue
+- automation revenue
+- organic revenue
+- attributed revenue
+
+### Marketing Channels
+- Email
+- WhatsApp
+- Automation
+- Push
+
+### Segment Snapshot
+- VIP customers
+- abandoned cart
+- inactive customers
+- repeat buyers
+- high intent customers
+
+### Automation Health
+- active flows
+- flow performance
+- automation revenue
+- failed automations
+- trigger activity
+
+### Campaign Performance
+- open rate
+- click rate
+- conversion
+- ROI
+- AI score
+
+### Integration Status
+- Shopify sync
+- domain health
+- WhatsApp connection
+- email deliverability
+- API status
+
+### Onboarding Checklist
+- mağaza bağla
+- domain doğrula
+- ilk segment
+- ilk campaign
+- ilk automation
+
+---
+
+# KAMPANYALAR
+
+## Amaç
+
+Gerçek AI marketing campaign operating system.
+
+## Bölümler
+
+### Kampanya Genel Bakış
+- toplam campaign
+- active
+- draft
+- scheduled
+- sent
+- revenue
+
+### Campaign List
+Her kart:
+- campaign adı
+- kanal
+- audience
+- open rate
+- click rate
+- conversion
+- revenue
+- AI score
+
+### Campaign Builder
+
+Gerçek modern editor.
+
+Özellikler:
+- drag-drop architecture
+- reusable blocks
+- CTA sections
+- hero sections
+- ecommerce grids
+- countdown timer
+- testimonials
+- AI generated blocks
+- AI rewrite
+- mobile preview
+- inbox preview
+
+### AI Campaign Intelligence
+- subject recommendations
+- send time prediction
+- revenue prediction
+- segment recommendations
+- spam analysis
+
+### A/B Testing
+- subject test
+- CTA test
+- layout test
+- AI winner prediction
+
+### Revenue Tracking
+- ROI
+- attributed revenue
+- generated orders
+- assisted conversions
+
+---
+
+# OTOMASYONLAR
+
+## Amaç
+
+Visual AI automation operating system.
+
+## Flow Builder
+
+Node-based visual builder.
+
+## Triggerlar
+- cart abandoned
+- product viewed
+- order placed
+- inactivity
+- email opened
+- WhatsApp interaction
+
+## Actionlar
+- email gönder
+- WhatsApp gönder
+- segment değiştir
+- webhook çalıştır
+- indirim oluştur
+- AI action trigger
+
+## Hazır Flowlar
+- Welcome
+- Abandoned Cart
+- Winback
+- Upsell
+- Cross-sell
+- Post Purchase
+- VIP Flow
+
+## AI Automation Suggestions
+AI:
+- automation önerileri
+- trigger önerileri
+- revenue optimization
+
+---
+
+# MÜŞTERİLER
+
+## Amaç
+
+Gerçek Customer Intelligence Platform.
+
+## Customer Profiles
+- revenue
+- LTV
+- email activity
+- WhatsApp activity
+- order history
+- AI behavior score
+
+## Timeline
+- purchases
+- opens
+- clicks
+- conversations
+- automation history
+
+## AI Insights
+- churn risk
+- next purchase prediction
+- purchase intent
+- loyalty score
+
+## Tags
+- VIP
+- high intent
+- inactive
+- returning customer
+
+---
+
+# SEGMENTLER
+
+## Dynamic Segments
+- behavior based
+- revenue based
+- engagement based
+
+## Hazır Segmentler
+- VIP
+- abandoned cart
+- inactive
+- repeat buyers
+- high intent
+
+## AI Segment Generator
+AI:
+- audience discovery
+- smart grouping
+- predictive segmentation
+
+---
+
+# ANALİTİK
+
+## Revenue Analytics
+- total revenue
+- campaign revenue
+- automation revenue
+- attributed revenue
+
+## Funnel Analytics
+- email → click → purchase
+- WhatsApp → conversion
+
+## Campaign Analytics
+- open
+- CTR
+- ROI
+- conversion
+
+## Customer Analytics
+- retention
+- LTV
+- churn
+- repeat rate
+
+## AI Analytics
+- trend prediction
+- anomaly detection
+- growth opportunities
+
+---
+
+# WHATSAPP AI
+
+## Amaç
+
+AI-powered conversational commerce.
+
+## Özellikler
+- AI chatbot
+- intent detection
+- AI replies
+- human handoff
+- WhatsApp campaigns
+- abandoned cart recovery
+- smart responses
+
+## AI
+- emotion analysis
+- sales probability
+- AI memory
+- customer scoring
+
+---
+
+# AI STÜDYO
+
+## AI Email Generator
+- campaign generation
+- subject generation
+- CTA generation
+
+## AI Image Generator
+- ecommerce visuals
+- ad creatives
+- email banners
+
+## AI Automation Generator
+- auto flow generation
+- AI trigger suggestions
+
+## AI Audience Generator
+- smart audience discovery
+
+---
+
+# ŞABLONLAR
+
+## Template Categories
+- ecommerce
+- fashion
+- luxury
+- SaaS
+- skincare
+- black friday
+- holiday
+- welcome
+
+## Özellikler
+- reusable
+- AI editable
+- responsive
+- drag-drop compatible
+
+---
+
+# ENTEGRASYONLAR
+
+## Shopify
+- product sync
+- customer sync
+- order sync
+
+## Resend
+- email delivery
+
+## WhatsApp API
+- Meta Cloud API
+
+## Stripe
+- payment analytics
+
+## Meta Ads
+- campaign attribution
+
+## Webhooks
+- external triggers
+
+---
+
+# PLANLAR
+
+## Free
+- limited emails
+- limited AI
+
+## Pro
+- advanced campaigns
+- automation system
+
+## Growth
+- analytics
+- WhatsApp AI
+
+## Enterprise
+- unlimited
+- team access
+- enterprise AI
+
+---
+
+# AYARLAR
+
+## Workspace
+- members
+- roles
+- permissions
+
+## Domain
+- SPF
+- DKIM
+- DNS
+- health score
+
+## API Keys
+- Resend
+- OpenAI
+- Meta API
+
+## Billing
+- invoices
+- usage
+- subscription
+
+## Security
+- sessions
+- 2FA
+- login history
+
+---
+
+# AUTH MİMARİSİ
+
+## Supabase Auth
+- OTP login
+- magic link
+- session persistence
+- protected routes
+
+## Middleware
+- auth guard
+- redirect handling
+
+---
+
+# DATABASE MİMARİSİ
+
+## Tables
+- users
+- workspaces
+- campaigns
+- campaign_variants
+- campaign_revenue
+- automations
+- automation_nodes
+- customers
+- segments
+- analytics_events
+- integrations
+- ai_generations
+- whatsapp_messages
+- templates
+- onboarding_steps
+
+---
+
+# RESPONSIVE KURALLARI
+
+- mobile optimized
+- adaptive typography
+- no overflow
+- responsive charts
+- responsive tables
+- mobile sidebar
+
+---
+
+# UX KURALLARI
+
+- empty states
+- loading states
+- skeleton loaders
+- hover animations
+- smooth transitions
+- premium modals
+- AI micro-interactions
+
+---
+
+# FINAL GOAL
+
+Marksio:
+- yatırım alınabilecek seviyede
+- gerçek production SaaS hissinde
+- AI-first
+- enterprise-ready
+- scalable
+- premium UX’e sahip
+bir platform olmalı.

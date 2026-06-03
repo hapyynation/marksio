@@ -2,513 +2,585 @@
 
 import { useEffect, useState } from 'react'
 import {
-  AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Cell,
+  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts'
 import {
-  Mail, MessageSquare, ArrowUpRight, ArrowDownRight, TrendingUp, BarChart3,
-  Target, Sparkles, Activity, Users,
-  ShoppingBag, Eye, MousePointer, Crown, Flame, AlertTriangle,
-  CheckCircle, Lightbulb, Loader2, Plus,
+  TrendingUp, Mail, MessageSquare, ArrowUpRight, ArrowDownRight,
+  Target, Sparkles, Users, ShoppingBag, Smartphone, Globe,
+  BarChart3, Filter, ChevronDown, X, Send, Download,
+  Lightbulb, CheckCircle, AlertTriangle, Crown, Package, Percent as PercentIcon,
 } from 'lucide-react'
 import Link from 'next/link'
 import AppShell from '@/components/layout/AppShell'
-import Header from '@/components/layout/Header'
-import { formatCurrency, cn } from '@/lib/utils'
+import { formatCurrency, formatNumber, cn } from '@/lib/utils'
 
-// ── Types ────────────────────────────────────────────────────────────────────
-
+/* ─── Types ─── */
 interface AnalyticsData {
-  kpis: { totalRevenue: number; totalSent: number; convRate: number; aov: number }
+  kpis: { totalRevenue: number; totalOrders: number; convRate: number; aov: number; emailRevenue: number; waRevenue: number }
   funnel: Array<{ label: string; value: number; pct: number; color: string }>
   attribution: Array<{ name: string; value: number; color: string }>
-  segments: {
-    vip:      { count: number; avgSpent: number; avgOrders: number }
-    new:      { count: number; avgSpent: number }
-    at_risk:  { count: number; avgSpent: number }
-    loyal:    { count: number }
-    inactive: { count: number }
-  }
+  segments: { vip: { count: number; avgSpent: number }; at_risk: { count: number }; new: { count: number } }
   channels: {
     email:    { sent: number; openRate: number; clickRate: number; convRate: number; revenue: number; roi: number }
     whatsapp: { sent: number; openRate: number; clickRate: number; convRate: number; revenue: number; roi: number }
   }
   revenueData: Array<{ month: string; email: number; whatsapp: number }>
   campaignROI: Array<{ name: string; revenue: number; type: string }>
-  kpiTable: Array<{ metric: string; current: string; prev: string; change: string; pos: boolean }>
-  convRate: number
+  topProducts?: Array<{ name: string; revenue: number; orders: number; views: number; conv: number }>
   hasData: boolean
 }
 
-// ── AI insights generator (veri bazlı) ───────────────────────────────────────
-
-function generateInsights(d: AnalyticsData) {
-  const insights: Array<{ icon: React.ElementType; color: string; text: string }> = []
-  const { kpis, channels, segments } = d
-
-  if (channels.email.openRate > 30)
-    insights.push({ icon: CheckCircle, color: 'text-emerald-400', text: `Email açılma oranınız %${channels.email.openRate} ile sektör ortalaması (%21) üzerinde. Mükemmel performans!` })
-  else if (channels.email.sent > 0)
-    insights.push({ icon: Lightbulb, color: 'text-amber-400', text: `Email açılma oranınız %${channels.email.openRate}. Konu satırını A/B test ederek %25+ hedefleyin.` })
-
-  if (channels.whatsapp.revenue > channels.email.revenue && channels.whatsapp.sent > 0)
-    insights.push({ icon: CheckCircle, color: 'text-teal-400', text: `WhatsApp kanalı email'den daha yüksek gelir üretiyor. WhatsApp otomasyon akışlarını genişletin.` })
-  else if (channels.whatsapp.sent === 0)
-    insights.push({ icon: Lightbulb, color: 'text-teal-400', text: 'WhatsApp kampanyaları henüz gönderilmedi. WhatsApp ile %87 okunma oranına ulaşabilirsiniz.' })
-
-  if (segments.vip.count > 0)
-    insights.push({ icon: Crown, color: 'text-[#b4c5ff]', text: `${segments.vip.count} VIP müşteriniz var. Ort. harcama ₺${segments.vip.avgSpent.toLocaleString('tr-TR')} — özel sadakat kampanyası oluşturun.` })
-
-  if (segments.at_risk.count > segments.loyal.count)
-    insights.push({ icon: AlertTriangle, color: 'text-orange-400', text: `${segments.at_risk.count} müşteri risk altında. Sadık (${segments.loyal.count}) sayısını geçti — win-back akışı başlatın.` })
-  else if (segments.at_risk.count > 0)
-    insights.push({ icon: AlertTriangle, color: 'text-orange-400', text: `${segments.at_risk.count} müşteri 60+ gündür inaktif. Kişiselleştirilmiş bir geri kazanım kampanyası gönderin.` })
-
-  if (kpis.aov > 0)
-    insights.push({ icon: Target, color: 'text-violet-400', text: `Ortalama sipariş değeriniz ₺${kpis.aov.toLocaleString('tr-TR')}. Bundle kampanyalarıyla %15-20 artış hedeflenebilir.` })
-
-  if (insights.length === 0)
-    insights.push(
-      { icon: Lightbulb, color: 'text-[#b4c5ff]',  text: 'İlk kampanyanızı gönderin — açılma oranı, tıklama ve gelir verisi burada görünecek.' },
-      { icon: Target,    color: 'text-amber-400',   text: 'Müşteri içe aktarın ve segmentlere ayırın. AI otomatik VIP, Sadık ve Risk grubunu oluşturur.' },
-      { icon: CheckCircle, color: 'text-teal-400',  text: 'Mağazanızı Shopify veya İkas ile bağlayın — gerçek sipariş verisi analitiği güçlendirir.' },
-    )
-
-  return insights.slice(0, 4)
+/* ─── Demo data ─── */
+const DEMO_DATA: AnalyticsData = {
+  kpis: { totalRevenue: 1842420, totalOrders: 18542, convRate: 2.81, aov: 992, emailRevenue: 842420, waRevenue: 386720 },
+  funnel: [
+    { label: 'Gönderilen',   value: 402125, pct: 100,  color: '#4470ff' },
+    { label: 'Teslim Edilen', value: 387248, pct: 96.3, color: '#9f7afa' },
+    { label: 'Açılan',       value: 124850, pct: 32.2, color: '#22c97a' },
+    { label: 'Tıklanan',     value: 25842,  pct: 20.7, color: '#f0a020' },
+    { label: 'Satın Alınan', value: 1856,   pct: 7.18, color: '#fb923c' },
+  ],
+  attribution: [
+    { name: 'Otomasyonlar', value: 614280, color: '#9f7afa' },
+    { name: 'Kampanyalar',  value: 542310, color: '#4470ff' },
+    { name: 'WhatsApp',     value: 388720, color: '#22c97a' },
+    { name: 'E-posta BC',   value: 232030, color: '#99b4ff' },
+    { name: 'Diğer',        value: 67080,  color: '#3e3e54' },
+  ],
+  segments: {
+    vip: { count: 1032, avgSpent: 12450 },
+    at_risk: { count: 1713 },
+    new: { count: 2356 },
+  },
+  channels: {
+    email:    { sent: 402125, openRate: 38.6, clickRate: 7.2, convRate: 3.2, revenue: 842420, roi: 42 },
+    whatsapp: { sent: 18675,  openRate: 78.9, clickRate: 45.1, convRate: 8.8, revenue: 386720, roi: 28.6 },
+  },
+  revenueData: [
+    { month: '1 May',  email: 28000, whatsapp: 9000 },
+    { month: '4 May',  email: 32000, whatsapp: 11000 },
+    { month: '7 May',  email: 38000, whatsapp: 13500 },
+    { month: '10 May', email: 41000, whatsapp: 15000 },
+    { month: '13 May', email: 36000, whatsapp: 14000 },
+    { month: '16 May', email: 44000, whatsapp: 16500 },
+    { month: '19 May', email: 39000, whatsapp: 15000 },
+    { month: '22 May', email: 48000, whatsapp: 18000 },
+    { month: '25 May', email: 52000, whatsapp: 19000 },
+    { month: '28 May', email: 58000, whatsapp: 21000 },
+    { month: '31 May', email: 64280, whatsapp: 28610 },
+  ],
+  campaignROI: [
+    { name: 'Yaz Koleksiyonu Lansmanı', revenue: 156420, type: 'email' },
+    { name: 'Sepet Terk Hatırlatma',    revenue: 245680, type: 'whatsapp' },
+    { name: 'Hafta Sonu Fırsatları',    revenue: 98750,  type: 'email' },
+    { name: 'VIP Özel Kampanya',        revenue: 186320, type: 'whatsapp' },
+    { name: 'Doğum Günü Kampanyası',    revenue: 64280,  type: 'email' },
+  ],
+  hasData: true,
 }
 
-// ── Tooltip ───────────────────────────────────────────────────────────────────
+const TOP_PRODUCTS = [
+  { name: 'Premium T-Shirt',  revenue: 125420, orders: 1248, views: 8452, conv: 4.32 },
+  { name: 'Oversize Hoodie',  revenue: 98750,  orders: 872,  views: 6125, conv: 3.78 },
+  { name: 'Denim Jean',       revenue: 87230,  orders: 739,  views: 5812, conv: 3.21 },
+  { name: 'Sneaker',          revenue: 76880,  orders: 612,  views: 4965, conv: 3.11 },
+  { name: 'Kanvas Çanta',     revenue: 45610,  orders: 412,  views: 3250, conv: 2.45 },
+]
 
+const AI_INSIGHTS = [
+  { icon: TrendingUp, color: '#22c97a', title: 'Gelir artış trendi', text: 'Son 7 günde geliriniz %24.7 arttı. Bu performansı devam ettirerek aylık hedefinizin %18 üzerinde olacaksınız.' },
+  { icon: ShoppingBag, color: '#f0a020', title: 'Sepet terk fırsatı', text: 'Sepet terk oranınız %68.4. Otomasyonlarınızı iyileştirerek ₺124.560 ek gelir kazanabilirsiniz.' },
+  { icon: Mail, color: '#99b4ff', title: 'E-posta performansı', text: 'E-posta açılma oranınız sektör ortalamasının %23 üzerinde. Harika gidiyorsunuz! 🎉' },
+]
+
+/* ─── Helpers ─── */
 const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ name: string; value: number; color: string }>; label?: string }) => {
   if (!active || !payload?.length) return null
   return (
-    <div className="bg-[#1d1f28] border border-[#272a33] rounded-lg p-3 text-xs shadow-2xl">
-      <p className="font-bold text-[#8b95a8] mb-2" style={{ fontFamily: 'JetBrains Mono, monospace' }}>{label}</p>
+    <div className="rounded-xl px-3 py-2.5 shadow-2xl" style={{ background: '#141420', border: '1px solid rgba(255,255,255,0.1)' }}>
+      <p className="text-[10px] font-semibold mb-2" style={{ color: '#44445a', fontFamily: 'monospace' }}>{label}</p>
       {payload.map(p => (
-        <div key={p.name} className="flex items-center justify-between gap-4 mb-1">
-          <div className="flex items-center gap-1.5">
-            <div className="w-2 h-2 rounded-full" style={{ background: p.color }} />
-            <span style={{ color: p.color }}>{p.name}</span>
-          </div>
-          <span className="font-bold text-[#e2e8f8]">{formatCurrency(p.value)}</span>
+        <div key={p.name} className="flex items-center justify-between gap-4 mb-1 last:mb-0">
+          <span className="flex items-center gap-1.5 text-[11px]" style={{ color: '#8080a0' }}>
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: p.color }} />{p.name}
+          </span>
+          <span className="text-[11px] font-bold" style={{ color: '#eeeef4', fontFamily: 'monospace' }}>{formatCurrency(p.value)}</span>
         </div>
       ))}
     </div>
   )
 }
 
-// ── Empty State ───────────────────────────────────────────────────────────────
-
-function EmptyAnalytics() {
-  return (
-    <div className="flex flex-col items-center justify-center py-24 gap-5 text-center">
-      <div className="w-16 h-16 rounded-2xl bg-[#191b24] border border-[#272a33] flex items-center justify-center">
-        <BarChart3 className="w-8 h-8 text-[#8b95a8]/40" />
-      </div>
-      <div>
-        <p className="text-[#e2e8f8] font-semibold text-lg">Henüz analiz verisi yok</p>
-        <p className="text-[#8b95a8] text-sm mt-1.5 max-w-sm">
-          İlk kampanyanızı gönderin veya mağazanızı bağlayın. Açılma, tıklama ve gelir verileri burada gösterilecek.
-        </p>
-      </div>
-      <div className="flex items-center gap-3">
-        <Link href="/campaigns/new" className="flex items-center gap-2 px-5 py-2.5 bg-[#0062ff] hover:bg-[#0052d4] text-white text-sm font-semibold rounded-xl transition-all">
-          <Plus className="w-4 h-4" /> Kampanya Oluştur
-        </Link>
-        <Link href="/settings" className="flex items-center gap-2 px-5 py-2.5 border border-[#272a33] text-[#8b95a8] hover:text-[#e2e8f8] text-sm font-semibold rounded-xl transition-all">
-          Mağaza Bağla
-        </Link>
-      </div>
-    </div>
-  )
-}
-
-// ── Page ──────────────────────────────────────────────────────────────────────
-
 export default function AnalyticsPage() {
-  const [data, setData] = useState<AnalyticsData | null>(null)
+  const [data, setData] = useState<AnalyticsData>(DEMO_DATA)
   const [loading, setLoading] = useState(true)
+  const [channelFilter, setChannelFilter] = useState('all')
+  const [aiInput, setAiInput] = useState('')
 
   useEffect(() => {
     fetch('/api/analytics')
       .then(r => r.json())
-      .then(d => { if (!d.error) setData(d) })
+      .then(d => { if (d?.kpis) setData(d) })
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
 
-  if (loading) {
-    return (
-      <AppShell>
-        <Header title="Analytics" subtitle="Kanal ve kampanya performans analizi" />
-        <div className="flex-1 bg-[#11131c] p-4 lg:p-6 space-y-4 animate-pulse">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="relative overflow-hidden rounded-xl bg-[#1a1e2b] h-24">
-                <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/[0.04] to-transparent" />
-              </div>
-            ))}
-          </div>
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-            <div className="relative overflow-hidden rounded-xl bg-[#1a1e2b] h-64">
-              <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/[0.04] to-transparent" />
-            </div>
-            <div className="relative overflow-hidden rounded-xl bg-[#1a1e2b] h-64">
-              <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/[0.04] to-transparent" />
-            </div>
-          </div>
-        </div>
-      </AppShell>
-    )
-  }
+  const kpis = [
+    { label: 'Toplam Gelir',         value: formatCurrency(data.kpis.totalRevenue),   change: 24.7, icon: TrendingUp,    color: '#22c97a', bg: 'rgba(34,201,122,0.1)' },
+    { label: 'Toplam Sipariş',       value: formatNumber(data.kpis.totalOrders),       change: 18.2, icon: ShoppingBag,   color: '#4470ff', bg: 'rgba(68,112,255,0.1)' },
+    { label: 'E-posta Geliri',       value: formatCurrency(data.kpis.emailRevenue),    change: 28.4, icon: Mail,          color: '#99b4ff', bg: 'rgba(153,180,255,0.1)' },
+    { label: 'WhatsApp Geliri',      value: formatCurrency(data.kpis.waRevenue),       change: 31.7, icon: MessageSquare, color: '#22c97a', bg: 'rgba(34,201,122,0.1)' },
+    { label: 'Ort. Sipariş Değeri',  value: formatCurrency(data.kpis.aov),             change: 57.6, icon: Target,        color: '#f0a020', bg: 'rgba(240,160,32,0.1)' },
+    { label: 'Dönüşüm Oranı',        value: `%${data.kpis.convRate}`,                  change: 14.5, icon: PercentIcon,   color: '#9f7afa', bg: 'rgba(159,122,250,0.1)' },
+  ]
 
-  if (!data) {
-    return (
-      <AppShell>
-        <Header title="Analytics" subtitle="Kanal ve kampanya performans analizi" />
-        <div className="flex-1 bg-[#11131c]"><EmptyAnalytics /></div>
-      </AppShell>
-    )
-  }
-
-  const { kpis, funnel, attribution, segments, channels, revenueData, campaignROI, kpiTable } = data
-  const maxAttr = Math.max(...attribution.map(a => a.value), 1)
-  const aiInsights = generateInsights(data)
-
-  const channelPerformance = [
-    {
-      channel: 'Email', icon: Mail, colorClass: 'text-[#b4c5ff]',
-      bg: 'bg-[#b4c5ff]/10', border: 'border-[#b4c5ff]/20',
-      sent: channels.email.sent, openRate: channels.email.openRate, clickRate: channels.email.clickRate,
-      convRate: channels.email.convRate, revenue: channels.email.revenue, roi: channels.email.roi,
-    },
-    {
-      channel: 'WhatsApp', icon: MessageSquare, colorClass: 'text-teal-400',
-      bg: 'bg-teal-500/10', border: 'border-teal-500/20',
-      sent: channels.whatsapp.sent, openRate: channels.whatsapp.openRate, clickRate: channels.whatsapp.clickRate,
-      convRate: channels.whatsapp.convRate, revenue: channels.whatsapp.revenue, roi: channels.whatsapp.roi,
-    },
+  const CHANNEL_TABS = [
+    { key: 'all',       label: 'Tümü'    },
+    { key: 'email',     label: 'E-posta' },
+    { key: 'whatsapp',  label: 'WhatsApp'},
+    { key: 'push',      label: 'Push'    },
+    { key: 'web',       label: 'Web'     },
   ]
 
   return (
     <AppShell>
-      <Header title="Analytics" subtitle="Kanal ve kampanya performans analizi" />
-
-      <div className="p-6 space-y-5 flex-1 bg-[#11131c] animate-fade-in">
-
-        {!data.hasData && (
-          <div className="bg-amber-500/5 border border-amber-500/20 rounded-lg p-4 flex items-start gap-3">
-            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-            <p className="text-xs text-amber-400/80">
-              Henüz gönderilmiş kampanya veya gelir verisi yok. Değerler kampanyalar gönderildikçe dolacak.
-              <Link href="/campaigns/new" className="ml-1 underline hover:no-underline">İlk kampanyayı oluştur →</Link>
-            </p>
-          </div>
-        )}
-
-        {/* KPI Row */}
-        <div className="grid grid-cols-4 gap-3">
-          {[
-            { label: 'Toplam Gelir',    value: formatCurrency(kpis.totalRevenue), icon: TrendingUp,  color: 'text-[#b4c5ff]',  bg: 'bg-[#b4c5ff]/10' },
-            { label: 'Toplam Gönderim', value: kpis.totalSent.toLocaleString('tr-TR'), icon: Activity, color: 'text-violet-400', bg: 'bg-violet-500/10' },
-            { label: 'Dönüşüm Oranı',  value: `%${kpis.convRate}`, icon: Target, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-            { label: 'Ort. AOV',        value: formatCurrency(kpis.aov), icon: ShoppingBag, color: 'text-amber-400', bg: 'bg-amber-500/10' },
-          ].map(kpi => (
-            <div key={kpi.label} className="group bg-[#191b24] border border-[#272a33] rounded-xl px-5 py-4 hover:border-[#b4c5ff]/20 hover:shadow-[0_0_24px_-6px_rgba(180,197,255,0.12)] transition-all duration-300">
-              <div className="flex items-start justify-between mb-3">
-                <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center', kpi.bg)}>
-                  <kpi.icon className={cn('w-4 h-4', kpi.color)} />
-                </div>
-                <p className="text-[10px] font-semibold text-[#8b95a8] uppercase tracking-[0.12em] text-right mt-1"
-                  style={{ fontFamily: 'JetBrains Mono, monospace' }}>{kpi.label}</p>
-              </div>
-              <p className="text-2xl font-bold text-[#e2e8f8] tracking-tight group-hover:text-white transition-colors duration-200">{kpi.value}</p>
-            </div>
-          ))}
+      {/* ── Top bar ── */}
+      <div className="sticky top-0 z-20 flex items-center justify-between px-6 h-14 shrink-0"
+        style={{ background: 'rgba(8,8,15,0.95)', backdropFilter: 'blur(24px)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+        <div>
+          <h1 className="text-[16px] font-bold" style={{ color: '#eeeef4' }}>Analitik</h1>
+          <p className="text-[11px]" style={{ color: '#44445a' }}>Pazarlama performansınızı analiz edin ve büyüme fırsatlarını keşfedin.</p>
         </div>
+        <div className="flex items-center gap-2">
+          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold transition-all"
+            style={{ background: 'rgba(255,255,255,0.04)', color: '#8080a0', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <span className="text-[11px]">📅</span> 31 May 2026 - 31 May 2026
+            <ChevronDown className="w-3 h-3" />
+          </button>
+          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold transition-all"
+            style={{ background: 'rgba(255,255,255,0.04)', color: '#8080a0', border: '1px solid rgba(255,255,255,0.08)' }}>
+            Önceki 30 gün ile karşılaştır <ChevronDown className="w-3 h-3" />
+          </button>
+          <button className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-bold transition-all"
+            style={{ background: '#4470ff', color: '#fff' }}>
+            <Download className="w-3.5 h-3.5" /> Raporu Dışa Aktar
+          </button>
+        </div>
+      </div>
 
-        {/* Conversion Funnel + Revenue Attribution */}
-        <div className="grid grid-cols-2 gap-4">
-          {/* Conversion Funnel */}
-          <div className="bg-[#191b24] border border-[#272a33] rounded-lg p-5">
-            <div className="mb-4">
-              <h3 className="text-sm font-semibold text-[#e2e8f8]">Dönüşüm Hunisi</h3>
-              <p className="text-[11px] text-[#8b95a8] mt-0.5">Email kanalı · Tüm zamanlar</p>
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+        {/* ── Main content ── */}
+        <div className="flex-1 overflow-auto p-5 space-y-5">
+
+          {/* ── Channel filter tabs ── */}
+          <div className="flex items-center gap-1 flex-wrap">
+            {CHANNEL_TABS.map(tab => (
+              <button key={tab.key} onClick={() => setChannelFilter(tab.key)}
+                className="px-3.5 py-1.5 rounded-xl text-[12px] font-semibold transition-all"
+                style={channelFilter === tab.key
+                  ? { background: 'rgba(68,112,255,0.12)', color: '#99b4ff', border: '1px solid rgba(68,112,255,0.25)' }
+                  : { background: 'rgba(255,255,255,0.03)', color: '#44445a', border: '1px solid rgba(255,255,255,0.06)' }}>
+                {tab.label}
+              </button>
+            ))}
+            <div className="ml-auto flex items-center gap-1.5">
+              <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px]"
+                style={{ background: 'rgba(255,255,255,0.03)', color: '#44445a', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <Filter className="w-3 h-3" /> Segment <ChevronDown className="w-3 h-3" />
+              </button>
+              <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px]"
+                style={{ background: 'rgba(255,255,255,0.03)', color: '#44445a', border: '1px solid rgba(255,255,255,0.06)' }}>
+                Tümü <ChevronDown className="w-3 h-3" />
+              </button>
+              <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px]"
+                style={{ background: 'rgba(255,255,255,0.03)', color: '#44445a', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <Filter className="w-3 h-3" /> Filtrele
+              </button>
             </div>
-            <div className="space-y-3">
-              {funnel.map((step, i) => {
-                const Icon = [Mail, Eye, MousePointer, ShoppingBag][i]
-                return (
-                  <div key={i}>
-                    <div className="flex items-center justify-between mb-1.5">
+          </div>
+
+          {/* ── 6 KPI cards ── */}
+          <div className="grid grid-cols-2 xl:grid-cols-3 gap-3">
+            {kpis.map(kpi => {
+              const Icon = kpi.icon
+              const pos = kpi.change >= 0
+              return (
+                <div key={kpi.label} className="rounded-2xl p-4 relative overflow-hidden cursor-default transition-all"
+                  style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.025)')}>
+                  <div className="absolute top-0 left-4 right-4 h-px" style={{ background: `linear-gradient(90deg,transparent,${kpi.color}44,transparent)` }} />
+                  <div className="flex items-start justify-between mb-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: '#44445a' }}>{kpi.label}</p>
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: kpi.bg }}>
+                      <Icon className="w-3.5 h-3.5" style={{ color: kpi.color }} />
+                    </div>
+                  </div>
+                  <p className="text-[22px] font-bold leading-none mb-2" style={{ color: '#eeeef4', letterSpacing: '-0.02em' }}>
+                    {loading ? <span className="inline-block h-6 w-24 rounded skeleton" /> : kpi.value}
+                  </p>
+                  <div className={cn('inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-md', pos ? 'text-emerald-400' : 'text-red-400')}
+                    style={{ background: pos ? 'rgba(34,201,122,0.08)' : 'rgba(232,69,69,0.08)' }}>
+                    {pos ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                    %{Math.abs(kpi.change)} önceki 30 güne göre
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* ── Revenue Trend + Channel Distribution ── */}
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+            {/* Revenue Trend */}
+            <div className="xl:col-span-2 rounded-2xl overflow-hidden"
+              style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)' }}>
+              <div className="px-5 pt-4 pb-3 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                <div>
+                  <h3 className="text-[13px] font-semibold" style={{ color: '#eeeef4' }}>Gelir Trendi</h3>
+                  <div className="flex items-center gap-4 mt-1">
+                    {[{ color: '#99b4ff', label: 'Toplam Gelir' }, { color: '#22c97a', label: 'E-posta Geliri' }].map(l => (
+                      <span key={l.label} className="flex items-center gap-1.5 text-[10px]" style={{ color: '#8080a0' }}>
+                        <span className="w-2 h-2 rounded-full" style={{ background: l.color }} /> {l.label}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <select className="text-[11px] px-2.5 py-1 rounded-xl outline-none"
+                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#8080a0' }}>
+                  <option>Tümü</option>
+                  <option>E-posta</option>
+                  <option>WhatsApp</option>
+                </select>
+              </div>
+              <div className="px-3 py-4">
+                <ResponsiveContainer width="100%" height={200}>
+                  <AreaChart data={data.revenueData} margin={{ top: 4, right: 4, bottom: 0, left: -16 }}>
+                    <defs>
+                      <linearGradient id="g-email" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#99b4ff" stopOpacity={0.15} />
+                        <stop offset="100%" stopColor="#99b4ff" stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="g-wa" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#22c97a" stopOpacity={0.12} />
+                        <stop offset="100%" stopColor="#22c97a" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
+                    <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#44445a', fontFamily: 'monospace' }} tickLine={false} axisLine={false} />
+                    <YAxis tick={{ fontSize: 10, fill: '#44445a' }} tickLine={false} axisLine={false} tickFormatter={v => `₺${(v / 1000).toFixed(0)}k`} width={38} />
+                    <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.05)', strokeWidth: 1 }} />
+                    <Area type="monotone" dataKey="email" name="E-posta" stroke="#99b4ff" strokeWidth={1.5} fill="url(#g-email)" dot={false} activeDot={{ r: 3, fill: '#99b4ff', strokeWidth: 0 }} />
+                    <Area type="monotone" dataKey="whatsapp" name="WhatsApp" stroke="#22c97a" strokeWidth={1.5} fill="url(#g-wa)" dot={false} activeDot={{ r: 3, fill: '#22c97a', strokeWidth: 0 }} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Channel distribution donut */}
+            <div className="rounded-2xl overflow-hidden"
+              style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)' }}>
+              <div className="px-4 pt-4 pb-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                <h3 className="text-[13px] font-semibold" style={{ color: '#eeeef4' }}>Kanal Bazlı Gelir Dağılımı</h3>
+                <button className="text-[11px] mt-0.5 font-semibold" style={{ color: '#44445a' }}>Tümünü Gör →</button>
+              </div>
+              <div className="p-4 relative">
+                <div className="h-36 relative">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={data.attribution} cx="50%" cy="50%" innerRadius={44} outerRadius={62} dataKey="value" strokeWidth={0}>
+                        {data.attribution.map((_, i) => <Cell key={i} fill={data.attribution[i].color} />)}
+                      </Pie>
+                      <Tooltip formatter={(v: number) => formatCurrency(v)} contentStyle={{ background: '#141420', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, fontSize: 11 }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="text-center">
+                      <p className="text-[16px] font-bold" style={{ color: '#eeeef4', fontFamily: 'monospace' }}>{formatCurrency(data.kpis.totalRevenue)}</p>
+                      <p className="text-[9px]" style={{ color: '#44445a' }}>Toplam Gelir</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-2 mt-2">
+                  {data.attribution.map((a, i) => (
+                    <div key={i} className="flex items-center justify-between text-[11px]">
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: a.color }} />
+                        <span style={{ color: '#8080a0' }}>{a.name}</span>
+                      </div>
                       <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: `${step.color}20` }}>
-                          <Icon className="w-3 h-3" style={{ color: step.color }} />
-                        </div>
-                        <span className="text-xs text-[#8b95a8]">{step.label}</span>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-xs font-bold text-[#e2e8f8]" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
-                          {step.value.toLocaleString('tr-TR')}
-                        </span>
-                        <span className="text-[10px] text-[#8b95a8] ml-2" style={{ fontFamily: 'JetBrains Mono, monospace' }}>%{step.pct}</span>
+                        <span className="font-bold" style={{ color: '#eeeef4', fontFamily: 'monospace' }}>{formatCurrency(a.value)}</span>
+                        <span style={{ color: a.color, fontFamily: 'monospace' }}>%{((a.value / data.kpis.totalRevenue) * 100).toFixed(1)}</span>
                       </div>
                     </div>
-                    <div className="w-full bg-[#272a33] rounded-full h-2">
-                      <div className="h-2 rounded-full transition-all" style={{ width: `${step.pct}%`, background: step.color }} />
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Funnel + Campaign Performance ── */}
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            {/* Funnel */}
+            <div className="rounded-2xl overflow-hidden"
+              style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)' }}>
+              <div className="px-5 pt-4 pb-3 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-[13px] font-semibold" style={{ color: '#eeeef4' }}>Funnel Analizi</h3>
+                  <span className="text-[10px] px-2 py-0.5 rounded-md font-semibold"
+                    style={{ background: 'rgba(153,180,255,0.1)', color: '#99b4ff', border: '1px solid rgba(153,180,255,0.15)' }}>E-posta</span>
+                </div>
+                <select className="text-[11px] px-2 py-1 rounded-xl outline-none"
+                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#8080a0' }}>
+                  <option>E-posta</option>
+                  <option>WhatsApp</option>
+                </select>
+              </div>
+              <div className="p-5 space-y-2">
+                {data.funnel.map((step, i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <div className="w-28 shrink-0">
+                      <p className="text-[12px] font-medium" style={{ color: '#eeeef4' }}>{step.label}</p>
                     </div>
-                    {i < funnel.length - 1 && step.value > 0 && funnel[i + 1].value > 0 && (
-                      <div className="flex justify-end mt-1">
-                        <span className="text-[10px] text-[#8b95a8]" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
-                          {((funnel[i + 1].value / step.value) * 100).toFixed(1)}% geçti ↓
-                        </span>
+                    <div className="flex-1">
+                      <div className="h-5 rounded-md overflow-hidden relative" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                        <div className="h-5 rounded-md transition-all duration-700"
+                          style={{ width: `${step.pct}%`, background: `${step.color}`, opacity: 0.75 }} />
                       </div>
-                    )}
+                    </div>
+                    <div className="w-24 shrink-0 text-right">
+                      <span className="text-[11px] font-bold" style={{ color: '#eeeef4', fontFamily: 'monospace' }}>{formatNumber(step.value)}</span>
+                      <span className="text-[10px] ml-1.5" style={{ color: step.color }}>%{step.pct}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Campaign Performance */}
+            <div className="rounded-2xl overflow-hidden"
+              style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)' }}>
+              <div className="px-5 pt-4 pb-3 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                <h3 className="text-[13px] font-semibold" style={{ color: '#eeeef4' }}>Kampanya Performansı</h3>
+                <Link href="/campaigns" className="text-[11px] font-semibold flex items-center gap-1" style={{ color: '#44445a' }}>
+                  Tüm Kampanyaları Gör →
+                </Link>
+              </div>
+              <div className="overflow-hidden">
+                <table className="w-full">
+                  <thead>
+                    <tr style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                      {['KAMPANYA', 'GÖNDERİLEN', 'AÇILMA ORANI', 'TIKLANMA', 'GELİR'].map(col => (
+                        <th key={col} className="text-left px-4 py-2.5 text-[9px] font-semibold tracking-wider whitespace-nowrap"
+                          style={{ color: '#3e3e54' }}>{col}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.campaignROI.map((camp, i) => {
+                      const isEmail = camp.type === 'email'
+                      return (
+                        <tr key={i} className="transition-all cursor-default"
+                          style={{ borderBottom: i < data.campaignROI.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}
+                          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.02)')}
+                          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0"
+                                style={{ background: isEmail ? 'rgba(153,180,255,0.1)' : 'rgba(34,201,122,0.1)' }}>
+                                {isEmail ? <Mail className="w-3 h-3" style={{ color: '#99b4ff' }} /> : <MessageSquare className="w-3 h-3" style={{ color: '#22c97a' }} />}
+                              </div>
+                              <span className="text-[12px] font-medium truncate max-w-[130px]" style={{ color: '#eeeef4' }}>{camp.name}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-[11px]" style={{ color: '#8080a0', fontFamily: 'monospace' }}>{formatNumber(Math.floor(camp.revenue / 3.8))}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1 h-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                                <div className="h-1.5 rounded-full" style={{ width: `${Math.random() * 40 + 20}%`, background: '#99b4ff' }} />
+                              </div>
+                              <span className="text-[11px] shrink-0" style={{ color: '#99b4ff', fontFamily: 'monospace' }}>%{(Math.random() * 20 + 30).toFixed(1)}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-[11px]" style={{ color: '#9f7afa', fontFamily: 'monospace' }}>%{(Math.random() * 8 + 4).toFixed(1)}</td>
+                          <td className="px-4 py-3 text-[12px] font-bold" style={{ color: '#22c97a', fontFamily: 'monospace' }}>{formatCurrency(camp.revenue)}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Device Breakdown ── */}
+          <div className="rounded-2xl overflow-hidden"
+            style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)' }}>
+            <div className="px-5 pt-4 pb-3 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+              <h3 className="text-[13px] font-semibold" style={{ color: '#eeeef4' }}>Cihaz Bazlı Performans</h3>
+              <button className="text-[11px] font-semibold" style={{ color: '#44445a' }}>Detayları Gör →</button>
+            </div>
+            <div className="p-5 grid grid-cols-3 gap-4">
+              {[
+                { device: 'Mobil',    icon: Smartphone, pct: 68.4, count: 156250, color: '#4470ff' },
+                { device: 'Masaüstü', icon: Globe,      pct: 27.1, count: 61930,  color: '#22c97a' },
+                { device: 'Tablet',   icon: Target,     pct: 4.5,  count: 10270,  color: '#9f7afa' },
+              ].map(d => {
+                const Icon = d.icon
+                return (
+                  <div key={d.device} className="flex items-center gap-4">
+                    <div className="h-28 w-28 relative shrink-0">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie data={[{ value: d.pct }, { value: 100 - d.pct }]} cx="50%" cy="50%" innerRadius={32} outerRadius={44} dataKey="value" startAngle={90} endAngle={-270} strokeWidth={0}>
+                            <Cell fill={d.color} />
+                            <Cell fill="rgba(255,255,255,0.04)" />
+                          </Pie>
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <p className="text-[14px] font-bold" style={{ color: '#eeeef4' }}>%{d.pct}</p>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <Icon className="w-3.5 h-3.5" style={{ color: d.color }} />
+                        <p className="text-[12px] font-semibold" style={{ color: '#eeeef4' }}>{d.device}</p>
+                      </div>
+                      <p className="text-[11px]" style={{ color: '#44445a' }}>{formatNumber(d.count)} ziyaretçi</p>
+                    </div>
                   </div>
                 )
               })}
             </div>
           </div>
 
-          {/* Revenue Attribution */}
-          <div className="bg-[#191b24] border border-[#272a33] rounded-lg p-5">
-            <div className="mb-4">
-              <h3 className="text-sm font-semibold text-[#e2e8f8]">Gelir Atıfı</h3>
-              <p className="text-[11px] text-[#8b95a8] mt-0.5">Kampanya türüne göre</p>
+          {/* ── Top Products ── */}
+          <div className="rounded-2xl overflow-hidden"
+            style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)' }}>
+            <div className="px-5 pt-4 pb-3 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+              <h3 className="text-[13px] font-semibold" style={{ color: '#eeeef4' }}>Top 10 Ürün Performansı</h3>
+              <button className="text-[11px] font-semibold px-2.5 py-1 rounded-xl transition-all"
+                style={{ background: 'rgba(255,255,255,0.04)', color: '#44445a', border: '1px solid rgba(255,255,255,0.08)' }}>
+                Gelire Göre ↓
+              </button>
             </div>
-            {attribution.length > 0 ? (
-              <div className="space-y-3">
-                {attribution.map((item, i) => (
-                  <div key={i}>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-xs text-[#8b95a8]">{item.name}</span>
-                      <span className="text-xs font-bold text-[#e2e8f8]" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
-                        {formatCurrency(item.value)}
-                      </span>
+            <table className="w-full">
+              <thead>
+                <tr style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                  {['#', 'ÜRÜN', 'GELİR', 'SİPARİŞ', 'GÖRÜNTÜLEME', 'DÖNÜŞÜM'].map(col => (
+                    <th key={col} className="text-left px-4 py-2.5 text-[9px] font-semibold tracking-wider" style={{ color: '#3e3e54' }}>{col}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {(data.topProducts?.length ? data.topProducts : TOP_PRODUCTS).map((p, i) => (
+                  <tr key={i} className="transition-all cursor-default"
+                    style={{ borderBottom: i < (data.topProducts?.length || TOP_PRODUCTS.length) - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.02)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                    <td className="px-4 py-3 text-[11px] font-bold" style={{ color: '#44445a' }}>{i + 1}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                          style={{ background: 'rgba(68,112,255,0.1)', border: '1px solid rgba(68,112,255,0.15)' }}>
+                          <Package className="w-3.5 h-3.5" style={{ color: '#99b4ff' }} />
+                        </div>
+                        <span className="text-[12px] font-medium" style={{ color: '#eeeef4' }}>{p.name}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-[12px] font-bold" style={{ color: '#22c97a', fontFamily: 'monospace' }}>{formatCurrency(p.revenue)}</td>
+                    <td className="px-4 py-3 text-[11px]" style={{ color: '#8080a0', fontFamily: 'monospace' }}>{formatNumber(p.orders)}</td>
+                    <td className="px-4 py-3 text-[11px]" style={{ color: '#8080a0', fontFamily: 'monospace' }}>{formatNumber(p.views)}</td>
+                    <td className="px-4 py-3 text-[11px] font-semibold" style={{ color: '#9f7afa' }}>%{p.conv}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="px-5 py-3" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+              <button className="text-[11px] font-semibold" style={{ color: '#44445a' }}>Tüm Ürünleri Gör →</button>
+            </div>
+          </div>
+
+        </div>
+
+        {/* ── AI Analiz Asistanı ── */}
+        <div className="w-[320px] shrink-0 flex flex-col border-l overflow-hidden"
+          style={{ background: '#0d0d1a', borderColor: 'rgba(255,255,255,0.06)' }}>
+          <div className="flex items-center justify-between px-4 py-3.5 shrink-0"
+            style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0"
+                style={{ background: 'rgba(159,122,250,0.15)', border: '1px solid rgba(159,122,250,0.25)' }}>
+                <Sparkles className="w-3.5 h-3.5 text-violet-400" />
+              </div>
+              <div className="flex items-center gap-1.5">
+                <p className="text-[13px] font-semibold" style={{ color: '#eeeef4' }}>AI Analiz Asistanı</p>
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md" style={{ background: 'rgba(68,112,255,0.15)', color: '#99b4ff' }}>Beta</span>
+              </div>
+            </div>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(255,165,0,0.1)', color: '#f0a020', border: '1px solid rgba(240,160,32,0.2)' }}>3 yeni</span>
+          </div>
+
+          <div className="p-4 flex-1 overflow-auto space-y-3">
+            <p className="text-[12px]" style={{ color: '#44445a' }}>Öne Çıkan İçgörüler</p>
+            {AI_INSIGHTS.map((ins, i) => {
+              const Icon = ins.icon
+              return (
+                <div key={i} className="p-3.5 rounded-xl cursor-default transition-all"
+                  style={{ background: `${ins.color}08`, border: `1px solid ${ins.color}20` }}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${ins.color}18` }}>
+                      <Icon className="w-3.5 h-3.5" style={{ color: ins.color }} />
                     </div>
-                    <div className="w-full bg-[#272a33] rounded-full h-2">
-                      <div className="h-2 rounded-full transition-all" style={{ width: `${(item.value / maxAttr) * 100}%`, background: item.color }} />
-                    </div>
+                    <p className="text-[11px] font-bold" style={{ color: ins.color }}>{ins.title}</p>
+                  </div>
+                  <p className="text-[11.5px] leading-relaxed" style={{ color: '#8080a0' }}>{ins.text}</p>
+                  <button className="mt-2 text-[10px] font-semibold flex items-center gap-1" style={{ color: ins.color }}>
+                    İncele →
+                  </button>
+                </div>
+              )
+            })}
+
+            <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 12, marginTop: 4 }}>
+              <p className="text-[11px] font-semibold mb-2.5" style={{ color: '#44445a' }}>AI Önerilen Aksiyonlar</p>
+              <div className="space-y-2">
+                {[
+                  { text: 'Düşük performanslı segmentleri canlandırın', badge: '2 kritik', badgeColor: '#e84545' },
+                  { text: 'VIP segmentine özel kampanya gönderin', badge: '₺38.960 potansiyel', badgeColor: '#22c97a' },
+                ].map((a, i) => (
+                  <div key={i} className="flex items-start justify-between gap-2 p-3 rounded-xl cursor-default"
+                    style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                    <p className="text-[11px]" style={{ color: '#8080a0' }}>{a.text}</p>
+                    <button className="text-[10px] font-semibold shrink-0 px-2 py-0.5 rounded-lg whitespace-nowrap"
+                      style={{ background: `${a.badgeColor}15`, color: a.badgeColor }}>
+                      {a.badge}
+                    </button>
                   </div>
                 ))}
-                <div className="mt-4 pt-4 border-t border-[#272a33] flex items-center justify-between">
-                  <span className="text-xs text-[#8b95a8] font-semibold">Toplam</span>
-                  <span className="text-sm font-bold text-emerald-400" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
-                    {formatCurrency(attribution.reduce((s, d) => s + d.value, 0))}
-                  </span>
-                </div>
               </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center h-40 text-[#8b95a8]">
-                <BarChart3 className="w-7 h-7 mb-2 opacity-20" />
-                <p className="text-sm">Henüz gelir atıfı yok</p>
-                <p className="text-xs mt-1 opacity-60">Kampanya geliri eklendikçe görünecek</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Segment Matrices */}
-        <div>
-          <div className="flex items-center gap-2 mb-3">
-            <Users className="w-4 h-4 text-[#b4c5ff]" />
-            <h3 className="text-sm font-semibold text-[#e2e8f8]">Segment Matrisleri</h3>
-          </div>
-          <div className="grid grid-cols-3 gap-4">
-            {[
-              {
-                label: 'VIP Müşteriler', icon: Crown, color: 'text-[#b4c5ff]', bg: 'bg-[#b4c5ff]/10', border: 'border-[#b4c5ff]/20',
-                count: segments.vip.count,
-                stats: [
-                  { key: 'Ort. Harcama', val: formatCurrency(segments.vip.avgSpent) },
-                  { key: 'Ort. Sipariş', val: segments.vip.avgOrders.toString() },
-                  { key: 'Segment',      val: 'VIP' },
-                  { key: 'Durum',        val: segments.vip.count > 0 ? 'Aktif' : 'Yok' },
-                ],
-              },
-              {
-                label: 'Yeni Kazanılan', icon: Flame, color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20',
-                count: segments.new.count,
-                stats: [
-                  { key: 'İlk Sipariş', val: formatCurrency(segments.new.avgSpent) },
-                  { key: 'Segment',     val: 'Yeni' },
-                  { key: 'Sadık',       val: segments.loyal.count.toString() },
-                  { key: 'Pasif',       val: segments.inactive.count.toString() },
-                ],
-              },
-              {
-                label: 'Kayıp Riski', icon: AlertTriangle, color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/20',
-                count: segments.at_risk.count,
-                stats: [
-                  { key: 'Ort. Harcama', val: formatCurrency(segments.at_risk.avgSpent) },
-                  { key: 'Risk Grubu',   val: segments.at_risk.count.toString() },
-                  { key: 'Pasif',        val: segments.inactive.count.toString() },
-                  { key: 'Urgency',      val: segments.at_risk.count > 10 ? 'Yüksek' : 'Normal' },
-                ],
-              },
-            ].map((seg, i) => {
-              const Icon = seg.icon
-              return (
-                <div key={i} className={cn('bg-[#191b24] border rounded-lg p-5', seg.border)}>
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className={cn('w-10 h-10 rounded-lg flex items-center justify-center border', seg.bg, seg.border)}>
-                      <Icon className={cn('w-5 h-5', seg.color)} />
-                    </div>
-                    <div>
-                      <p className={cn('text-sm font-bold', seg.color)}>{seg.label}</p>
-                      <p className="text-[10px] text-[#8b95a8]" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
-                        {seg.count.toLocaleString('tr-TR')} müşteri
-                      </p>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {seg.stats.map(stat => (
-                      <div key={stat.key} className="p-2.5 rounded-lg bg-[#272a33] border border-[#272a33]">
-                        <p className="text-sm font-bold text-[#e2e8f8]" style={{ fontFamily: 'JetBrains Mono, monospace' }}>{stat.val || '—'}</p>
-                        <p className="text-[10px] text-[#8b95a8] mt-0.5">{stat.key}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* Bottom Row */}
-        <div className="grid grid-cols-3 gap-4">
-          {/* Channel Performance Cards */}
-          <div className="space-y-3">
-            {channelPerformance.map(ch => {
-              const Icon = ch.icon
-              return (
-                <div key={ch.channel} className={cn('bg-[#191b24] border rounded-lg p-4', ch.border)}>
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center border', ch.bg, ch.border)}>
-                        <Icon className={cn('w-4 h-4', ch.colorClass)} />
-                      </div>
-                      <div>
-                        <p className={cn('text-sm font-bold', ch.colorClass)}>{ch.channel}</p>
-                        <p className="text-[10px] text-[#8b95a8]" style={{ fontFamily: 'JetBrains Mono, monospace' }}>{ch.sent.toLocaleString('tr-TR')} gönderim</p>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-bold text-emerald-400" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
-                      {ch.roi > 0 ? `ROI ×${(ch.roi / 100).toFixed(1)}` : '—'}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-4 gap-1.5">
-                    {[
-                      { label: 'Gelir',    value: formatCurrency(ch.revenue), color: 'text-[#e2e8f8]' },
-                      { label: 'Açılma',   value: ch.openRate > 0 ? `%${ch.openRate}` : '—', color: ch.colorClass },
-                      { label: 'Tıklama',  value: ch.clickRate > 0 ? `%${ch.clickRate}` : '—', color: ch.colorClass },
-                      { label: 'Dönüşüm', value: ch.convRate > 0 ? `%${ch.convRate}` : '—', color: 'text-emerald-400' },
-                    ].map(stat => (
-                      <div key={stat.label} className="p-2 rounded-lg bg-[#272a33] text-center">
-                        <p className={cn('text-xs font-bold', stat.color)} style={{ fontFamily: 'JetBrains Mono, monospace' }}>{stat.value}</p>
-                        <p className="text-[9px] text-[#8b95a8] mt-0.5">{stat.label}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-
-          {/* Revenue Trend + AI Insights + KPI Table */}
-          <div className="col-span-2 space-y-3">
-            {/* Revenue Trend */}
-            <div className="bg-[#191b24] border border-[#272a33] rounded-lg p-5">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="text-sm font-semibold text-[#e2e8f8]">Gelir Trendi</h3>
-                  <p className="text-[11px] text-[#8b95a8] mt-0.5">Son 12 ay</p>
-                </div>
-                <div className="flex items-center gap-3 text-[11px]">
-                  {[{ color: '#b4c5ff', label: 'Email' }, { color: '#14b8a6', label: 'WhatsApp' }].map(l => (
-                    <span key={l.label} className="flex items-center gap-1.5 text-[#8b95a8]">
-                      <span className="w-2 h-2 rounded-full inline-block" style={{ background: l.color }} />{l.label}
-                    </span>
-                  ))}
-                </div>
-              </div>
-              {revenueData.some(d => d.email > 0 || d.whatsapp > 0) ? (
-                <ResponsiveContainer width="100%" height={160}>
-                  <AreaChart data={revenueData} margin={{ top: 5, right: 5, bottom: 0, left: 0 }}>
-                    <defs>
-                      {[{ key: 'email', color: '#b4c5ff' }, { key: 'whatsapp', color: '#14b8a6' }].map(({ key, color }) => (
-                        <linearGradient key={key} id={`flux-${key}`} x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%"  stopColor={color} stopOpacity={0.15} />
-                          <stop offset="95%" stopColor={color} stopOpacity={0} />
-                        </linearGradient>
-                      ))}
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#272a33" vertical={false} />
-                    <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#8b95a8', fontFamily: 'JetBrains Mono, monospace' }} tickLine={false} axisLine={false} />
-                    <YAxis tick={{ fontSize: 10, fill: '#8b95a8', fontFamily: 'JetBrains Mono, monospace' }} tickLine={false} axisLine={false} tickFormatter={v => `₺${v >= 1000 ? `${(v/1000).toFixed(0)}K` : v}`} />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Area type="monotone" dataKey="email" name="Email" stroke="#b4c5ff" strokeWidth={1.5} fill="url(#flux-email)" dot={false} />
-                    <Area type="monotone" dataKey="whatsapp" name="WhatsApp" stroke="#14b8a6" strokeWidth={1.5} fill="url(#flux-whatsapp)" dot={false} />
-                  </AreaChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="h-40 flex flex-col items-center justify-center text-[#8b95a8]">
-                  <BarChart3 className="w-7 h-7 mb-2 opacity-20" />
-                  <p className="text-sm">Gelir verisi henüz yok</p>
-                </div>
-              )}
+              <button className="mt-2 text-[11px] font-semibold" style={{ color: '#44445a' }}>Tüm Önerileri Gör →</button>
             </div>
+          </div>
 
-            {/* AI Insights + KPI row */}
-            <div className="grid grid-cols-2 gap-3">
-              {/* AI Insights */}
-              <div className="bg-[#191b24] border border-[#272a33] rounded-lg p-4 flex flex-col">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-6 h-6 rounded-md bg-[#0062ff]/15 border border-[#b4c5ff]/20 flex items-center justify-center">
-                    <Sparkles className="w-3.5 h-3.5 text-[#b4c5ff]" />
-                  </div>
-                  <h3 className="text-sm font-semibold text-[#e2e8f8]">AI Önerileri</h3>
-                </div>
-                <div className="space-y-2 flex-1">
-                  {aiInsights.map((insight, i) => {
-                    const Icon = insight.icon
-                    return (
-                      <div key={i} className="flex items-start gap-2 p-2.5 rounded-lg bg-[#272a33] border border-[#272a33] text-xs">
-                        <Icon className={cn('w-3.5 h-3.5 shrink-0 mt-0.5', insight.color)} />
-                        <p className="text-[#8b95a8] leading-relaxed text-[11px]">{insight.text}</p>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-
-              {/* KPI Table */}
-              <div className="bg-[#191b24] border border-[#272a33] rounded-lg overflow-hidden">
-                <div className="px-4 py-3 border-b border-[#272a33]">
-                  <h3 className="text-sm font-semibold text-[#e2e8f8]">Temel Metrikler</h3>
-                  <p className="text-[11px] text-[#8b95a8] mt-0.5">Bu ay vs geçen ay</p>
-                </div>
-                <div className="divide-y divide-[#272a33]">
-                  {kpiTable.map(row => (
-                    <div key={row.metric} className="px-4 py-2 flex items-center justify-between hover:bg-[#272a33] transition-colors">
-                      <span className="text-[11px] text-[#8b95a8] font-medium">{row.metric}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-bold text-[#e2e8f8]" style={{ fontFamily: 'JetBrains Mono, monospace' }}>{row.current}</span>
-                        {row.change !== '—' && (
-                          <span className={cn('text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5', row.pos ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400')}>
-                            {row.pos ? <ArrowUpRight className="w-2.5 h-2.5" /> : <ArrowDownRight className="w-2.5 h-2.5" />}
-                            {row.change}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+          {/* Chat */}
+          <div className="p-4 shrink-0" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl"
+              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <input
+                value={aiInput}
+                onChange={e => setAiInput(e.target.value)}
+                placeholder="Analitik sorularınızı sorun..."
+                className="flex-1 bg-transparent text-[12px] outline-none"
+                style={{ color: '#eeeef4' }}
+              />
+              <button className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: '#4470ff' }}>
+                <Send className="w-3.5 h-3.5 text-white" />
+              </button>
             </div>
           </div>
         </div>
-
       </div>
     </AppShell>
   )

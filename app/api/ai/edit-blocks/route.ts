@@ -1,12 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth-options'
+﻿import { NextRequest, NextResponse } from 'next/server'
+import { getApiSession } from '@/lib/auth'
 import Groq from 'groq-sdk'
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions)
+  const session = await getApiSession()
   if (!session?.user) return NextResponse.json({ error: 'Yetkisiz' }, { status: 401 })
 
   const { blocks, instruction, storeName, channel } = await req.json()

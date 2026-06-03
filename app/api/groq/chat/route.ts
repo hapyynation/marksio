@@ -1,6 +1,5 @@
-import { NextRequest } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth-options'
+﻿import { NextRequest } from 'next/server'
+import { getApiSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { groq, GROQ_MODEL, buildSystemPrompt, type UserStats } from '@/lib/groq'
 
@@ -58,7 +57,7 @@ export async function POST(req: NextRequest) {
 
     // Kullanıcı datasını al — mümkünse dinamik prompt yap
     let systemPrompt: string
-    const session = await getServerSession(authOptions)
+    const session = await getApiSession()
     if (session?.user?.id) {
       const user = await prisma.user.findUnique({
         where: { id: session.user.id },

@@ -2,250 +2,250 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import {
-  Zap, Play, Pause, Plus, Mail, MessageSquare,
-  ShoppingCart, UserPlus, Gift, Clock, Package, TrendingUp,
-  Sparkles, Trash2, Loader2, AlertCircle, ArrowRight,
-  ChevronRight, BarChart3, Target, Crown, Flame,
-  CheckCircle, Activity, Settings2, Workflow,
+  Zap, Play, Pause, Plus, Search,
+  Activity, Workflow, TrendingUp, Target, CheckCircle2,
+  ShoppingCart, UserPlus, Package, Clock, Tag, Settings2,
+  Eye, CreditCard, Gift, BarChart3,
+  Pencil, Trash2, Loader2, AlertCircle, History,
+  ArrowUpRight, Timer, Copy, Sparkles, Crown,
+  MessageCircle, Layers,
 } from 'lucide-react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import AppShell from '@/components/layout/AppShell'
-import Header from '@/components/layout/Header'
 import { formatCurrency, formatNumber, cn } from '@/lib/utils'
 
-const channelIcon: Record<string, React.ElementType> = { email: Mail, whatsapp: MessageSquare }
-const channelStyle: Record<string, { color: string; bg: string; dot: string }> = {
-  email:    { color: 'text-[#b4c5ff]', bg: 'bg-[#b4c5ff]/10 border-[#b4c5ff]/20', dot: 'bg-[#b4c5ff]' },
-  whatsapp: { color: 'text-teal-400',  bg: 'bg-teal-500/10 border-teal-500/20',    dot: 'bg-teal-500' },
+/* ─────────────────────────────────────────────────────────────
+   META
+───────────────────────────────────────────────────────────── */
+
+const TRIGGER_META: Record<string, { label: string; icon: React.ElementType; color: string }> = {
+  cart_abandoned:    { label: 'Sepet Terk',          icon: ShoppingCart, color: '#16a34a' },
+  cart_abandon:      { label: 'Sepet Terk',          icon: ShoppingCart, color: '#16a34a' },
+  new_customer:      { label: 'Yeni Müşteri',        icon: UserPlus,     color: '#2563eb' },
+  new_signup:        { label: 'Yeni Kayıt',          icon: UserPlus,     color: '#2563eb' },
+  order_created:     { label: 'Sipariş',             icon: Package,      color: '#d97706' },
+  order_complete:    { label: 'Sipariş',             icon: Package,      color: '#d97706' },
+  checkout_started:  { label: 'Ödeme Başlatıldı',    icon: CreditCard,   color: '#d97706' },
+  product_viewed:    { label: 'Ürün Görüntülendi',   icon: Eye,          color: '#0891b2' },
+  tag_added:         { label: 'Etiket Eklendi',      icon: Tag,          color: '#dc2626' },
+  customer_inactive: { label: 'Müşteri Pasif',       icon: Clock,        color: '#dc2626' },
+  no_purchase:       { label: 'Satın Alma Yok',      icon: Clock,        color: '#dc2626' },
+  birthday:          { label: 'Doğum Günü',          icon: Gift,         color: '#be185d' },
+  manual_trigger:    { label: 'Manuel',              icon: Play,         color: '#7c3aed' },
+  custom_event:      { label: 'Özel Event',          icon: Settings2,    color: '#7c3aed' },
 }
 
-const triggerMeta: Record<string, { label: string; icon: React.ElementType; color: string; bg: string }> = {
-  cart_abandon:   { label: 'Sepet Terk',          icon: ShoppingCart, color: 'text-blue-400',    bg: 'from-blue-950/60' },
-  cart_abandoned: { label: 'Sepet Terk',          icon: ShoppingCart, color: 'text-blue-400',    bg: 'from-blue-950/60' },
-  new_signup:     { label: 'Yeni Kayıt',           icon: UserPlus,    color: 'text-violet-400',  bg: 'from-violet-950/60' },
-  birthday:       { label: 'Doğum Günü',           icon: Gift,         color: 'text-amber-400',   bg: 'from-amber-950/60' },
-  no_purchase:    { label: 'Satın Alma Yok',       icon: Clock,        color: 'text-red-400',     bg: 'from-red-950/60' },
-  order_complete: { label: 'Sipariş Tamamlandı',   icon: Package,      color: 'text-emerald-400', bg: 'from-emerald-950/60' },
-  order_placed:   { label: 'Sipariş Oluşturuldu', icon: TrendingUp,  color: 'text-cyan-400',    bg: 'from-cyan-950/60' },
-}
-
-const statusConfig: Record<string, { label: string; dot: string; badge: string }> = {
+const STATUS_CFG: Record<string, { label: string; dot: string; badge: string }> = {
   active:  { label: 'Aktif',        dot: 'bg-emerald-400 animate-pulse', badge: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
-  paused:  { label: 'Duraklatıldı', dot: 'bg-amber-400',                  badge: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
-  draft:   { label: 'Taslak',       dot: 'bg-[#8b95a8]',                  badge: 'bg-[#272a33] text-[#8b95a8] border-[#272a33]' },
+  paused:  { label: 'Duraklatıldı', dot: 'bg-amber-400',                 badge: 'bg-amber-500/10 text-amber-400 border-amber-500/20'       },
+  draft:   { label: 'Taslak',       dot: 'bg-[#8080a0]',                 badge: 'bg-slate-100 text-slate-500 border-slate-200'       },
 }
 
-const automationTemplates = [
-  {
-    name: 'Sepet Terk Akışı',
-    icon: ShoppingCart,
-    desc: 'Email + WhatsApp ile geri kazan',
-    trigger: 'cart_abandon',
-    color: 'from-blue-600 to-cyan-600',
-    glow: 'shadow-blue-500/20',
-    steps: '2 adım · 1s + 3s',
-    rate: '%32 dönüşüm',
-  },
-  {
-    name: 'Hoş Geldin Serisi',
-    icon: UserPlus,
-    desc: 'İlk 7 gün otomasyon',
-    trigger: 'new_signup',
-    color: 'from-violet-600 to-purple-600',
-    glow: 'shadow-violet-500/20',
-    steps: '3 adım · 1g + 3g + 7g',
-    rate: '%28 dönüşüm',
-  },
-  {
-    name: 'VIP Ödüllendirme',
-    icon: Crown,
-    desc: 'Sadık müşteriyi ödüllendir',
-    trigger: 'birthday',
-    color: 'from-amber-500 to-orange-500',
-    glow: 'shadow-amber-500/20',
-    steps: '2 adım · 0s + 1g',
-    rate: '%41 dönüşüm',
-  },
-  {
-    name: 'Win-Back Kampanya',
-    icon: Flame,
-    desc: 'Pasif müşteriyi geri çek',
-    trigger: 'no_purchase',
-    color: 'from-rose-600 to-pink-600',
-    glow: 'shadow-rose-500/20',
-    steps: '2 adım · 7g + 14g',
-    rate: '%19 dönüşüm',
-  },
-]
+type FilterKey = 'all' | 'active' | 'paused' | 'draft'
 
-interface AutomationStep {
-  id: string
-  channel: string
-  immediate: boolean
-  delayAmount: string
-  delayUnit: string
-  message: string
+interface RunStats {
+  total: number; completed: number; failed: number
+  waiting: number; running: number
+  lastRun: string | null; lastStatus: string | null
 }
 
 interface AutomationItem {
-  id: string
-  name: string
-  trigger: string
-  status: string
-  segment: string | null
-  steps: AutomationStep[]
-  sent: number
-  converted: number
-  revenue: number
-  createdAt: string
+  id: string; name: string; trigger: string; status: string
+  sent: number; converted: number; revenue: number
+  createdAt: string; updatedAt: string
+  runStats: RunStats
 }
 
-function stepLabel(step: AutomationStep): string {
-  return step.immediate ? 'Hemen' : `${step.delayAmount || '1'}${step.delayUnit?.[0] || 's'}`
+interface TemplateItem {
+  id: string; name: string; description: string; trigger: string
+  icon: string; color: string; category: string
+  expectedRevenue: string; setupTime: string; pro?: boolean; isNew?: boolean
 }
 
-function AutomationCard({ auto, onToggle, onDelete }: {
-  auto: AutomationItem
-  onToggle: () => void
-  onDelete: () => void
+const ICON_MAP: Record<string, React.ElementType> = {
+  ShoppingCart, UserPlus, Package, Clock, Tag, Settings2,
+  Eye, CreditCard, Gift, Crown, MessageCircle, Layers,
+}
+
+/* ─────────────────────────────────────────────────────────────
+   UTILS
+───────────────────────────────────────────────────────────── */
+
+function relativeTime(iso: string | null): string {
+  if (!iso) return '—'
+  const diff = Date.now() - new Date(iso).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1)   return 'Az önce'
+  if (mins < 60)  return `${mins}dk önce`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24)   return `${hrs}s önce`
+  const days = Math.floor(hrs / 24)
+  return `${days}g önce`
+}
+
+function convRate(sent: number, converted: number): string {
+  return sent > 0 ? `%${((converted / sent) * 100).toFixed(1)}` : '—'
+}
+
+/* ─────────────────────────────────────────────────────────────
+   AUTOMATION CARD
+───────────────────────────────────────────────────────────── */
+
+function AutoCard({ a, onToggle, onDelete, onClone }: {
+  a: AutomationItem; onToggle: () => void; onDelete: () => void; onClone: () => void
 }) {
   const [toggling, setToggling] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [cloning,  setCloning]  = useState(false)
+  const [confirm,  setConfirm]  = useState(false)
 
-  const status = statusConfig[auto.status] ?? statusConfig.draft
-  const meta = triggerMeta[auto.trigger] ?? { label: auto.trigger, icon: Zap, color: 'text-[#8b95a8]', bg: 'from-gray-900/60' }
-  const TriggerIcon = meta.icon
-  const convRate = auto.sent > 0 ? ((auto.converted / auto.sent) * 100).toFixed(1) : '0.0'
-  const uniqueChannels = [...new Set(auto.steps.map(s => s.channel))]
+  const st   = STATUS_CFG[a.status] ?? STATUS_CFG.draft
+  const meta = TRIGGER_META[a.trigger] ?? { label: a.trigger || '—', icon: Zap, color: 'var(--text-2)' }
+  const Icon = meta.icon
+  const rs   = a.runStats
+  const successRate = rs.total > 0 ? Math.round((rs.completed / rs.total) * 100) : null
 
-  async function handleToggle() {
+  async function doToggle() {
     setToggling(true)
     onToggle()
-    setToggling(false)
-  }
-
-  async function handleDelete() {
-    if (!confirm(`"${auto.name}" otomasyonunu silmek istiyor musunuz?`)) return
-    setDeleting(true)
-    onDelete()
+    setTimeout(() => setToggling(false), 900)
   }
 
   return (
     <div className={cn(
-      'group relative rounded-lg border border-[#272a33] bg-[#191b24] overflow-hidden transition-all duration-200 hover:border-[#b4c5ff]/20',
-      auto.status === 'active' && 'hover:shadow-lg hover:shadow-[#b4c5ff]/5'
-    )}>
-      {/* gradient top accent */}
-      <div className={cn('h-0.5 w-full bg-gradient-to-r to-transparent', meta.bg.replace('from-', 'from-'))}
-        style={{ opacity: auto.status === 'active' ? 1 : 0.4 }} />
-      <div className="p-5">
-        <div className="flex items-start gap-4">
-          {/* Icon */}
-          <div className={cn(
-            'w-10 h-10 rounded-lg flex items-center justify-center border shrink-0 transition-all',
-            auto.status === 'active' ? 'bg-[#b4c5ff]/10 border-[#b4c5ff]/20' : 'bg-[#272a33] border-[#272a33]'
-          )}>
-            <TriggerIcon className={cn('w-5 h-5 transition-colors', auto.status === 'active' ? meta.color : 'text-[#8b95a8]')} />
-          </div>
+      'bento-card overflow-hidden transition-all duration-200',
+      a.status === 'active' && 'hover:shadow-md',
+    )} style={{
+      borderColor: a.status === 'active' ? `${meta.color}30` : undefined,
+    }}>
+      {/* Colour strip */}
+      <div className="h-[2px]" style={{
+        background: a.status === 'active'
+          ? `linear-gradient(90deg, ${meta.color}, transparent)`
+          : 'transparent',
+      }} />
 
-          {/* Info */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-2 mb-2">
-              <div>
-                <h3 className="text-sm font-bold text-[#e2e8f8]">{auto.name}</h3>
-                <p className="text-xs text-[#8b95a8] mt-0.5">{meta.label}</p>
-              </div>
-              <span className={cn('text-[10px] font-bold px-2 py-1 rounded border flex items-center gap-1.5 shrink-0', status.badge)}>
-                <span className={cn('w-1.5 h-1.5 rounded-full inline-block', status.dot)} />
-                {status.label}
+      <div className="p-4 space-y-3">
+        {/* Header row */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3 min-w-0 flex-1">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+              style={{ background: `${meta.color}18`, border: `1px solid ${meta.color}25` }}>
+              <Icon size={17} style={{ color: a.status === 'active' ? meta.color : '#8080a0' }} />
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-sm font-semibold truncate" style={{ color: 'var(--text-1)' }}>{a.name}</h3>
+              <p className="text-xs mt-0.5 font-medium" style={{ color: 'var(--text-2)' }}>{meta.label}</p>
+            </div>
+          </div>
+          <span className={cn('text-[10px] font-semibold px-2 py-0.5 rounded-full border flex items-center gap-1.5 shrink-0', st.badge)}>
+            <span className={cn('w-1.5 h-1.5 rounded-full', st.dot)} />
+            {st.label}
+          </span>
+        </div>
+
+        {/* 4-stat grid */}
+        <div className="grid grid-cols-4 gap-1.5">
+          {[
+            { label: 'Toplam Run',    value: formatNumber(rs.total),            color: 'var(--text-1)' },
+            { label: 'Başarılı',      value: formatNumber(rs.completed),        color: rs.completed > 0 ? '#22c97a' : 'var(--text-3)' },
+            { label: 'Hatalı',        value: formatNumber(rs.failed),           color: rs.failed > 0    ? '#e84545' : 'var(--text-3)' },
+            { label: 'Son Çalışma',   value: relativeTime(rs.lastRun),          color: 'var(--text-2)' },
+          ].map(s => (
+            <div key={s.label} className="rounded-lg py-1.5 px-2 text-center" style={{ background: 'var(--surface-2)' }}>
+              <p className="text-[8.5px] font-medium uppercase tracking-wide truncate" style={{ color: 'var(--text-3)' }}>{s.label}</p>
+              <p className="text-[11px] font-bold font-mono mt-0.5 truncate" style={{ color: s.color }}>{s.value}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Success rate bar */}
+        {rs.total > 0 && (
+          <div>
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-[10px] font-medium" style={{ color: 'var(--text-3)' }}>Başarı oranı</span>
+              <span className="text-[10px] font-bold font-mono" style={{ color: successRate! >= 80 ? '#22c97a' : successRate! >= 50 ? '#f0a020' : '#e84545' }}>
+                %{successRate}
               </span>
             </div>
+            <div className="h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.07)' }}>
+              <div className="h-full rounded-full transition-all duration-500" style={{
+                width: `${successRate}%`,
+                background: successRate! >= 80 ? '#22c97a' : successRate! >= 50 ? '#f0a020' : '#e84545',
+              }} />
+            </div>
+          </div>
+        )}
 
-            {/* Flow visualization */}
-            {auto.steps.length > 0 && (
-              <div className="flex items-center gap-1 mb-3 flex-wrap">
-                <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-[#272a33] border border-[#272a33] text-[10px] font-semibold text-[#8b95a8]">
-                  <Zap className="w-3 h-3 text-[#b4c5ff]" />
-                  <span className={meta.color}>{meta.label}</span>
-                </div>
-                {auto.steps.map((step, i) => {
-                  const Icon = channelIcon[step.channel] ?? Mail
-                  const style = channelStyle[step.channel] ?? channelStyle.email
-                  return (
-                    <div key={step.id} className="flex items-center gap-1">
-                      <ArrowRight className="w-2.5 h-2.5 text-[#8b95a8]" />
-                      <div className={cn('flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold border', style.bg, style.color)}>
-                        <Icon className="w-3 h-3" />
-                        <span>{stepLabel(step)}</span>
-                      </div>
-                    </div>
-                  )
-                })}
+        {/* Revenue + conversion */}
+        {(a.sent > 0 || a.revenue > 0) && (
+          <div className="flex items-center gap-3 pt-0.5">
+            {a.sent > 0 && (
+              <div className="flex items-center gap-1">
+                <Activity size={10} style={{ color: 'var(--text-3)' }} />
+                <span className="text-[10.5px] font-medium" style={{ color: 'var(--text-2)' }}>
+                  {convRate(a.sent, a.converted)} dönüşüm
+                </span>
               </div>
             )}
-
-            {/* Metrics */}
-            <div className="grid grid-cols-4 gap-2 p-3 bg-[#272a33] border border-[#272a33] rounded-lg mb-3">
-              <div>
-                <p className="text-sm font-bold text-[#e2e8f8]" style={{ fontFamily: 'JetBrains Mono, monospace' }}>{formatNumber(auto.sent)}</p>
-                <p className="text-[10px] text-[#8b95a8]">Gönderildi</p>
-              </div>
-              <div>
-                <p className="text-sm font-bold text-[#e2e8f8]" style={{ fontFamily: 'JetBrains Mono, monospace' }}>{formatNumber(auto.converted)}</p>
-                <p className="text-[10px] text-[#8b95a8]">Dönüştü</p>
-              </div>
-              <div>
-                <p className="text-sm font-bold text-emerald-400" style={{ fontFamily: 'JetBrains Mono, monospace' }}>%{convRate}</p>
-                <p className="text-[10px] text-[#8b95a8]">Dönüşüm</p>
-              </div>
-              <div>
-                <p className="text-sm font-bold text-emerald-400" style={{ fontFamily: 'JetBrains Mono, monospace' }}>{formatCurrency(auto.revenue)}</p>
-                <p className="text-[10px] text-[#8b95a8]">Gelir</p>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between">
+            {a.revenue > 0 && (
               <div className="flex items-center gap-1">
-                {uniqueChannels.map(ch => {
-                  const Icon = channelIcon[ch] ?? Mail
-                  const style = channelStyle[ch] ?? channelStyle.email
-                  return (
-                    <div key={ch} className={cn('w-6 h-6 rounded-lg flex items-center justify-center border', style.bg, style.color)}>
-                      <Icon className="w-3 h-3" />
-                    </div>
-                  )
-                })}
-                {auto.segment && auto.segment !== 'all' && (
-                  <span className="ml-2 text-[10px] text-[#8b95a8] font-medium">· {auto.segment}</span>
-                )}
+                <TrendingUp size={10} style={{ color: '#22c97a' }} />
+                <span className="text-[10.5px] font-semibold font-mono" style={{ color: '#22c97a' }}>
+                  {formatCurrency(a.revenue)}
+                </span>
               </div>
-              <div className="flex items-center gap-1.5">
-                <button onClick={handleDelete} disabled={deleting}
-                  className="p-1.5 text-[#8b95a8] hover:text-red-400 transition-colors rounded-lg hover:bg-red-500/10">
-                  {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+            )}
+          </div>
+        )}
+
+        {/* Action row */}
+        <div className="flex items-center justify-between pt-1 border-t border-white/[0.05]">
+          <div className="flex items-center gap-1">
+            <Link href={`/automations/${a.id}/builder`}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all hover:bg-[#99b4ff]/10"
+              style={{ color: '#99b4ff' }}>
+              <Pencil size={10} /> Düzenle
+            </Link>
+            <Link href={`/automations/${a.id}/runs`}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all hover:bg-slate-100"
+              style={{ color: 'var(--text-2)' }}>
+              <History size={10} /> Geçmiş
+            </Link>
+            <button onClick={async () => { setCloning(true); await onClone(); setCloning(false) }} disabled={cloning}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all hover:bg-slate-100"
+              style={{ color: 'var(--text-2)' }}>
+              {cloning ? <Loader2 size={10} className="animate-spin" /> : <Copy size={10} />} Klonla
+            </button>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            {/* Delete */}
+            {confirm ? (
+              <div className="flex items-center gap-1">
+                <button onClick={() => { setDeleting(true); onDelete() }} disabled={deleting}
+                  className="px-2 py-1 rounded-md text-[10px] font-bold bg-red-500/15 text-red-400 border border-red-500/20 hover:bg-red-500/25 transition-all">
+                  {deleting ? <Loader2 size={9} className="animate-spin inline" /> : 'Sil'}
                 </button>
-                <Link href={`/automations/${auto.id}/builder`}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-violet-500/10 text-violet-400 border border-violet-500/20 hover:bg-violet-500/20 transition-all">
-                  <Workflow className="w-3 h-3" /> Görsel Builder
-                </Link>
-                {auto.status !== 'draft' && (
-                  <button onClick={handleToggle} disabled={toggling}
-                    className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border',
-                      auto.status === 'active'
-                        ? 'bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/20'
-                        : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20')}>
-                    {toggling ? <Loader2 className="w-3 h-3 animate-spin" /> :
-                      auto.status === 'active' ? <><Pause className="w-3 h-3" /> Durdur</> : <><Play className="w-3 h-3" /> Başlat</>}
-                  </button>
-                )}
-                {auto.status === 'draft' && (
-                  <Link href={`/automations/new?id=${auto.id}`}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-[#b4c5ff]/10 text-[#b4c5ff] border border-[#b4c5ff]/20 hover:bg-[#b4c5ff]/20 transition-all">
-                    <Settings2 className="w-3 h-3" /> Düzenle
-                  </Link>
-                )}
+                <button onClick={() => setConfirm(false)} className="px-2 py-1 rounded-md text-[10px] hover:bg-white/[0.05] transition-all" style={{ color: 'var(--text-3)' }}>İptal</button>
               </div>
-            </div>
+            ) : (
+              <button onClick={() => setConfirm(true)} className="p-1.5 rounded-md transition-all hover:bg-red-500/10" style={{ color: 'var(--text-3)' }}>
+                <Trash2 size={11} />
+              </button>
+            )}
+
+            {/* Toggle */}
+            <button onClick={doToggle} disabled={toggling}
+              className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all',
+                a.status === 'active'
+                  ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500/20'
+                  : 'btn-primary text-[11px]')}>
+              {toggling ? <Loader2 size={11} className="animate-spin" />
+                : a.status === 'active' ? <><Pause size={11} /> Duraklat</>
+                : <><Play size={11} /> Başlat</>}
+            </button>
           </div>
         </div>
       </div>
@@ -253,181 +253,455 @@ function AutomationCard({ auto, onToggle, onDelete }: {
   )
 }
 
-export default function AutomationsPage() {
-  const [items, setItems] = useState<AutomationItem[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+/* ─────────────────────────────────────────────────────────────
+   PAGE
+───────────────────────────────────────────────────────────── */
 
-  const load = useCallback(async () => {
-    try {
-      const res = await fetch('/api/automations')
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        throw new Error(data.error || 'Yüklenemedi')
-      }
-      const data = await res.json()
-      setItems(Array.isArray(data) ? data : [])
-      setError('')
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Hata oluştu')
-    } finally {
-      setLoading(false)
-    }
+export default function AutomationsPage() {
+  const router = useRouter()
+  const [automations, setAutomations] = useState<AutomationItem[]>([])
+  const [templates,   setTemplates]   = useState<TemplateItem[]>([])
+  const [loading,     setLoading]     = useState(true)
+  const [filter,      setFilter]      = useState<FilterKey>('all')
+  const [search,      setSearch]      = useState('')
+  const [error,       setError]       = useState('')
+  const [activatingTpl, setActivatingTpl] = useState<string | null>(null)
+
+  const load = useCallback(() => {
+    setLoading(true)
+    Promise.all([
+      fetch('/api/automations').then(r => r.json()),
+      fetch('/api/automation-templates').then(r => r.json()),
+    ])
+      .then(([autoData, tplData]) => {
+        if (Array.isArray(autoData)) setAutomations(autoData)
+        else setError(autoData.error ?? 'Hata')
+        if (Array.isArray(tplData)) setTemplates(tplData)
+      })
+      .catch(() => setError('Veriler yüklenemedi'))
+      .finally(() => setLoading(false))
   }, [])
 
   useEffect(() => { load() }, [load])
 
-  async function toggleStatus(id: string) {
-    const item = items.find(a => a.id === id)
-    if (!item) return
-    const newStatus = item.status === 'active' ? 'paused' : 'active'
-    setItems(prev => prev.map(a => a.id === id ? { ...a, status: newStatus } : a))
+  const activateTemplate = async (templateId: string) => {
+    setActivatingTpl(templateId)
     try {
-      await fetch(`/api/automations/${id}`, {
-        method: 'PATCH',
+      const res = await fetch('/api/automation-templates', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify({ templateId }),
       })
-    } catch {
-      setItems(prev => prev.map(a => a.id === id ? { ...a, status: item.status } : a))
+      const data = await res.json()
+      if (res.ok) {
+        router.push(`/automations/${data.id}/builder`)
+      }
+    } finally {
+      setActivatingTpl(null)
     }
   }
 
-  async function deleteAutomation(id: string) {
-    setItems(prev => prev.filter(a => a.id !== id))
-    try {
-      await fetch(`/api/automations/${id}`, { method: 'DELETE' })
-    } catch {
-      load()
-    }
+  const handleToggle = async (id: string, current: string) => {
+    const next = current === 'active' ? 'paused' : 'active'
+    const res  = await fetch(`/api/automations/${id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: next }),
+    })
+    if (res.ok) setAutomations(p => p.map(a => a.id === id ? { ...a, status: next } : a))
   }
 
-  const activeCount = items.filter(a => a.status === 'active').length
-  const totalSent = items.reduce((s, a) => s + a.sent, 0)
-  const totalRevenue = items.reduce((s, a) => s + a.revenue, 0)
+  const handleDelete = async (id: string) => {
+    const res = await fetch(`/api/automations/${id}`, { method: 'DELETE' })
+    if (res.ok) setAutomations(p => p.filter(a => a.id !== id))
+  }
+
+  const handleClone = async (id: string) => {
+    const res = await fetch(`/api/automations/${id}/clone`, { method: 'POST' })
+    if (res.ok) load()
+  }
+
+  const filtered = automations.filter(a =>
+    (filter === 'all' || a.status === filter) &&
+    (!search || a.name.toLowerCase().includes(search.toLowerCase())),
+  )
+
+  /* ── Summary KPIs ───────────────────────────────────────── */
+  const activeCount    = automations.filter(a => a.status === 'active').length
+  const totalRuns      = automations.reduce((s, a) => s + (a.runStats?.total ?? 0), 0)
+  const totalCompleted = automations.reduce((s, a) => s + (a.runStats?.completed ?? 0), 0)
+  const totalRevenue   = automations.reduce((s, a) => s + a.revenue, 0)
 
   return (
     <AppShell>
-      <Header
-        title="Automation Studio"
-        subtitle="Akıllı pazarlama otomasyonları"
-        action={{ label: '+ Yeni Otomasyon', href: '/automations/new' }}
-      />
-
-      <div className="p-6 space-y-6 flex-1 bg-[#11131c] animate-fade-in">
-
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-4">
-          {[
-            { label: 'Aktif Otomasyon',  value: activeCount,                  icon: Activity,   color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-            { label: 'Toplam Gönderim',  value: formatNumber(totalSent),      icon: BarChart3,  color: 'text-[#b4c5ff]',  bg: 'bg-[#b4c5ff]/10' },
-            { label: 'Otomasyon Geliri', value: formatCurrency(totalRevenue), icon: TrendingUp, color: 'text-violet-400', bg: 'bg-violet-500/10' },
-          ].map(item => (
-            <div key={item.label} className="bg-[#191b24] border border-[#272a33] rounded-lg px-5 py-4 hover:border-[#b4c5ff]/20 transition-all">
-              <div className="flex items-center gap-4">
-                <div className={cn('w-10 h-10 rounded-lg flex items-center justify-center shrink-0', item.bg)}>
-                  <item.icon className={cn('w-5 h-5', item.color)} />
-                </div>
-                <div>
-                  <p className="text-[11px] text-[#8b95a8] font-medium">{item.label}</p>
-                  <p className="text-xl font-bold text-[#e2e8f8] mt-0.5" style={{ fontFamily: 'JetBrains Mono, monospace' }}>{item.value}</p>
-                </div>
-              </div>
-            </div>
-          ))}
+      {/* ── Top bar ── */}
+      <div className="sticky top-0 z-20 flex items-center justify-between px-6 h-14 shrink-0"
+        style={{ background: 'rgba(8,8,15,0.95)', backdropFilter: 'blur(24px)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+        <div>
+          <h1 className="text-[16px] font-bold" style={{ color: '#eeeef4' }}>Otomasyonlar</h1>
+          <p className="text-[11px]" style={{ color: '#44445a' }}>Akıllı müşteri yolculukları oluşturun, yönetin ve performanslarını artırın.</p>
         </div>
+        <div className="flex items-center gap-2">
+          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold"
+            style={{ background: 'rgba(255,255,255,0.04)', color: '#8080a0', border: '1px solid rgba(255,255,255,0.08)' }}>
+            Raporu İndir
+          </button>
+          <Link href="/automations/new"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-bold"
+            style={{ background: '#4470ff', color: '#fff' }}>
+            <Plus className="w-3.5 h-3.5" /> Yeni Otomasyon
+          </Link>
+        </div>
+      </div>
 
-        {/* Template Library */}
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-md bg-[#0062ff]/15 border border-[#b4c5ff]/20 flex items-center justify-center">
-              <Sparkles className="w-3 h-3 text-[#b4c5ff]" />
-            </div>
-            <h2 className="text-sm font-bold text-[#e2e8f8]">Hazır Otomasyon Şablonları</h2>
-            <span className="text-[10px] bg-[#b4c5ff]/10 text-[#b4c5ff] border border-[#b4c5ff]/20 px-2 py-0.5 rounded font-semibold">AI Optimize</span>
-          </div>
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+        {/* ── Main content ── */}
+        <div className="flex-1 overflow-auto p-5 space-y-5">
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {automationTemplates.map(tpl => {
-              const Icon = tpl.icon
+          {/* ── KPI Cards ── */}
+          <div className="grid grid-cols-2 xl:grid-cols-3 gap-3">
+            {[
+              { label: 'Aktif Otomasyonlar', value: String(activeCount),          icon: Activity,   color: '#22c97a', bg: 'rgba(34,201,122,0.1)',  },
+              { label: 'Toplam Çalıştırma',  value: formatNumber(totalRuns),      icon: Workflow,   color: '#4470ff', bg: 'rgba(68,112,255,0.1)',  },
+              { label: 'Kurtarılan Gelir',   value: formatCurrency(totalRevenue), icon: TrendingUp, color: '#22c97a', bg: 'rgba(34,201,122,0.1)',  },
+              { label: 'Dönüşüm Oranı',      value: totalRuns > 0 ? `%${((totalCompleted / totalRuns) * 100).toFixed(1)}` : '—', icon: Target, color: '#f0a020', bg: 'rgba(240,160,32,0.1)' },
+              { label: 'Bekleyen İşlemler',  value: formatNumber(automations.reduce((s, a) => s + (a.runStats?.waiting ?? 0), 0)), icon: Timer, color: '#9f7afa', bg: 'rgba(159,122,250,0.1)' },
+              { label: 'Toplam Otomasyon',   value: String(automations.length),  icon: BarChart3,  color: '#99b4ff', bg: 'rgba(153,180,255,0.1)', },
+            ].map(k => {
+              const KIcon = k.icon
               return (
-                <Link key={tpl.name} href={`/automations/new?trigger=${tpl.trigger}`}
-                  className="group relative rounded-lg border border-[#272a33] bg-[#191b24] p-4 hover:border-[#b4c5ff]/20 hover:scale-[1.01] transition-all duration-200 overflow-hidden">
-                  <div className={cn('w-9 h-9 rounded-lg bg-gradient-to-br flex items-center justify-center mb-3', tpl.color)}>
-                    <Icon className="w-4 h-4 text-white" />
+                <div key={k.label} className="rounded-2xl p-4 relative overflow-hidden cursor-default transition-all"
+                  style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.025)')}>
+                  <div className="absolute top-0 left-4 right-4 h-px" style={{ background: `linear-gradient(90deg,transparent,${k.color}44,transparent)` }} />
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: '#44445a' }}>{k.label}</p>
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: k.bg }}>
+                      <KIcon className="w-3.5 h-3.5" style={{ color: k.color }} />
+                    </div>
                   </div>
-                  <p className="text-xs font-bold text-[#e2e8f8] group-hover:text-white mb-0.5 transition-colors">{tpl.name}</p>
-                  <p className="text-[10px] text-[#8b95a8] mb-2">{tpl.desc}</p>
-                  <span className="text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">{tpl.rate}</span>
-                  <p className="text-[10px] text-[#8b95a8] mt-1" style={{ fontFamily: 'JetBrains Mono, monospace' }}>{tpl.steps}</p>
-                  <div className="flex items-center gap-1 text-[10px] text-[#b4c5ff] mt-2 opacity-0 group-hover:opacity-100 transition-opacity font-semibold">
-                    Oluştur <ChevronRight className="w-3 h-3" />
+                  <p className="text-[22px] font-bold leading-none mb-2" style={{ color: '#eeeef4', letterSpacing: '-0.02em' }}>{k.value}</p>
+                  <div className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-md text-emerald-400"
+                    style={{ background: 'rgba(34,201,122,0.08)' }}>
+                    <ArrowUpRight className="w-3 h-3" />
+                    Gerçek veri
                   </div>
-                </Link>
+                </div>
               )
             })}
           </div>
-        </div>
 
-        {/* Divider */}
-        <div className="flex items-center gap-3">
-          <div className="flex-1 h-px bg-[#272a33]" />
-          <span className="text-[11px] text-[#8b95a8] font-medium" style={{ fontFamily: 'JetBrains Mono, monospace' }}>OTOMASYONLARıM</span>
-          <div className="flex-1 h-px bg-[#272a33]" />
-        </div>
-
-        {/* Content */}
-        {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="relative overflow-hidden rounded-xl bg-[#1a1e2b] h-36 animate-pulse">
-                <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/[0.04] to-transparent" />
-              </div>
-            ))}
-          </div>
-        ) : error ? (
-          <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-5 flex items-center gap-3">
-            <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
-            <div>
-              <p className="text-sm font-semibold text-red-400">Yükleme hatası</p>
-              <p className="text-xs text-[#8b95a8] mt-0.5">{error}</p>
-            </div>
-            <button onClick={load} className="ml-auto text-xs text-[#8b95a8] hover:text-[#e2e8f8] transition-colors font-semibold">
-              Tekrar dene
-            </button>
-          </div>
-        ) : items.length === 0 ? (
-          <div className="bg-[#191b24] border border-[#272a33] rounded-lg p-16 text-center">
-            <div className="space-y-4">
-              <div className="w-16 h-16 rounded-xl bg-[#272a33] border border-[#272a33] flex items-center justify-center mx-auto">
-                <Zap className="w-8 h-8 text-[#b4c5ff]" />
-              </div>
+          {/* ── Templates grid ── */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
               <div>
-                <h3 className="text-[#e2e8f8] font-bold text-sm">Henüz otomasyon yok</h3>
-                <p className="text-[#8b95a8] text-xs mt-1 max-w-xs mx-auto">Yukarıdaki şablonlardan birini seçin veya sıfırdan otomasyon oluşturun</p>
+                <h2 className="text-[14px] font-bold" style={{ color: '#eeeef4' }}>Hazır Otomasyon Şablonları</h2>
+                <p className="text-[11px] mt-0.5" style={{ color: '#44445a' }}>İhtiyacınıza uygun şablonu seçin ve builder'da özelleştirip aktifleştirin.</p>
               </div>
-              <Link href="/automations/new"
-                className="inline-flex items-center gap-2 text-sm bg-[#0062ff] hover:bg-[#0052d4] text-white px-5 py-2.5 rounded-lg font-bold transition-all">
-                <Plus className="w-4 h-4" /> Yeni Otomasyon Oluştur
-              </Link>
+              <span className="text-[11px] font-mono" style={{ color: '#44445a' }}>{templates.length} şablon</span>
+            </div>
+            <div className="grid grid-cols-2 xl:grid-cols-3 gap-3">
+              {templates.map(tpl => {
+                const TplIcon = ICON_MAP[tpl.icon] ?? Zap
+                const bg = `${tpl.color}18`
+                const isActivating = activatingTpl === tpl.id
+                return (
+                  <div key={tpl.id} className="rounded-2xl p-4 cursor-default transition-all relative overflow-hidden"
+                    style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.borderColor = `${tpl.color}25` }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.025)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)' }}>
+                    <div className="absolute top-0 left-0 right-0 h-px" style={{ background: `linear-gradient(90deg,transparent,${tpl.color}44,transparent)` }} />
+                    {tpl.pro && (
+                      <span className="absolute top-3 right-3 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                        style={{ background: 'rgba(159,122,250,0.15)', color: '#9f7afa', border: '1px solid rgba(159,122,250,0.25)' }}>PRO</span>
+                    )}
+                    {tpl.isNew && !tpl.pro && (
+                      <span className="absolute top-3 right-3 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                        style={{ background: 'rgba(34,201,122,0.15)', color: '#22c97a', border: '1px solid rgba(34,201,122,0.25)' }}>YENİ</span>
+                    )}
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: bg }}>
+                        <TplIcon className="w-4 h-4" style={{ color: tpl.color }} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[12px] font-semibold truncate" style={{ color: '#eeeef4' }}>{tpl.name}</p>
+                        <p className="text-[10px]" style={{ color: '#44445a' }}>{tpl.description}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <p className="text-[10px]" style={{ color: '#44445a' }}>Beklenen Gelir</p>
+                        <p className="text-[12px] font-bold" style={{ color: '#22c97a', fontFamily: 'monospace' }}>{tpl.expectedRevenue}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[10px]" style={{ color: '#44445a' }}>Kurulum Süresi</p>
+                        <p className="text-[11px] font-semibold" style={{ color: '#8080a0' }}>{tpl.setupTime}</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => activateTemplate(tpl.id)}
+                      disabled={isActivating}
+                      className="w-full py-1.5 rounded-xl text-[11px] font-semibold transition-all flex items-center justify-center gap-1.5"
+                      style={{ background: `${tpl.color}12`, color: tpl.color, border: `1px solid ${tpl.color}20`, opacity: isActivating ? 0.7 : 1 }}>
+                      {isActivating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
+                      {isActivating ? 'Oluşturuluyor...' : 'Şablonu Kullan'}
+                    </button>
+                  </div>
+                )
+              })}
             </div>
           </div>
-        ) : (
-          <div className="space-y-3">
-            {items.map(auto => (
-              <AutomationCard
-                key={auto.id}
-                auto={auto}
-                onToggle={() => toggleStatus(auto.id)}
-                onDelete={() => deleteAutomation(auto.id)}
-              />
-            ))}
-            <Link href="/automations/new"
-              className="w-full flex items-center justify-center gap-2 py-4 border-2 border-dashed border-[#272a33] hover:border-[#b4c5ff]/30 hover:text-[#b4c5ff] text-[#8b95a8] rounded-lg transition-all text-sm font-semibold">
-              <Plus className="w-4 h-4" /> Yeni Otomasyon Ekle
-            </Link>
+
+          {/* ── Active automations ── */}
+          <div>
+            <div className="flex items-center gap-3 mb-3">
+              <h2 className="text-[14px] font-bold" style={{ color: '#eeeef4' }}>Aktif Otomasyonlar</h2>
+              <div className="flex items-center p-0.5 gap-0.5 rounded-xl" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                {(['all','active','paused','draft'] as FilterKey[]).map(f => (
+                  <button key={f} onClick={() => setFilter(f)}
+                    className="px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all"
+                    style={filter === f ? { background: 'rgba(255,255,255,0.08)', color: '#eeeef4' } : { color: '#44445a' }}>
+                    {f === 'all' ? 'Tümü' : STATUS_CFG[f]?.label ?? f}
+                  </button>
+                ))}
+              </div>
+              <div className="relative ml-auto">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3" style={{ color: '#44445a' }} />
+                <input value={search} onChange={e => setSearch(e.target.value)}
+                  placeholder="Otomasyon ara..."
+                  className="pl-8 pr-3 py-1.5 text-[12px] rounded-xl outline-none w-48"
+                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#eeeef4' }} />
+              </div>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px]"
+                style={{ background: 'rgba(255,255,255,0.03)', color: '#44445a', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <BarChart3 className="w-3 h-3" /> Filtrele
+              </button>
+            </div>
+
+            {error && <div className="ds-alert ds-alert-error mb-3"><AlertCircle className="w-4 h-4 shrink-0" /><span>{error}</span></div>}
+
+            {loading ? (
+              <div className="space-y-2">
+                {[...Array(4)].map((_, i) => <div key={i} className="skeleton rounded-xl h-16" />)}
+              </div>
+            ) : filtered.length === 0 && automations.length === 0 ? (
+              <div className="rounded-2xl p-12 flex flex-col items-center text-center gap-5"
+                style={{ background: 'rgba(255,255,255,0.02)', border: '1.5px dashed rgba(255,255,255,0.08)' }}>
+                <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
+                  style={{ background: 'rgba(68,112,255,0.08)', border: '1.5px dashed rgba(68,112,255,0.25)' }}>
+                  <Zap className="w-6 h-6" style={{ color: '#99b4ff' }} />
+                </div>
+                <div>
+                  <h3 className="text-[14px] font-bold mb-1.5" style={{ color: '#eeeef4' }}>İlk otomasyonunuzu oluşturun</h3>
+                  <p className="text-[12px] max-w-xs mx-auto leading-relaxed" style={{ color: '#44445a' }}>
+                    Yukarıdaki şablonlardan birini seçin veya sıfırdan bir otomasyon oluşturun.
+                  </p>
+                </div>
+                <Link href="/automations/new" className="flex items-center gap-2 px-4 py-2 rounded-xl text-[12px] font-bold"
+                  style={{ background: '#4470ff', color: '#fff' }}>
+                  <Plus className="w-3.5 h-3.5" /> İlk Otomasyonu Oluştur
+                </Link>
+              </div>
+            ) : (
+              /* Automation table */
+              <div className="rounded-2xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                <table className="w-full">
+                  <thead>
+                    <tr style={{ background: 'rgba(0,0,0,0.15)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                      {['OTOMASYON ADI', 'DURUM', 'TETİKLEYİCİ', 'ÇALIŞMA (30G)', 'DÖNÜŞÜM ORANI', 'KAZANILAN GELİR', 'SON ÇALIŞMA', ''].map(col => (
+                        <th key={col} className="text-left px-4 py-2.5 text-[9px] font-semibold tracking-wider whitespace-nowrap"
+                          style={{ color: '#3e3e54' }}>{col}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map((a, i) => {
+                      const st = STATUS_CFG[a.status] ?? STATUS_CFG.draft
+                      const meta = TRIGGER_META[a.trigger] ?? { label: a.trigger || '—', icon: Zap, color: '#8080a0' }
+                      const MetaIcon = meta.icon
+                      const conv = a.sent > 0 ? ((a.converted / a.sent) * 100).toFixed(1) : null
+                      return (
+                        <tr key={a.id} className="transition-all cursor-default"
+                          style={{ borderBottom: i < filtered.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}
+                          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.02)')}
+                          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${meta.color}15` }}>
+                                <MetaIcon className="w-3.5 h-3.5" style={{ color: meta.color }} />
+                              </div>
+                              <div>
+                                <p className="text-[12px] font-semibold" style={{ color: '#eeeef4' }}>{a.name}</p>
+                                <p className="text-[10px]" style={{ color: '#44445a' }}>{meta.label}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            {(() => {
+                              const badgeStyle = a.status === 'active'
+                                ? { background: 'rgba(34,201,122,0.1)', color: '#22c97a', border: '1px solid rgba(34,201,122,0.2)' }
+                                : a.status === 'paused'
+                                  ? { background: 'rgba(240,160,32,0.1)', color: '#f0a020', border: '1px solid rgba(240,160,32,0.2)' }
+                                  : { background: 'rgba(255,255,255,0.04)', color: '#8080a0', border: '1px solid rgba(255,255,255,0.08)' }
+                              return (
+                                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold" style={badgeStyle}>
+                                  <span className={cn('w-1.5 h-1.5 rounded-full', st.dot)} />
+                                  {st.label}
+                                </div>
+                              )
+                            })()}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-1.5 text-[11px]" style={{ color: '#8080a0' }}>
+                              <MetaIcon className="w-3 h-3" /> {meta.label} {a.status === 'active' ? 'edildi' : 'yok'}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-[11px] font-semibold" style={{ color: '#eeeef4', fontFamily: 'monospace' }}>
+                            {formatNumber(a.runStats?.total ?? 0)}
+                          </td>
+                          <td className="px-4 py-3">
+                            {conv ? (
+                              <span className="text-[11px] font-semibold" style={{ color: '#22c97a', fontFamily: 'monospace' }}>%{conv}</span>
+                            ) : <span style={{ color: '#33334a' }}>—</span>}
+                          </td>
+                          <td className="px-4 py-3 text-[12px] font-bold" style={{ color: '#22c97a', fontFamily: 'monospace' }}>
+                            {a.revenue > 0 ? formatCurrency(a.revenue) : '—'}
+                          </td>
+                          <td className="px-4 py-3 text-[11px]" style={{ color: '#8080a0' }}>
+                            {relativeTime(a.runStats?.lastRun ?? null)}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-1">
+                              <button onClick={() => handleToggle(a.id, a.status)}
+                                className="text-[10px] font-semibold px-2.5 py-1 rounded-lg transition-all"
+                                style={a.status === 'active'
+                                  ? { background: 'rgba(240,160,32,0.1)', color: '#f0a020', border: '1px solid rgba(240,160,32,0.2)' }
+                                  : { background: 'rgba(34,201,122,0.1)', color: '#22c97a', border: '1px solid rgba(34,201,122,0.2)' }}>
+                                {a.status === 'active' ? 'Duraklat' : 'Başlat'}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
-        )}
+        </div>
+
+        {/* ── AI Automation Manager panel ── */}
+        <div className="w-[300px] shrink-0 flex flex-col border-l overflow-hidden"
+          style={{ background: '#0d0d1a', borderColor: 'rgba(255,255,255,0.06)' }}>
+          <div className="flex items-center justify-between px-4 py-3.5 shrink-0"
+            style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0"
+                style={{ background: 'rgba(159,122,250,0.15)', border: '1px solid rgba(159,122,250,0.25)' }}>
+                <Sparkles className="w-3.5 h-3.5 text-violet-400" />
+              </div>
+              <div className="flex items-center gap-1.5">
+                <p className="text-[13px] font-semibold" style={{ color: '#eeeef4' }}>AI Automation Manager</p>
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md" style={{ background: 'rgba(34,201,122,0.15)', color: '#22c97a' }}>Beta</span>
+              </div>
+            </div>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(255,165,0,0.1)', color: '#f0a020', border: '1px solid rgba(240,160,32,0.2)' }}>3 öneri</span>
+          </div>
+
+          <div className="p-4 flex-1 overflow-auto space-y-3">
+            <p className="text-[11px] font-semibold" style={{ color: '#44445a' }}>Yeni Otomasyon Önerileri</p>
+            {[
+              { icon: ShoppingCart, color: '#e84545', bg: 'rgba(232,69,69,0.08)', title: 'Ürün Stok Azalma Takibi', text: 'Stok azalan ürünler için otomatik bildirim akışı oluşturun.', revenue: '₺45.230', action: 'Oluştur' },
+              { icon: Tag, color: '#4470ff', bg: 'rgba(68,112,255,0.08)', title: 'İlk Alışveriş İndirimi', text: 'İlk kez alışveriş yapacaklara özel indirim akışı kurun.', revenue: '₺38.750', action: 'Oluştur' },
+              { icon: Clock, color: '#22c97a', bg: 'rgba(34,201,122,0.08)', title: 'Sadakat Puanı Hatırlatma', text: 'Puanları bitmek üzere olan müşterilere hatırlatma gönderin.', revenue: '₺22.480', action: 'Oluştur' },
+            ].map((s, i) => {
+              const SIcon = s.icon
+              return (
+                <div key={i} className="p-3.5 rounded-xl cursor-default"
+                  style={{ background: s.bg, border: `1px solid ${s.color}20` }}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${s.color}18` }}>
+                      <SIcon className="w-3.5 h-3.5" style={{ color: s.color }} />
+                    </div>
+                    <p className="text-[11px] font-bold" style={{ color: s.color }}>{s.title}</p>
+                  </div>
+                  <p className="text-[11px] leading-relaxed mb-2" style={{ color: '#8080a0' }}>{s.text}</p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold" style={{ color: '#22c97a' }}>Beklenen: {s.revenue}</span>
+                    <button className="text-[10px] font-bold px-2.5 py-1 rounded-lg"
+                      style={{ background: `${s.color}18`, color: s.color }}>
+                      {s.action}
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+
+            <button className="text-[11px] font-semibold" style={{ color: '#44445a' }}>Tüm Önerileri Gör →</button>
+
+            {/* Low performance warnings */}
+            <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 12 }}>
+              <p className="text-[11px] font-semibold mb-2.5" style={{ color: '#44445a' }}>Düşük Performans Uyarıları</p>
+              {[
+                { name: 'Satın Alma Sonrası', issue: 'Açılma oranı %9.5 ile düşük.', color: '#e84545' },
+                { name: 'Ürün İnceleme İsteği', issue: 'Açılma oranı %6.7 ile düşük.', color: '#f0a020' },
+              ].map((w, i) => (
+                <div key={i} className="flex items-start justify-between gap-2 p-3 rounded-xl mb-2"
+                  style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div>
+                    <p className="text-[11px] font-semibold" style={{ color: '#eeeef4' }}>{w.name}</p>
+                    <p className="text-[10px]" style={{ color: '#8080a0' }}>{w.issue}</p>
+                  </div>
+                  <button className="text-[10px] font-semibold shrink-0 px-2 py-0.5 rounded-lg"
+                    style={{ background: 'rgba(68,112,255,0.1)', color: '#99b4ff' }}>
+                    İncele
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {/* Fırsatlar */}
+            <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 12 }}>
+              <p className="text-[11px] font-semibold mb-2.5" style={{ color: '#44445a' }}>Gelir Fırsatları</p>
+              {[
+                { name: 'Sepet Terk Akışını Optimize Et', sub: 'Ek %15 gelir artışı sağlayabilirsin.', revenue: '₺14.800', color: '#22c97a' },
+                { name: 'VIP Müşteriler için Özel Tekif', sub: 'VIP segmentine özel kampanya oluştur.', revenue: '₺18.900', color: '#9f7afa' },
+              ].map((f, i) => (
+                <div key={i} className="p-3 rounded-xl mb-2" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="text-[11px] font-semibold" style={{ color: '#eeeef4' }}>{f.name}</p>
+                      <p className="text-[10px]" style={{ color: '#8080a0' }}>{f.sub}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-[11px] font-bold" style={{ color: '#22c97a' }}>{f.revenue}</p>
+                      <button className="text-[10px] font-semibold" style={{ color: f.color }}>Optimize Et</button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <button className="text-[11px] font-semibold" style={{ color: '#44445a' }}>Tüm Fırsatları Gör →</button>
+            </div>
+          </div>
+
+          {/* Eksik otomasyonlar */}
+          <div className="p-4 shrink-0" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[11px] font-semibold" style={{ color: '#eeeef4' }}>Eksik Otomasyonlar</p>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(240,160,32,0.1)', color: '#f0a020' }}>3 eksik</span>
+            </div>
+            <div className="space-y-1.5">
+              {['Fiyat Düşüşü Bildirimi', 'Ürün Yeniden Stokta Bildirimi', 'Abone Yenileme Hatırlatma'].map((item, i) => (
+                <button key={i} className="w-full text-left flex items-center justify-between px-2.5 py-2 rounded-xl transition-all"
+                  style={{ background: 'rgba(68,112,255,0.06)', border: '1px solid rgba(68,112,255,0.12)' }}>
+                  <span className="text-[11px]" style={{ color: '#99b4ff' }}>{item}</span>
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-lg" style={{ background: 'rgba(68,112,255,0.15)', color: '#99b4ff' }}>Oluştur</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     </AppShell>
   )

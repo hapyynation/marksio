@@ -1,503 +1,763 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import AppShell from '@/components/layout/AppShell'
-import Header from '@/components/layout/Header'
 import {
-  Users, Crown, Heart, AlertTriangle, UserPlus, UserMinus,
-  Plus, TrendingUp, Mail, MessageSquare, Sparkles, X, Check, Loader2,
-  Zap, Filter, MoreHorizontal, ArrowRight, Bot,
+  Users, Plus, X, Check, Loader2, MoreHorizontal,
+  Sparkles, Trash2, Search, RefreshCw, ChevronDown,
+  AlertCircle, Filter,
 } from 'lucide-react'
 import Link from 'next/link'
-import { cn } from '@/lib/utils'
+import { cn, formatNumber } from '@/lib/utils'
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface Rule {
+  field: string
+  operator: string
+  value: string
+}
 
 interface Segment {
-  id: string; name: string; description?: string; type: string
-  count: number; color: string; icon: string; rules: Rule[]; createdAt: string
+  id: string
+  name: string
+  description?: string | null
+  type: string
+  count: number
+  color: string
+  icon: string
+  rules: Rule[]
+  matchType: string
+  active: boolean
+  createdAt: string
 }
-interface Rule { field: string; operator: string; value: string }
 
-const ICON_MAP: Record<string, React.ElementType> = {
-  Crown, Heart, AlertTriangle, UserPlus, UserMinus, Users,
+interface AISuggestion {
+  title: string
+  description: string
+  insight: string
+  rules: Rule[]
+  color: string
+  icon: string
 }
+
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const RULE_FIELDS = [
-  { value: 'totalOrders', label: 'Toplam Sipariş' },
-  { value: 'totalSpent', label: 'Toplam Harcama (₺)' },
-  { value: 'daysSinceOrder', label: 'Son Siparişten Gün' },
-  { value: 'score', label: 'Müşteri Skoru' },
-]
-const RULE_OPERATORS = [
-  { value: 'gt', label: '>' }, { value: 'lt', label: '<' },
-  { value: 'gte', label: '>=' }, { value: 'lte', label: '<=' },
-  { value: 'eq', label: '=' },
-]
-const COLORS: Array<{ key: string; dot: string }> = [
-  { key: 'violet', dot: 'bg-violet-500' }, { key: 'blue', dot: 'bg-blue-500' },
-  { key: 'emerald', dot: 'bg-emerald-500' }, { key: 'amber', dot: 'bg-amber-500' },
-  { key: 'red', dot: 'bg-red-500' },
+  { value: 'totalSpent',     label: 'Toplam Harcama (₺)',    type: 'number', placeholder: '5000' },
+  { value: 'totalOrders',    label: 'Sipariş Sayısı',        type: 'number', placeholder: '5' },
+  { value: 'daysSinceOrder', label: 'Son Sipariş (gün önce)',type: 'number', placeholder: '30' },
+  { value: 'avgOrder',       label: 'Ortalama Sepet (₺)',    type: 'number', placeholder: '500' },
+  { value: 'score',          label: 'Müşteri Skoru',         type: 'number', placeholder: '60' },
+  { value: 'tags',           label: 'Etiket',                type: 'text',   placeholder: 'vip' },
+  { value: 'source',         label: 'Kaynak',                type: 'text',   placeholder: 'shopify' },
+  { value: 'segment',        label: 'Mevcut Segment',        type: 'text',   placeholder: 'new' },
 ]
 
-const SEGMENT_META: Record<string, {
-  score: number; convRate: number
-  badge: string; badgeIcon: React.ElementType
-  badgeCls: string; chartColor: string; trackColor: string
-  recommended: string
-}> = {
-  vip:      { score: 92, convRate: 88, badge: 'Upsell\'e Hazır',        badgeIcon: TrendingUp,    badgeCls: 'bg-[#b3c5ff]/10 border-[#b3c5ff]/25 text-[#b3c5ff]', chartColor: '#b3c5ff', trackColor: '#272a33', recommended: 'VIP Sadakat Kampanyası' },
-  loyal:    { score: 78, convRate: 65, badge: 'Nurture Phase',           badgeIcon: Heart,         badgeCls: 'bg-[#d0bcff]/10 border-[#d0bcff]/25 text-[#d0bcff]', chartColor: '#d0bcff', trackColor: '#272a33', recommended: 'Tekrar Alım Kampanyası' },
-  at_risk:  { score: 35, convRate: 15, badge: 'Churn Riski Yüksek',     badgeIcon: AlertTriangle, badgeCls: 'bg-red-500/10 border-red-500/25 text-red-400',        chartColor: '#f87171', trackColor: '#272a33', recommended: 'Geri Kazanım Kampanyası' },
-  new:      { score: 65, convRate: 45, badge: 'Nurture Phase',           badgeIcon: UserPlus,      badgeCls: 'bg-[#d0bcff]/10 border-[#d0bcff]/25 text-[#d0bcff]', chartColor: '#d0bcff', trackColor: '#272a33', recommended: 'Hoş Geldin Serisi' },
-  inactive: { score: 20, convRate: 8,  badge: 'Win-Back Gerekli',        badgeIcon: UserMinus,     badgeCls: 'bg-red-500/10 border-red-500/25 text-red-400',        chartColor: '#f87171', trackColor: '#272a33', recommended: 'Win-Back Kampanyası' },
+const NUMBER_OPS = [
+  { value: 'gte', label: '≥ büyük veya eşit' },
+  { value: 'gt',  label: '> büyük' },
+  { value: 'lte', label: '≤ küçük veya eşit' },
+  { value: 'lt',  label: '< küçük' },
+  { value: 'eq',  label: '= eşit' },
+  { value: 'neq', label: '≠ eşit değil' },
+]
+
+const TEXT_OPS = [
+  { value: 'eq',          label: '= eşit' },
+  { value: 'contains',    label: 'içeriyor' },
+  { value: 'not_contains',label: 'içermiyor' },
+  { value: 'neq',         label: '≠ eşit değil' },
+]
+
+const ICON_OPTIONS = ['👥','👑','💎','🤝','✨','🛒','💤','🚨','⚠️','🎯','⭐','🔄','📦','🏆','💰','🎁']
+const COLOR_OPTIONS = ['#4470ff','#f0a020','#9f7afa','#22c97a','#e84545','#8080a0','#00bcd4','#f59e0b','#ec4899','#10b981']
+
+// ─── Small components ─────────────────────────────────────────────────────────
+
+function Toggle({ enabled, onChange }: { enabled: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button
+      onClick={e => { e.stopPropagation(); onChange(!enabled) }}
+      className="relative flex items-center shrink-0 transition-all"
+      style={{ width: 36, height: 20 }}
+    >
+      <div className="absolute inset-0 rounded-full transition-all"
+        style={{ background: enabled ? '#4470ff' : 'rgba(255,255,255,0.1)' }} />
+      <div className="absolute w-4 h-4 rounded-full transition-all"
+        style={{ background: '#fff', left: enabled ? 18 : 2, top: 2, boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
+    </button>
+  )
 }
 
-function RadialChart({ score, color, track }: { score: number; color: string; track: string }) {
+function RuleRow({
+  rule, index, onUpdate, onRemove,
+}: {
+  rule: Rule; index: number
+  onUpdate: (i: number, key: keyof Rule, v: string) => void
+  onRemove: (i: number) => void
+}) {
+  const fieldDef = RULE_FIELDS.find(f => f.value === rule.field)
+  const ops = fieldDef?.type === 'text' ? TEXT_OPS : NUMBER_OPS
+
   return (
-    <div className="relative w-16 h-16">
-      <svg viewBox="0 0 36 36" className="w-full h-full" style={{ transform: 'rotate(-90deg)' }}>
-        <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-          fill="none" stroke={track} strokeWidth="3" />
-        <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-          fill="none" stroke={color} strokeWidth="3" strokeLinecap="round"
-          strokeDasharray={`${score}, 100`} />
-      </svg>
-      <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-[13px] font-bold text-[#e1e2ee]">{score}</span>
-      </div>
+    <div className="flex items-center gap-1.5 p-2.5 rounded-xl"
+      style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+      {/* Field */}
+      <select
+        value={rule.field}
+        onChange={e => onUpdate(index, 'field', e.target.value)}
+        className="flex-1 min-w-0 px-2 py-1.5 rounded-lg text-[11px] outline-none"
+        style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', color: '#eeeef4' }}
+      >
+        {RULE_FIELDS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+      </select>
+      {/* Operator */}
+      <select
+        value={rule.operator}
+        onChange={e => onUpdate(index, 'operator', e.target.value)}
+        className="w-28 px-2 py-1.5 rounded-lg text-[10px] outline-none shrink-0"
+        style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', color: '#eeeef4' }}
+      >
+        {ops.map(op => <option key={op.value} value={op.value}>{op.label}</option>)}
+      </select>
+      {/* Value */}
+      <input
+        value={rule.value}
+        onChange={e => onUpdate(index, 'value', e.target.value)}
+        placeholder={fieldDef?.placeholder ?? ''}
+        className="w-20 px-2 py-1.5 rounded-lg text-[11px] outline-none text-center shrink-0"
+        style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', color: '#eeeef4' }}
+      />
+      <button
+        onClick={() => onRemove(index)}
+        className="p-1 rounded-lg shrink-0 transition-colors"
+        style={{ color: '#44445a' }}
+        onMouseEnter={e => (e.currentTarget.style.color = '#e84545')}
+        onMouseLeave={e => (e.currentTarget.style.color = '#44445a')}
+      >
+        <X className="w-3 h-3" />
+      </button>
     </div>
   )
 }
 
+// ─── Main Page ────────────────────────────────────────────────────────────────
+
 export default function SegmentsPage() {
-  const [segments, setSegments] = useState<Segment[]>([])
-  const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState<'all' | 'favorites'>('all')
-  const [showCreate, setShowCreate] = useState(false)
-  const [form, setForm] = useState({ name: '', description: '', color: 'violet', rules: [] as Rule[] })
-  const [saving, setSaving] = useState(false)
-  const [activeSegment, setActiveSegment] = useState<Segment | null>(null)
+  const [segments, setSegments]         = useState<Segment[]>([])
+  const [loading, setLoading]           = useState(true)
+  const [refreshing, setRefreshing]     = useState(false)
+  const [showCreate, setShowCreate]     = useState(false)
+  const [search, setSearch]             = useState('')
+  const [openMenuId, setOpenMenuId]     = useState<string | null>(null)
+  const [deletingId, setDeletingId]     = useState<string | null>(null)
+  const [suggestions, setSuggestions]   = useState<AISuggestion[]>([])
+  const [aiLoading, setAiLoading]       = useState(false)
+  const [saveError, setSaveError]       = useState('')
+  const [saving, setSaving]             = useState(false)
 
-  useEffect(() => { fetchSegments() }, [])
+  const [form, setForm] = useState({
+    name: '', description: '', matchType: 'all' as 'all' | 'any',
+    color: '#4470ff', icon: '👥', rules: [] as Rule[],
+  })
 
-  async function fetchSegments() {
-    setLoading(true)
-    const res = await fetch('/api/segments')
-    if (res.ok) setSegments(await res.json())
+  // ─── Fetch ──────────────────────────────────────────────────────────────────
+
+  const fetchSegments = useCallback(async (quiet = false) => {
+    if (!quiet) setLoading(true)
+    else setRefreshing(true)
+    try {
+      const res = await fetch('/api/segments')
+      if (res.ok) setSegments(await res.json())
+    } catch { /* silent */ }
     setLoading(false)
+    setRefreshing(false)
+  }, [])
+
+  const fetchSuggestions = useCallback(async () => {
+    setAiLoading(true)
+    try {
+      const res = await fetch('/api/ai/segment-suggestions')
+      if (res.ok) {
+        const d = await res.json() as { suggestions?: AISuggestion[] }
+        setSuggestions(d.suggestions ?? [])
+      }
+    } catch { /* silent */ }
+    setAiLoading(false)
+  }, [])
+
+  useEffect(() => {
+    fetchSegments()
+    fetchSuggestions()
+  }, [fetchSegments, fetchSuggestions])
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const fn = () => setOpenMenuId(null)
+    document.addEventListener('click', fn)
+    return () => document.removeEventListener('click', fn)
+  }, [])
+
+  // ─── Actions ────────────────────────────────────────────────────────────────
+
+  async function toggleActive(id: string, active: boolean) {
+    setSegments(prev => prev.map(s => s.id === id ? { ...s, active } : s))
+    await fetch(`/api/segments/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ active }),
+    })
+  }
+
+  async function deleteSegment(id: string) {
+    setDeletingId(id)
+    const res = await fetch(`/api/segments/${id}`, { method: 'DELETE' })
+    if (res.ok) setSegments(prev => prev.filter(s => s.id !== id))
+    else {
+      const d = await res.json() as { error?: string }
+      alert(d.error ?? 'Silinemedi')
+    }
+    setDeletingId(null)
+    setOpenMenuId(null)
+  }
+
+  async function refreshCounts() {
+    setRefreshing(true)
+    await fetch('/api/segments/apply', { method: 'POST' })
+    await fetchSegments(true)
+  }
+
+  async function saveSegment() {
+    if (!form.name.trim()) { setSaveError('Segment adı gerekli'); return }
+    if (form.rules.length === 0) { setSaveError('En az 1 koşul ekleyin'); return }
+    setSaving(true); setSaveError('')
+    try {
+      const res = await fetch('/api/segments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      })
+      if (!res.ok) {
+        const d = await res.json() as { error?: string }
+        setSaveError(d.error ?? 'Kaydedilemedi')
+        return
+      }
+      await fetchSegments(true)
+      setShowCreate(false)
+      setForm({ name: '', description: '', matchType: 'all', color: '#4470ff', icon: '👥', rules: [] })
+    } catch { setSaveError('Bağlantı hatası') }
+    setSaving(false)
+  }
+
+  function applySuggestion(s: AISuggestion) {
+    setForm({
+      name: s.title, description: s.description, matchType: 'all',
+      color: s.color, icon: s.icon,
+      rules: (s.rules ?? []).map(r => ({ ...r, value: String(r.value) })),
+    })
+    setShowCreate(true)
   }
 
   function addRule() {
-    setForm(f => ({ ...f, rules: [...f.rules, { field: 'totalOrders', operator: 'gt', value: '0' }] }))
+    setForm(f => ({ ...f, rules: [...f.rules, { field: 'totalSpent', operator: 'gte', value: '1000' }] }))
   }
   function removeRule(i: number) {
     setForm(f => ({ ...f, rules: f.rules.filter((_, idx) => idx !== i) }))
   }
   function updateRule(i: number, key: keyof Rule, value: string) {
-    setForm(f => { const r = [...f.rules]; r[i] = { ...r[i], [key]: value }; return { ...f, rules: r } })
-  }
-  async function createSegment() {
-    if (!form.name.trim()) return
-    setSaving(true)
-    const res = await fetch('/api/segments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) })
-    if (res.ok) { await fetchSegments(); setShowCreate(false); setForm({ name: '', description: '', color: 'violet', rules: [] }) }
-    setSaving(false)
-  }
-  async function deleteSegment(id: string) {
-    if (!confirm('Bu segmenti silmek istediğinizden emin misiniz?')) return
-    await fetch(`/api/segments/${id}`, { method: 'DELETE' })
-    setActiveSegment(null); fetchSegments()
+    setForm(f => {
+      const rules = [...f.rules]
+      rules[i] = { ...rules[i], [key]: value }
+      // Reset operator when field changes
+      if (key === 'field') {
+        const fieldDef = RULE_FIELDS.find(fd => fd.value === value)
+        rules[i].operator = fieldDef?.type === 'text' ? 'contains' : 'gte'
+      }
+      return { ...f, rules }
+    })
   }
 
-  const builtinSegments = segments.filter(s => s.type === 'builtin')
-  const customSegments  = segments.filter(s => s.type === 'custom')
-  const atRisk  = builtinSegments.find(s => s.id === 'at_risk' || s.name?.toLowerCase().includes('risk'))
-  const vip     = builtinSegments.find(s => s.id === 'vip'     || s.name?.toLowerCase().includes('vip'))
-  const loyal   = builtinSegments.find(s => s.id === 'loyal')
+  // ─── Derived ────────────────────────────────────────────────────────────────
 
-  // Dynamic AI insight
-  const aiInsight = atRisk && loyal && atRisk.count > loyal.count
-    ? { title: 'AI Risk Tespiti', badge: 'Acil', text: `"${atRisk.name}" segmenti son 72 saatte büyüdü. Tavsiye: Churn'ü önlemek için Win-Back kampanyası başlatın.`, action: 'Kampanya Oluştur', href: `/campaigns/new?segment=${atRisk.name}` }
-    : vip && vip.count > 0
-    ? { title: 'AI Fırsat Tespiti', badge: 'Yeni', text: `${vip.count} VIP müşteriniz upsell için hazır. Özel erken erişim kampanyasıyla geliri artırın.`, action: 'Kampanya Oluştur', href: `/campaigns/new?segment=${vip.name}` }
-    : { title: 'AI Segmentasyon Hazır', badge: 'Bilgi', text: 'Segmentleriniz otomatik olarak güncelleniyor. Kampanya oluşturmak için bir segmente tıklayın.', action: 'Kampanya Oluştur', href: '/campaigns/new' }
+  const filtered    = segments.filter(s => !search || s.name.toLowerCase().includes(search.toLowerCase()))
+  const totalCount  = segments.reduce((a, s) => a + s.count, 0)
+  const activeCount = segments.filter(s => s.active).length
+  const biggest     = segments.length > 0 ? segments.reduce((a, b) => b.count > a.count ? b : a) : null
 
-  // Purchase frequency from segments (estimated)
-  const totalCustomers = segments.reduce((s, seg) => s + seg.count, 0)
+  const previewCount = 0 // would need a real API call; shown as "?" until saved
 
   return (
     <AppShell>
-      <Header
-        title="Customer Intelligence"
-        subtitle="Gerçek zamanlı segmentasyon ve davranışsal analiz"
-        actions={[{ label: '+ Yeni Segment', href: '#', variant: 'primary' }]}
-      />
 
-      <div className="flex-1 overflow-y-auto bg-[#10131c] animate-fade-in">
-        <div className="max-w-[1440px] mx-auto px-6 pt-8 pb-12">
-
-          {/* Filter row */}
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
-            <div>
-              <h2 className="text-2xl font-bold text-[#e1e2ee] tracking-tight mb-1" style={{ fontFamily: 'Geist, sans-serif' }}>Segmentler</h2>
-              <p className="text-sm text-[#8c90a1]">AI destekli müşteri grupları ve öngörüler</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="flex bg-[#191b24] rounded-lg p-1 border border-[#424656]/30">
-                {(['all', 'favorites'] as const).map(f => (
-                  <button key={f} onClick={() => setFilter(f)}
-                    className={cn('px-3 py-1 rounded-md text-xs font-medium transition-all', f === filter
-                      ? 'bg-[#272a33] text-[#e1e2ee] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]'
-                      : 'text-[#8c90a1] hover:text-[#e1e2ee]')}>
-                    {f === 'all' ? 'Tüm Segmentler' : 'Favoriler'}
-                  </button>
-                ))}
-              </div>
-              <button
-                onClick={() => setShowCreate(true)}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[#424656]/40 text-[#8c90a1] hover:border-[#b3c5ff]/40 hover:text-[#b3c5ff] transition-all text-xs font-medium glass-border"
-                style={{ background: 'rgba(29,31,40,0.6)', backdropFilter: 'blur(8px)' }}
-              >
-                <Filter className="w-3.5 h-3.5" /> Filtrele
-              </button>
-            </div>
-          </div>
-
-          {/* AI Insight Banner */}
-          <div className="mb-8 p-4 rounded-xl border border-[#d0bcff]/25 relative overflow-hidden"
-            style={{ background: 'linear-gradient(135deg, rgba(87,27,193,0.12) 0%, rgba(11,14,22,0.8) 100%)' }}>
-            <div className="absolute right-0 top-0 w-64 h-full pointer-events-none"
-              style={{ background: 'linear-gradient(270deg, rgba(208,188,255,0.06) 0%, transparent 100%)' }} />
-            <div className="flex items-start gap-4 relative z-10">
-              <div className="w-10 h-10 rounded-full border border-[#d0bcff]/40 flex items-center justify-center shrink-0"
-                style={{ background: 'rgba(87,27,193,0.3)' }}>
-                <Bot className="w-5 h-5 text-[#d0bcff]" />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-sm font-bold text-[#e1e2ee] mb-1 flex items-center gap-2" style={{ fontFamily: 'Geist, sans-serif' }}>
-                  {aiInsight.title}
-                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#d0bcff]/15 text-[#d0bcff] border border-[#d0bcff]/25 uppercase tracking-wider">
-                    {aiInsight.badge}
-                  </span>
-                </h3>
-                <p className="text-sm text-[#8c90a1]">{aiInsight.text}</p>
-                <Link href={aiInsight.href}
-                  className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-[#b3c5ff] hover:text-white transition-colors">
-                  {aiInsight.action} <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
-              </div>
-            </div>
-          </div>
-
-          {/* Segment Bento Grid */}
-          {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
-              {[...Array(6)].map((_, i) => (
-                <div key={i} className="relative overflow-hidden rounded-xl bg-[#1a1e2b] h-40 animate-pulse">
-                  <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/[0.04] to-transparent" />
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
-              {builtinSegments.map(seg => {
-                const Icon = ICON_MAP[seg.icon] ?? Users
-                const meta = SEGMENT_META[seg.id] ?? SEGMENT_META['new']
-                const BadgeIcon = meta.badgeIcon
-                return (
-                  <div key={seg.id} className="bento-card p-5 flex flex-col justify-between cursor-pointer"
-                    onClick={() => setActiveSegment(seg)}>
-                    <div className="flex justify-between items-start mb-5">
-                      <div>
-                        <h3 className="text-base font-bold text-[#e1e2ee] mb-1" style={{ fontFamily: 'Geist, sans-serif' }}>{seg.name}</h3>
-                        <p className="text-[11px] text-[#8c90a1]" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
-                          {seg.count.toLocaleString('tr-TR')} kullanıcı
-                        </p>
-                      </div>
-                      <button className="text-[#424656] hover:text-[#8c90a1] transition-colors" onClick={e => { e.stopPropagation(); setActiveSegment(seg) }}>
-                        <MoreHorizontal className="w-4 h-4" />
-                      </button>
-                    </div>
-
-                    <div className="flex items-center gap-5 mb-5">
-                      <RadialChart score={meta.score} color={meta.chartColor} track={meta.trackColor} />
-                      <div>
-                        <p className="text-[10px] text-[#8c90a1] uppercase tracking-wider mb-1" style={{ fontFamily: 'JetBrains Mono, monospace' }}>Sadakat Skoru</p>
-                        <div className="flex items-end gap-2">
-                          <span className="text-2xl font-bold text-[#e1e2ee] leading-none">{meta.convRate}%</span>
-                          <span className="text-[11px] text-[#b3c5ff] mb-0.5 font-medium">Tahm. Dönüşüm</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="pt-4 border-t border-[#272a33]">
-                      <div className={cn('inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-semibold border', meta.badgeCls)}>
-                        <BadgeIcon className="w-3 h-3" />
-                        {meta.badge}
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-
-              {/* Custom segments as bento cards */}
-              {customSegments.map(seg => (
-                <div key={seg.id} className="bento-card p-5 flex flex-col justify-between cursor-pointer"
-                  onClick={() => setActiveSegment(seg)}>
-                  <div className="flex justify-between items-start mb-5">
-                    <div>
-                      <h3 className="text-base font-bold text-[#e1e2ee] mb-1" style={{ fontFamily: 'Geist, sans-serif' }}>{seg.name}</h3>
-                      <p className="text-[11px] text-[#8c90a1]" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
-                        {seg.count.toLocaleString('tr-TR')} kullanıcı · {seg.rules.length} kural
-                      </p>
-                    </div>
-                    <button className="text-[#424656] hover:text-[#8c90a1] transition-colors">
-                      <MoreHorizontal className="w-4 h-4" />
-                    </button>
-                  </div>
-                  <RadialChart score={Math.min(seg.count > 0 ? 55 : 0, 99)} color="#d0bcff" track="#272a33" />
-                  <div className="pt-4 mt-4 border-t border-[#272a33]">
-                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-semibold border bg-[#d0bcff]/10 border-[#d0bcff]/25 text-[#d0bcff]">
-                      <Sparkles className="w-3 h-3" /> Özel Segment
-                    </div>
-                  </div>
-                </div>
-              ))}
-
-              {/* Add new segment card */}
-              <button onClick={() => setShowCreate(true)}
-                className="bento-card p-5 flex flex-col items-center justify-center gap-3 border-dashed hover:border-[#b3c5ff]/30 transition-all min-h-[180px]">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center"
-                  style={{ background: 'rgba(179,197,255,0.08)', border: '1px solid rgba(179,197,255,0.2)' }}>
-                  <Plus className="w-5 h-5 text-[#b3c5ff]" />
-                </div>
-                <div className="text-center">
-                  <p className="text-sm font-semibold text-[#e1e2ee]">Yeni Segment</p>
-                  <p className="text-xs text-[#8c90a1] mt-0.5">Özel kural oluştur</p>
-                </div>
-              </button>
-            </div>
-          )}
-
-          {/* Analytics Section */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-            {/* Line Chart */}
-            <div className="lg:col-span-2 bento-card p-6 flex flex-col">
-              <div className="flex justify-between items-center mb-6">
-                <div>
-                  <h3 className="text-sm font-bold text-[#e1e2ee]" style={{ fontFamily: 'Geist, sans-serif' }}>Segment Büyüme Dinamiği</h3>
-                  <p className="text-[11px] text-[#8c90a1] mt-1" style={{ fontFamily: 'JetBrains Mono, monospace' }}>30 günlük trend</p>
-                </div>
-                <div className="flex gap-3">
-                  <span className="inline-flex items-center gap-1.5 text-[10px] text-[#8c90a1]" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
-                    <span className="w-2 h-2 rounded-full bg-[#b3c5ff]" /> VIP
-                  </span>
-                  <span className="inline-flex items-center gap-1.5 text-[10px] text-[#8c90a1]" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
-                    <span className="w-2 h-2 rounded-full bg-[#d0bcff]" /> Risk
-                  </span>
-                </div>
-              </div>
-              <div className="flex-1 relative min-h-[200px] border-b border-l border-[#272a33]">
-                <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
-                  {[0,1,2,3].map(i => <div key={i} className="w-full h-px bg-[#272a33]" />)}
-                </div>
-                <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-                  <defs>
-                    <linearGradient id="vipGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                      <stop offset="0%" stopColor="rgba(179,197,255,0.15)" />
-                      <stop offset="100%" stopColor="rgba(179,197,255,0)" />
-                    </linearGradient>
-                  </defs>
-                  <path d="M0,80 Q20,70 40,50 T80,30 T100,20 L100,100 L0,100 Z" fill="url(#vipGrad)" />
-                  <path d="M0,80 Q20,70 40,50 T80,30 T100,20" fill="none" stroke="#b3c5ff" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
-                  <path d="M0,90 Q30,85 50,70 T80,80 T100,65" fill="none" stroke="#d0bcff" strokeWidth="1" strokeDasharray="4 2" vectorEffect="non-scaling-stroke" />
-                </svg>
-              </div>
-              <div className="flex justify-between mt-2 text-[10px] text-[#8c90a1]" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
-                {['30 gün önce', '15 gün önce', 'Bugün'].map(l => <span key={l}>{l}</span>)}
-              </div>
-            </div>
-
-            {/* Bar Chart */}
-            <div className="bento-card p-6 flex flex-col">
-              <h3 className="text-sm font-bold text-[#e1e2ee] mb-6" style={{ fontFamily: 'Geist, sans-serif' }}>Satın Alma Sıklığı</h3>
-              <div className="space-y-5 flex-1">
-                {[
-                  { label: 'Günlük Alıcı',  pct: 12, color: '#b3c5ff' },
-                  { label: 'Haftalık',       pct: 34, color: '#b3c5ff' },
-                  { label: 'Aylık',          pct: 48, color: '#b3c5ff' },
-                  { label: 'Pasif',          pct: 6,  color: '#f87171' },
-                ].map(row => (
-                  <div key={row.label}>
-                    <div className="flex justify-between text-xs mb-1.5">
-                      <span className="text-[#8c90a1]">{row.label}</span>
-                      <span style={{ color: row.color, fontFamily: 'JetBrains Mono, monospace' }}>%{row.pct}</span>
-                    </div>
-                    <div className="w-full h-1.5 bg-[#272a33] rounded-full overflow-hidden">
-                      <div className="h-full rounded-full transition-all" style={{ width: `${row.pct}%`, background: row.color }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <button className="w-full mt-6 py-2 rounded border border-[#424656]/40 text-[#8c90a1] hover:text-[#e1e2ee] hover:border-[#b3c5ff]/30 text-xs transition-all"
-                style={{ fontFamily: 'JetBrains Mono, monospace' }}>
-                Tam Rapor Gör
-              </button>
-            </div>
-          </div>
-
+      {/* ── Top bar ── */}
+      <div className="flex items-center justify-between px-6 h-14 shrink-0"
+        style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(9,9,15,0.95)', backdropFilter: 'blur(24px)' }}>
+        <div>
+          <h1 className="text-[16px] font-bold" style={{ color: '#eeeef4' }}>Segmentler</h1>
+          <p className="text-[11px]" style={{ color: '#44445a' }}>
+            Müşterilerinizi davranış ve alışveriş geçmişine göre otomatik segmentlere ayırın.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={refreshCounts}
+            disabled={refreshing}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-semibold transition-all"
+            style={{ background: 'rgba(255,255,255,0.04)', color: '#8080a0', border: '1px solid rgba(255,255,255,0.08)' }}
+          >
+            <RefreshCw className={cn('w-3.5 h-3.5', refreshing && 'animate-spin')} />
+            Sayımları Güncelle
+          </button>
+          <button
+            onClick={() => { setShowCreate(true); setSaveError('') }}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-bold"
+            style={{ background: '#4470ff', color: '#fff' }}
+          >
+            <Plus className="w-3.5 h-3.5" /> Yeni Segment
+          </button>
         </div>
       </div>
 
-      {/* Create Segment Modal */}
-      {showCreate && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="rounded-2xl shadow-2xl w-full max-w-lg"
-            style={{ background: '#0b0e16', border: '1px solid rgba(66,70,86,0.5)' }}>
-            <div className="flex items-center justify-between px-6 py-4 border-b border-[#272a33]">
-              <h3 className="font-bold text-[#e1e2ee]" style={{ fontFamily: 'Geist, sans-serif' }}>Yeni Segment Oluştur</h3>
-              <button onClick={() => setShowCreate(false)} className="text-[#8c90a1] hover:text-[#e1e2ee] transition-colors">
-                <X className="w-5 h-5" />
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+
+        {/* ── Main ── */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+
+          {/* KPI cards */}
+          <div className="px-6 py-4 grid grid-cols-2 xl:grid-cols-4 gap-3 shrink-0">
+            {[
+              { label: 'Toplam Segment',     value: String(segments.length), sub: `${activeCount} aktif`, color: '#99b4ff', icon: '📊' },
+              { label: 'Toplam Müşteri',      value: formatNumber(totalCount), sub: 'tüm segmentlerde',  color: '#4470ff',  icon: '👥' },
+              { label: 'En Büyük Segment',    value: biggest?.name ?? '—', sub: biggest ? formatNumber(biggest.count) + ' müşteri' : '—', color: '#f0a020', icon: '👑', small: true },
+              { label: 'Aktif Segment',       value: String(activeCount), sub: `${segments.length - activeCount} pasif`, color: '#22c97a', icon: '✅' },
+            ].map(kpi => (
+              <div key={kpi.label} className="rounded-2xl p-4 relative overflow-hidden"
+                style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                <div className="absolute top-0 left-4 right-4 h-px"
+                  style={{ background: `linear-gradient(90deg,transparent,${kpi.color}44,transparent)` }} />
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: '#44445a' }}>{kpi.label}</p>
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center text-[13px]"
+                    style={{ background: `${kpi.color}18` }}>{kpi.icon}</div>
+                </div>
+                <p className={cn('font-bold mb-1 leading-tight', (kpi as { small?: boolean }).small ? 'text-[13px]' : 'text-[20px]')}
+                  style={{ color: '#eeeef4', letterSpacing: '-0.02em' }}>{kpi.value}</p>
+                <p className="text-[10px]" style={{ color: '#44445a' }}>{kpi.sub}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Filter bar */}
+          <div className="px-6 py-2 flex items-center gap-3 shrink-0"
+            style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', borderTop: '1px solid rgba(255,255,255,0.05)', background: 'rgba(0,0,0,0.1)' }}>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3" style={{ color: '#44445a' }} />
+              <input
+                type="text" value={search} onChange={e => setSearch(e.target.value)}
+                placeholder="Segment ara..."
+                className="pl-8 pr-3 py-1.5 text-[12px] rounded-xl outline-none w-52"
+                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#eeeef4' }}
+              />
+            </div>
+            <span className="ml-auto text-[11px]" style={{ color: '#33334a', fontFamily: 'monospace' }}>
+              {filtered.length} segment
+            </span>
+          </div>
+
+          {/* Segment table */}
+          <div className="flex-1 overflow-auto">
+            <table className="w-full">
+              <thead>
+                <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'rgba(0,0,0,0.15)' }}>
+                  {['SEGMENT', 'TÜR', 'MÜŞTERİ SAYISI', 'KOŞULLAR', 'DURUM', 'İŞLEMLER'].map(col => (
+                    <th key={col} className="text-left px-4 py-2.5 text-[9px] font-semibold tracking-wider whitespace-nowrap"
+                      style={{ color: '#3e3e54' }}>{col}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  [...Array(8)].map((_, i) => (
+                    <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                      {[180, 60, 80, 200, 50, 80].map((w, j) => (
+                        <td key={j} className="px-4 py-4">
+                          <div className="h-4 rounded-md animate-pulse" style={{ background: 'rgba(255,255,255,0.04)', width: w }} />
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                ) : filtered.map(seg => (
+                  <tr key={seg.id}
+                    className="transition-all"
+                    style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.02)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                  >
+                    {/* Segment name */}
+                    <td className="px-5 py-3.5">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl flex items-center justify-center text-[16px] shrink-0"
+                          style={{ background: `${seg.color}15`, border: `1px solid ${seg.color}25` }}>
+                          {seg.icon}
+                        </div>
+                        <div>
+                          <p className="text-[12px] font-semibold" style={{ color: '#eeeef4' }}>{seg.name}</p>
+                          {seg.description && (
+                            <p className="text-[10px]" style={{ color: '#44445a' }}>
+                              {seg.description.length > 50 ? seg.description.slice(0, 49) + '…' : seg.description}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Type */}
+                    <td className="px-4 py-3.5">
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                        style={{
+                          background: seg.type === 'builtin' ? 'rgba(68,112,255,0.12)' : 'rgba(34,201,122,0.12)',
+                          color: seg.type === 'builtin' ? '#99b4ff' : '#22c97a',
+                        }}>
+                        {seg.type === 'builtin' ? 'Varsayılan' : 'Özel'}
+                      </span>
+                    </td>
+
+                    {/* Count */}
+                    <td className="px-4 py-3.5">
+                      <p className="text-[13px] font-bold" style={{ color: '#eeeef4', fontFamily: 'monospace' }}>
+                        {formatNumber(seg.count)}
+                      </p>
+                      {totalCount > 0 && (
+                        <p className="text-[9px]" style={{ color: '#44445a' }}>
+                          %{((seg.count / totalCount) * 100).toFixed(1)} toplam
+                        </p>
+                      )}
+                    </td>
+
+                    {/* Rules preview */}
+                    <td className="px-4 py-3.5 max-w-[220px]">
+                      <div className="flex flex-wrap gap-1">
+                        {(seg.rules ?? []).slice(0, 3).map((r, i) => {
+                          const fieldLabel = RULE_FIELDS.find(f => f.value === r.field)?.label ?? r.field
+                          return (
+                            <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium"
+                              style={{ background: 'rgba(153,180,255,0.08)', color: '#8080a0', border: '1px solid rgba(255,255,255,0.07)' }}>
+                              {fieldLabel} {r.operator} {r.value}
+                            </span>
+                          )
+                        })}
+                        {(seg.rules ?? []).length > 3 && (
+                          <span className="text-[10px]" style={{ color: '#44445a' }}>+{seg.rules.length - 3}</span>
+                        )}
+                        {(seg.rules ?? []).length === 0 && (
+                          <span className="text-[10px]" style={{ color: '#44445a' }}>Tüm müşteriler</span>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* Toggle */}
+                    <td className="px-4 py-3.5">
+                      <Toggle enabled={seg.active} onChange={v => toggleActive(seg.id, v)} />
+                    </td>
+
+                    {/* Actions */}
+                    <td className="px-4 py-3.5">
+                      <div className="flex items-center gap-1">
+                        <Link href={`/campaigns/new?segment=${encodeURIComponent(seg.name)}`}
+                          className="px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-all"
+                          style={{ background: 'rgba(68,112,255,0.08)', color: '#99b4ff', border: '1px solid rgba(68,112,255,0.15)' }}>
+                          Kampanya Oluştur
+                        </Link>
+
+                        {/* Menu */}
+                        <div className="relative">
+                          <button
+                            onClick={e => { e.stopPropagation(); setOpenMenuId(openMenuId === seg.id ? null : seg.id) }}
+                            className="p-1.5 rounded-lg transition-all"
+                            style={{ color: '#44445a' }}
+                            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
+                            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                          >
+                            <MoreHorizontal className="w-3.5 h-3.5" />
+                          </button>
+                          {openMenuId === seg.id && (
+                            <div className="absolute right-0 top-full mt-1 w-36 rounded-xl z-20 overflow-hidden"
+                              style={{ background: '#141420', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }}>
+                              {seg.type !== 'builtin' && (
+                                <button
+                                  onClick={() => deleteSegment(seg.id)}
+                                  disabled={deletingId === seg.id}
+                                  className="w-full flex items-center gap-2 px-3 py-2.5 text-[11px] font-medium transition-all"
+                                  style={{ color: '#e84545' }}
+                                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(232,69,69,0.08)')}
+                                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                                >
+                                  {deletingId === seg.id
+                                    ? <Loader2 className="w-3 h-3 animate-spin" />
+                                    : <Trash2 className="w-3 h-3" />}
+                                  Sil
+                                </button>
+                              )}
+                              {seg.type === 'builtin' && (
+                                <p className="px-3 py-2.5 text-[10px]" style={{ color: '#44445a' }}>
+                                  Varsayılan segment silinemez
+                                </p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {!loading && filtered.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-16 gap-3">
+                <Filter className="w-8 h-8" style={{ color: '#33334a' }} />
+                <p className="text-[13px]" style={{ color: '#44445a' }}>Segment bulunamadı</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── Right panel ── */}
+        {showCreate ? (
+
+          /* ── Segment builder ── */
+          <div className="w-80 shrink-0 flex flex-col overflow-y-auto"
+            style={{ borderLeft: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.01)' }}>
+
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 shrink-0"
+              style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+              <p className="text-[13px] font-bold" style={{ color: '#eeeef4' }}>Yeni Segment Oluştur</p>
+              <button onClick={() => { setShowCreate(false); setSaveError('') }}
+                className="p-1.5 rounded-lg transition-all" style={{ color: '#44445a' }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                <X className="w-4 h-4" />
               </button>
             </div>
-            <div className="p-6 space-y-4">
+
+            <div className="p-5 space-y-4 flex-1">
+
+              {/* Name */}
               <div>
-                <label className="label">Segment Adı</label>
-                <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                  placeholder="Örn: Yüksek Değerli Alıcılar"
-                  className="w-full rounded-xl px-3 py-2.5 text-sm text-[#e1e2ee] placeholder:text-[#424656] outline-none focus:border-[#b3c5ff]/50 transition-all"
-                  style={{ background: '#10131c', border: '1px solid rgba(66,70,86,0.5)' }} />
+                <label className="block text-[11px] font-semibold mb-1.5" style={{ color: '#8080a0' }}>Segment Adı *</label>
+                <input
+                  value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                  placeholder="Örn: Sadık Müşteriler"
+                  className="w-full px-3 py-2.5 rounded-xl text-[12px] outline-none"
+                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#eeeef4' }}
+                  onFocus={e => (e.currentTarget.style.borderColor = '#4470ff66')}
+                  onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)')}
+                />
               </div>
+
+              {/* Description */}
               <div>
-                <label className="label">Açıklama (opsiyonel)</label>
-                <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-                  placeholder="Segment açıklaması"
-                  className="w-full rounded-xl px-3 py-2.5 text-sm text-[#e1e2ee] placeholder:text-[#424656] outline-none focus:border-[#b3c5ff]/50 transition-all"
-                  style={{ background: '#10131c', border: '1px solid rgba(66,70,86,0.5)' }} />
+                <label className="block text-[11px] font-semibold mb-1.5" style={{ color: '#8080a0' }}>Açıklama</label>
+                <input
+                  value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                  placeholder="Bu segment nedir?"
+                  className="w-full px-3 py-2.5 rounded-xl text-[12px] outline-none"
+                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#eeeef4' }}
+                  onFocus={e => (e.currentTarget.style.borderColor = '#4470ff66')}
+                  onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)')}
+                />
               </div>
+
+              {/* Icon + Color */}
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className="block text-[11px] font-semibold mb-1.5" style={{ color: '#8080a0' }}>İkon</label>
+                  <div className="grid grid-cols-8 gap-1">
+                    {ICON_OPTIONS.map(ic => (
+                      <button key={ic} onClick={() => setForm(f => ({ ...f, icon: ic }))}
+                        className="w-7 h-7 rounded-lg flex items-center justify-center text-[13px] transition-all"
+                        style={{ background: form.icon === ic ? '#4470ff22' : 'rgba(255,255,255,0.04)', border: form.icon === ic ? '1px solid #4470ff66' : '1px solid transparent' }}>
+                        {ic}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Color */}
               <div>
-                <label className="label">Renk</label>
-                <div className="flex gap-2">
-                  {COLORS.map(c => (
-                    <button key={c.key} onClick={() => setForm(f => ({ ...f, color: c.key }))}
-                      className={cn('w-7 h-7 rounded-lg transition-all', c.dot, form.color === c.key ? 'ring-2 ring-white/30 ring-offset-2 ring-offset-[#0b0e16] scale-110' : 'opacity-50 hover:opacity-100')} />
+                <label className="block text-[11px] font-semibold mb-1.5" style={{ color: '#8080a0' }}>Renk</label>
+                <div className="flex gap-1.5 flex-wrap">
+                  {COLOR_OPTIONS.map(c => (
+                    <button key={c} onClick={() => setForm(f => ({ ...f, color: c }))}
+                      className="w-6 h-6 rounded-full transition-all"
+                      style={{
+                        background: c,
+                        boxShadow: form.color === c ? `0 0 0 2px rgba(0,0,0,0.8), 0 0 0 4px ${c}` : 'none',
+                      }} />
                   ))}
                 </div>
               </div>
+
+              {/* Rules */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="label">Kurallar</label>
-                  <button onClick={addRule} className="text-xs text-[#b3c5ff] hover:text-white font-semibold flex items-center gap-1 transition-colors">
-                    <Plus className="w-3 h-3" /> Kural Ekle
-                  </button>
+                  <p className="text-[11px] font-semibold" style={{ color: '#8080a0' }}>KOŞULLAR *</p>
+                  {/* Match type */}
+                  <div className="flex items-center p-0.5 rounded-lg"
+                    style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                    {(['all', 'any'] as const).map(t => (
+                      <button key={t} onClick={() => setForm(f => ({ ...f, matchType: t }))}
+                        className="px-2.5 py-1 rounded-md text-[10px] font-semibold transition-all"
+                        style={form.matchType === t
+                          ? { background: 'rgba(255,255,255,0.08)', color: '#eeeef4' }
+                          : { color: '#44445a' }}>
+                        {t === 'all' ? 'Tümü' : 'Herhangi'}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                {form.rules.length === 0 && (
-                  <p className="text-xs text-[#8c90a1] rounded-xl px-3 py-3 text-center"
-                    style={{ background: '#10131c', border: '1px solid rgba(66,70,86,0.3)' }}>
-                    Kural eklemezseniz tüm müşteriler dahil edilir
-                  </p>
-                )}
+
                 <div className="space-y-2">
                   {form.rules.map((rule, i) => (
-                    <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-xl"
-                      style={{ background: '#10131c', border: '1px solid rgba(66,70,86,0.3)' }}>
-                      <select value={rule.field} onChange={e => updateRule(i, 'field', e.target.value)}
-                        className="text-xs rounded-lg px-2 py-1.5 outline-none flex-1 text-[#e1e2ee]"
-                        style={{ background: '#1d1f28', border: '1px solid rgba(66,70,86,0.4)' }}>
-                        {RULE_FIELDS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
-                      </select>
-                      <select value={rule.operator} onChange={e => updateRule(i, 'operator', e.target.value)}
-                        className="text-xs rounded-lg px-2 py-1.5 outline-none w-14 text-[#e1e2ee]"
-                        style={{ background: '#1d1f28', border: '1px solid rgba(66,70,86,0.4)' }}>
-                        {RULE_OPERATORS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                      </select>
-                      <input value={rule.value} onChange={e => updateRule(i, 'value', e.target.value)}
-                        className="text-xs rounded-lg px-2 py-1.5 outline-none w-20 text-[#e1e2ee]"
-                        style={{ background: '#1d1f28', border: '1px solid rgba(66,70,86,0.4)' }} />
-                      <button onClick={() => removeRule(i)} className="text-[#8c90a1] hover:text-red-400 transition-colors p-0.5">
-                        <X className="w-3.5 h-3.5" />
-                      </button>
+                    <RuleRow key={i} rule={rule} index={i} onUpdate={updateRule} onRemove={removeRule} />
+                  ))}
+                </div>
+
+                <button onClick={addRule}
+                  className="flex items-center gap-1.5 mt-2 px-3 py-2 rounded-xl w-full text-[11px] font-semibold transition-all"
+                  style={{ background: 'rgba(68,112,255,0.06)', color: '#99b4ff', border: '1px solid rgba(68,112,255,0.15)' }}>
+                  <Plus className="w-3.5 h-3.5" /> Koşul Ekle
+                </button>
+              </div>
+
+              {/* Preview */}
+              <div className="rounded-xl p-3.5" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-8 h-8 rounded-xl flex items-center justify-center text-[15px]"
+                    style={{ background: `${form.color}15`, border: `1px solid ${form.color}25` }}>
+                    {form.icon}
+                  </div>
+                  <div>
+                    <p className="text-[12px] font-semibold" style={{ color: '#eeeef4' }}>{form.name || 'Segment Adı'}</p>
+                    <p className="text-[10px]" style={{ color: '#44445a' }}>{form.rules.length} koşul · {form.matchType === 'all' ? 'tümü' : 'herhangi biri'}</p>
+                  </div>
+                </div>
+                <p className="text-[10px]" style={{ color: '#44445a' }}>Kayıt sonrası müşteri sayısı hesaplanır.</p>
+              </div>
+
+              {saveError && (
+                <div className="flex items-center gap-2 p-3 rounded-xl"
+                  style={{ background: 'rgba(232,69,69,0.08)', border: '1px solid rgba(232,69,69,0.2)' }}>
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" style={{ color: '#e84545' }} />
+                  <p className="text-[11px]" style={{ color: '#e84545' }}>{saveError}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 py-4 flex gap-2 shrink-0" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+              <button onClick={() => { setShowCreate(false); setSaveError('') }}
+                className="flex-1 py-2 rounded-xl text-[12px] font-semibold"
+                style={{ background: 'rgba(255,255,255,0.05)', color: '#8080a0', border: '1px solid rgba(255,255,255,0.08)' }}>
+                İptal
+              </button>
+              <button onClick={saveSegment} disabled={saving}
+                className="flex-1 py-2 rounded-xl text-[12px] font-bold flex items-center justify-center gap-1.5 transition-all disabled:opacity-50"
+                style={{ background: '#4470ff', color: '#fff' }}>
+                {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                Kaydet
+              </button>
+            </div>
+          </div>
+
+        ) : (
+
+          /* ── AI Öneriler panel ── */
+          <div className="w-[290px] shrink-0 flex flex-col overflow-hidden"
+            style={{ borderLeft: '1px solid rgba(255,255,255,0.06)', background: '#0d0d1a' }}>
+
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-3.5 shrink-0"
+              style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0"
+                  style={{ background: 'rgba(159,122,250,0.15)', border: '1px solid rgba(159,122,250,0.25)' }}>
+                  <Sparkles className="w-3.5 h-3.5 text-violet-400" />
+                </div>
+                <p className="text-[13px] font-semibold" style={{ color: '#eeeef4' }}>AI Segment Önerileri</p>
+              </div>
+              <button onClick={fetchSuggestions} disabled={aiLoading}
+                className="p-1.5 rounded-lg transition-all" style={{ color: '#44445a' }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                <RefreshCw className={cn('w-3.5 h-3.5', aiLoading && 'animate-spin')} />
+              </button>
+            </div>
+
+            <div className="p-4 flex-1 overflow-auto space-y-3">
+              <p className="text-[11px]" style={{ color: '#44445a' }}>
+                Müşteri verileriniz analiz edilerek oluşturuldu.
+              </p>
+
+              {aiLoading ? (
+                [...Array(3)].map((_, i) => (
+                  <div key={i} className="p-3.5 rounded-xl animate-pulse"
+                    style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', height: 96 }} />
+                ))
+              ) : suggestions.map((s, i) => (
+                <div key={i} className="p-3.5 rounded-xl transition-all cursor-default"
+                  style={{ background: `${s.color}10`, border: `1px solid ${s.color}28` }}
+                  onMouseEnter={e => (e.currentTarget.style.background = `${s.color}18`)}
+                  onMouseLeave={e => (e.currentTarget.style.background = `${s.color}10`)}>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span className="text-[14px]">{s.icon}</span>
+                    <p className="text-[11px] font-bold" style={{ color: s.color }}>{s.title}</p>
+                  </div>
+                  <p className="text-[10px] leading-relaxed mb-1" style={{ color: '#8080a0' }}>{s.description}</p>
+                  <p className="text-[10px] font-semibold mb-2.5" style={{ color: s.color }}>{s.insight}</p>
+                  <button onClick={() => applySuggestion(s)}
+                    className="text-[10px] font-bold px-2.5 py-1 rounded-lg transition-all"
+                    style={{ background: `${s.color}18`, color: s.color }}
+                    onMouseEnter={e => (e.currentTarget.style.background = `${s.color}28`)}
+                    onMouseLeave={e => (e.currentTarget.style.background = `${s.color}18`)}>
+                    Segment Oluştur →
+                  </button>
+                </div>
+              ))}
+
+              {/* Stats summary */}
+              <div className="rounded-xl p-3.5" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <p className="text-[11px] font-semibold mb-2.5" style={{ color: '#eeeef4' }}>Segment Özeti</p>
+                <div className="space-y-2">
+                  {[
+                    ['Toplam segment', String(segments.length)],
+                    ['Aktif segment', String(activeCount)],
+                    ['Toplam kapsam', formatNumber(totalCount) + ' müşteri'],
+                    ['En büyük', biggest?.name ?? '—'],
+                  ].map(([label, value]) => (
+                    <div key={label} className="flex items-center justify-between text-[11px]">
+                      <span style={{ color: '#44445a' }}>{label}</span>
+                      <span className="font-semibold" style={{ color: '#eeeef4' }}>{value}</span>
                     </div>
                   ))}
                 </div>
-              </div>
-            </div>
-            <div className="px-6 pb-5 flex gap-3">
-              <button onClick={() => setShowCreate(false)}
-                className="flex-1 rounded-xl py-2.5 text-sm text-[#8c90a1] hover:text-[#e1e2ee] transition-all"
-                style={{ border: '1px solid rgba(66,70,86,0.4)' }}>
-                İptal
-              </button>
-              <button onClick={createSegment} disabled={!form.name.trim() || saving}
-                className="flex-1 rounded-xl py-2.5 text-sm font-bold text-white transition-all flex items-center justify-center gap-2 disabled:opacity-40"
-                style={{ background: '#0066ff', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.3)' }}>
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                Oluştur
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Segment Detail Panel */}
-      {activeSegment && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4">
-          <div className="rounded-2xl shadow-2xl w-full max-w-md"
-            style={{ background: '#0b0e16', border: '1px solid rgba(66,70,86,0.5)' }}>
-            <div className="flex items-center justify-between px-6 py-4 border-b border-[#272a33]">
-              <h3 className="font-bold text-[#e1e2ee]" style={{ fontFamily: 'Geist, sans-serif' }}>{activeSegment.name}</h3>
-              <button onClick={() => setActiveSegment(null)} className="text-[#8c90a1] hover:text-[#e1e2ee] transition-colors">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-xl p-3" style={{ background: '#10131c', border: '1px solid rgba(66,70,86,0.3)' }}>
-                  <p className="text-xs text-[#8c90a1]">Müşteri Sayısı</p>
-                  <p className="text-2xl font-bold text-[#e1e2ee] tabular-nums">{activeSegment.count.toLocaleString('tr-TR')}</p>
-                </div>
-                <div className="rounded-xl p-3" style={{ background: '#10131c', border: '1px solid rgba(66,70,86,0.3)' }}>
-                  <p className="text-xs text-[#8c90a1]">Tip</p>
-                  <p className="text-sm font-semibold text-[#e1e2ee] mt-1">
-                    {activeSegment.type === 'builtin' ? 'Yerleşik' : 'Özel'}
-                  </p>
-                </div>
-              </div>
-              {activeSegment.description && <p className="text-sm text-[#8c90a1]">{activeSegment.description}</p>}
-              {activeSegment.rules.length > 0 && (
-                <div>
-                  <p className="label mb-2">Kurallar</p>
-                  <div className="space-y-1.5">
-                    {activeSegment.rules.map((rule, i) => {
-                      const fl = RULE_FIELDS.find(f => f.value === rule.field)?.label ?? rule.field
-                      const ol = RULE_OPERATORS.find(o => o.value === rule.operator)?.label ?? rule.operator
-                      return (
-                        <div key={i} className="text-xs rounded-lg px-3 py-2 text-[#8c90a1]"
-                          style={{ background: '#10131c', border: '1px solid rgba(66,70,86,0.3)' }}>
-                          {fl} {ol} {rule.value}
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
-              <div className="flex gap-3 pt-2">
-                <Link href={`/campaigns/new?segment=${activeSegment.name}`}
-                  className="flex-1 text-center text-sm font-bold text-white rounded-xl py-2.5 transition-all"
-                  style={{ background: '#0066ff', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.3)' }}>
-                  Kampanya Oluştur
-                </Link>
-                {activeSegment.type === 'custom' && (
-                  <button onClick={() => deleteSegment(activeSegment.id)}
-                    className="px-4 text-sm rounded-xl py-2.5 transition-all text-red-400 hover:bg-red-500/10"
-                    style={{ border: '1px solid rgba(239,68,68,0.2)' }}>
-                    Sil
-                  </button>
-                )}
+                <button
+                  onClick={() => { setShowCreate(true); setSaveError('') }}
+                  className="w-full mt-3 py-2 rounded-xl text-[11px] font-bold transition-all"
+                  style={{ background: 'rgba(68,112,255,0.1)', color: '#99b4ff', border: '1px solid rgba(68,112,255,0.2)' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(68,112,255,0.18)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'rgba(68,112,255,0.1)')}>
+                  <Users className="w-3.5 h-3.5 inline mr-1.5" />
+                  Özel Segment Oluştur
+                </button>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </AppShell>
   )
 }

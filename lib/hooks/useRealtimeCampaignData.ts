@@ -15,14 +15,14 @@ export interface CumulativePoint {
 export interface LiveActivity {
   id: string
   type: 'open' | 'click' | 'purchase' | 'unsubscribe'
-  channel: 'email' | 'sms' | 'whatsapp'
+  channel: 'email' | 'whatsapp'
   customer: string
   campaign: string
   amount?: number
   time: string
 }
 
-const channels = ['email', 'sms', 'whatsapp'] as const
+const channels = ['email', 'whatsapp'] as const
 const names = ['Ayşe K.', 'Mehmet A.', 'Fatma Y.', 'Ali D.', 'Zeynep T.', 'Hasan M.', 'Elif Ş.', 'Murat B.', 'Selin Ö.', 'Emre C.']
 const campaigns = ['VIP İndirim', 'Sepet Terk', 'Yeni Koleksiyon', 'Hoş Geldin', 'Win-back', 'Bahar Kampanyası']
 const eventTypes = ['open', 'click', 'purchase', 'open', 'open', 'click'] as const

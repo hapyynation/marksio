@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Loader2, Sparkles, Send, ChevronRight, ChevronLeft, Check,
@@ -12,7 +12,7 @@ import {
   ArrowRight, Star, TrendingUp,
 } from 'lucide-react'
 import AppShell from '@/components/layout/AppShell'
-import { useSession } from 'next-auth/react'
+import { useSession } from '@/lib/hooks/use-session'
 
 /* ── Types ──────────────────────────────────────────────────────────── */
 
@@ -50,7 +50,6 @@ interface AiContent {
   layoutStyle: string
   recommendedSegment: string
   personalizationVariables: string[]
-  smsVariant: string
   whatsappVariant: string
   visualDirection: string
 }
@@ -65,7 +64,7 @@ const EMPTY_PRODUCT: Omit<Product, 'id'> = {
 const EMPTY_AI: AiContent = {
   subject: '', previewText: '', headline: '', body: '', ctaText: '',
   imagePrompt: '', layoutStyle: '', recommendedSegment: '',
-  personalizationVariables: [], smsVariant: '', whatsappVariant: '',
+  personalizationVariables: [], whatsappVariant: '',
   visualDirection: '',
 }
 
@@ -155,6 +154,7 @@ export default function NewCampaignPage() {
   })
   const [ai,              setAi]             = useState<AiContent>(EMPTY_AI)
   const [imageUrl,        setImageUrl]       = useState('')
+  const [bannerHtml,      setBannerHtml]     = useState('')
   const [genContent,      setGenContent]     = useState(false)
   const [genImage,        setGenImage]       = useState(false)
   const [saving,          setSaving]         = useState(false)
@@ -168,6 +168,23 @@ export default function NewCampaignPage() {
   const [previewEnv,      setPreviewEnv]     = useState<'light' | 'dark'>('light')
   const [aiPhase,         setAiPhase]        = useState(0)
   const [notifs,          setNotifs]         = useState<Notif[]>([])
+
+  /* ── Load banner from AI Studio ──────────────────────────────────── */
+
+  const searchParams = useSearchParams()
+  useEffect(() => {
+    const bannerId = searchParams.get('bannerId')
+    if (!bannerId) return
+    try {
+      const stored = localStorage.getItem(`marksio_banner_asset_${bannerId}`)
+      if (!stored) return
+      const asset = JSON.parse(stored) as { bgImageUrl?: string; html?: string; productImage?: string; content?: { headline?: string; subheadline?: string; ctaLabel?: string } }
+      if (asset.bgImageUrl) setImageUrl(asset.bgImageUrl)
+      if (asset.html) setBannerHtml(asset.html)
+      if (asset.content?.headline) setAi(a => ({ ...a, subject: asset.content!.headline!, headline: asset.content!.headline! }))
+      notify('success', 'AI Studio banner\'ı yüklendi! Kampanya editörüne aktarıldı.')
+    } catch { /* ignore */ }
+  }, [searchParams]) // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── Notifications ────────────────────────────────────────────────── */
 
@@ -889,20 +906,12 @@ export default function NewCampaignPage() {
                       </div>
                     ))}
 
-                    {(ai.smsVariant || ai.whatsappVariant) && (
-                      <div className="grid grid-cols-2 gap-3 pt-1">
-                        {ai.smsVariant && (
-                          <div className="bg-[#0f0f0f] rounded-2xl p-4 border border-white/5">
-                            <label className="block text-[10px] font-semibold text-white/30 uppercase tracking-widest mb-2">SMS Varyant</label>
-                            <p className="text-xs text-white/60 leading-relaxed">{ai.smsVariant}</p>
-                          </div>
-                        )}
-                        {ai.whatsappVariant && (
-                          <div className="bg-[#0f0f0f] rounded-2xl p-4 border border-white/5">
-                            <label className="block text-[10px] font-semibold text-white/30 uppercase tracking-widest mb-2">WhatsApp Varyant</label>
-                            <p className="text-xs text-white/60 leading-relaxed">{ai.whatsappVariant}</p>
-                          </div>
-                        )}
+                    {ai.whatsappVariant && (
+                      <div className="pt-1">
+                        <div className="bg-[#0f0f0f] rounded-2xl p-4 border border-white/5">
+                          <label className="block text-[10px] font-semibold text-white/30 uppercase tracking-widest mb-2">WhatsApp Varyant</label>
+                          <p className="text-xs text-white/60 leading-relaxed">{ai.whatsappVariant}</p>
+                        </div>
                       </div>
                     )}
                   </div>

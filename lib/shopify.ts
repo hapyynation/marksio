@@ -175,6 +175,38 @@ export async function registerWebhooks(
   )
 }
 
+/**
+ * Shopify mağazasına Script Tag ekle.
+ * Script Tag sayfa yüklendiğinde /api/track/visit endpoint'ini çağırır.
+ * Canlı Takip sayfası için gerçek ziyaretçi verisi toplar.
+ */
+export async function registerScriptTag(
+  domain: string,
+  token: string,
+  appBaseUrl: string,
+): Promise<void> {
+  const scriptSrc = `${appBaseUrl}/shopify-pixel.js`
+
+  // Mevcut script tag'leri kontrol et
+  const existing = await shopifyFetch<{ script_tags: Array<{ id: number; src: string }> }>(
+    domain, token, '/script_tags.json',
+  ).catch(() => ({ script_tags: [] }))
+
+  const alreadyInstalled = existing.script_tags.some(s => s.src.includes('/shopify-pixel.js'))
+  if (alreadyInstalled) return
+
+  await shopifyFetch(domain, token, '/script_tags.json', {
+    method: 'POST',
+    body: JSON.stringify({
+      script_tag: {
+        event: 'onload',
+        src: scriptSrc,
+        display_scope: 'online_store',
+      },
+    }),
+  }).catch(() => null)
+}
+
 // ── Security ──────────────────────────────────────────────────────────────────
 
 export function verifyWebhookHmac(body: string, hmacHeader: string, secret: string): boolean {

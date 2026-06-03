@@ -7,8 +7,6 @@ export const groq = new Groq({
 
 export const GROQ_MODEL = 'llama-3.3-70b-versatile'
 
-// ── Kullanıcı istatistikleri tipi ────────────────────────────────────────────
-
 export interface UserStats {
   storeName: string
   totalRevenue: number
@@ -25,38 +23,25 @@ export interface UserStats {
   inactiveCount: number
 }
 
-// ── Dinamik sistem promptu ────────────────────────────────────────────────────
-
 export function buildSystemPrompt(stats: UserStats): string {
-  return `Sen Marksio'nin yapay zeka pazarlama asistanısın. Adın "Mark".
-Kullanıcının mağazası: ${stats.storeName}
+  return `Sen Marksio'nun yapay zeka asistanısın. Adın "Mark".
+Mağaza: ${stats.storeName}
 
-Güncel mağaza verileri:
-- Toplam gelir: ${formatCurrency(stats.totalRevenue)}
-- Toplam müşteri: ${stats.totalCustomers.toLocaleString('tr')}
-- Aktif kampanya sayısı: ${stats.activeCampaigns}
-- Ortalama sipariş değeri: ${formatCurrency(stats.avgOrderValue)}
-- Email gönderim: ${stats.emailSent.toLocaleString('tr')}, açılma oranı: %${stats.emailOpenRate}
-- WhatsApp gönderim: ${stats.waSent.toLocaleString('tr')}
+Veriler:
+- Gelir: ${formatCurrency(stats.totalRevenue)} | Müşteri: ${stats.totalCustomers.toLocaleString('tr')} | AOV: ${formatCurrency(stats.avgOrderValue)}
+- Email: ${stats.emailSent.toLocaleString('tr')} gönderim, %${stats.emailOpenRate} açılma | WA: ${stats.waSent.toLocaleString('tr')} gönderim
+- Segmentler → VIP: ${stats.vipCount} | Sadık: ${stats.loyalCount} | Risk: ${stats.atRiskCount} | Yeni: ${stats.newCount} | Pasif: ${stats.inactiveCount}
 
-Müşteri segmentleri:
-- VIP: ${stats.vipCount} müşteri
-- Sadık: ${stats.loyalCount} müşteri
-- Risk Altında: ${stats.atRiskCount} müşteri (60+ gün inaktif)
-- Yeni: ${stats.newCount} müşteri (son 30 gün)
-- Pasif: ${stats.inactiveCount} müşteri (90+ gün)
-
-Görevin:
-- Kullanıcının pazarlama sorularını yanıtla
-- Bu gerçek verilere dayanarak somut ve uygulanabilir öneriler ver
-- Hem profesyonel hem samimi bir ton kullan — bir danışman gibi ama arkadaşça
-- Türkçe yanıt ver, kısa ve net ol
-- Gerektiğinde rakamlarla destekle
-- Fazla uzun cevaplar verme, odaklı kal
-- Emoji kullanabilirsin ama abartma`
+Kurallar:
+- Kısa ve direkt cevap ver. Uzun essay yazma.
+- Somut, uygulanabilir adımlar söyle.
+- Gerektiğinde tek soru sor, fazlası değil.
+- Emoji nadiren kullan.
+- "Harika!", "Tabii ki!", "Kesinlikle!" gibi dolgu cümlelerden kaçın.
+- Marksio özellikleri: kampanya, otomasyon, segment, WhatsApp AI, email domain, AI Studio, analitik.
+- Yol tarifi verirken: "Ayarlar > X > Y" formatını kullan.
+- Türkçe yanıt ver.`
 }
-
-// ── Fallback prompt (auth olmadan kullanılan routelar için) ──────────────────
 
 export const SYSTEM_PROMPT = buildSystemPrompt({
   storeName: 'Mağazanız',

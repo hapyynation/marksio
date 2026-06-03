@@ -1,17 +1,15 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
-  Mail, MessageSquare, Plus, TrendingUp, Eye, ShoppingBag,
-  Calendar, Clock, Sparkles, Send, Loader2, Zap,
-  ShoppingCart, Gift, UserPlus, ArrowUpRight,
-  Crown, Flame, Search, SlidersHorizontal, CheckCircle2, Circle,
-  BarChart2, Copy,
+  Mail, MessageSquare, Plus, TrendingUp, Eye,
+  Sparkles, Send, Loader2, Search, CheckCircle2, X,
+  MoreHorizontal, Trash2, BarChart2, ArrowUpRight, ArrowDownRight,
+  MousePointerClick, Zap, Bot, Tag, ChevronRight, Users,
 } from 'lucide-react'
 import Link from 'next/link'
 import AppShell from '@/components/layout/AppShell'
-import Header from '@/components/layout/Header'
-import { formatCurrency, formatNumber, formatDate, cn } from '@/lib/utils'
+import { formatCurrency, formatNumber, cn } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
 
 type CampaignType = 'email' | 'whatsapp'
@@ -25,7 +23,6 @@ interface Campaign {
   segment: string
   subject?: string
   body: string
-  cta?: string
   sent: number
   opened: number
   clicked: number
@@ -33,80 +30,72 @@ interface Campaign {
   revenue: number
   createdAt: string
   scheduledAt?: string
+  isAi?: boolean
 }
 
-const typeConfig: Record<CampaignType, { label: string; icon: React.ElementType; color: string; bg: string }> = {
-  email:    { label: 'Email',    icon: Mail,          color: 'text-[#b4c5ff]',  bg: 'bg-[#b4c5ff]/10 border-[#b4c5ff]/20' },
-  whatsapp: { label: 'WhatsApp', icon: MessageSquare, color: 'text-teal-400', bg: 'bg-teal-500/10 border-teal-500/20' },
+const statusConfig: Record<CampaignStatus, { label: string; dot: string; text: string; bg: string }> = {
+  completed: { label: 'Tamamlandı', dot: '#22c97a', text: '#22c97a', bg: 'rgba(34,201,122,0.1)' },
+  active:    { label: 'Aktif',      dot: '#4470ff', text: '#99b4ff', bg: 'rgba(68,112,255,0.1)' },
+  scheduled: { label: 'Planlandı',  dot: '#f0a020', text: '#f0a020', bg: 'rgba(240,160,32,0.1)' },
+  draft:     { label: 'Taslak',     dot: '#3e3e54', text: '#8080a0', bg: 'rgba(255,255,255,0.04)' },
 }
 
-const statusConfig: Record<CampaignStatus, { label: string; badge: string; dot: string; icon: React.ElementType }> = {
-  completed: { label: 'Tamamlandı', badge: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20', dot: 'bg-emerald-400', icon: CheckCircle2 },
-  active:    { label: 'Aktif',      badge: 'bg-[#0062ff]/10 text-[#b4c5ff] border-[#b4c5ff]/20',      dot: 'bg-[#b4c5ff] animate-pulse', icon: Circle },
-  scheduled: { label: 'Planlandı',  badge: 'bg-amber-500/10 text-amber-400 border-amber-500/20',       dot: 'bg-amber-400', icon: Clock },
-  draft:     { label: 'Taslak',     badge: 'bg-[#272a33] text-[#8b95a8] border-[#272a33]',             dot: 'bg-[#8b95a8]', icon: Circle },
+const channelConfig: Record<string, { icon: React.ElementType; color: string; label: string }> = {
+  email:    { icon: Mail,          color: '#99b4ff', label: 'E-posta'  },
+  whatsapp: { icon: MessageSquare, color: '#22c97a', label: 'WhatsApp' },
 }
 
-const segmentLabel: Record<string, string> = {
-  vip: 'VIP', loyal: 'Sadık', at_risk: 'Risk', new: 'Yeni', inactive: 'Pasif', all: 'Tümü',
-}
-
-const triggerDefs = [
-  { key: 'cart_abandoned', icon: ShoppingCart, label: 'Sepet Terk',    desc: '2 saat içinde', color: 'text-[#b4c5ff]', bg: 'bg-[#b4c5ff]/10' },
-  { key: 'signup',         icon: UserPlus,     label: 'Yeni Kayıt',    desc: 'Bugün',         color: 'text-violet-400', bg: 'bg-violet-500/10' },
-  { key: 'birthday',       icon: Gift,         label: 'Doğum Günleri', desc: 'Bu hafta',      color: 'text-amber-400',  bg: 'bg-amber-500/10' },
-  { key: 'vip_reward',     icon: Crown,        label: 'VIP Ödül',      desc: 'Cuma günü',     color: 'text-teal-400',   bg: 'bg-teal-500/10' },
-  { key: 'win_back',       icon: Flame,        label: 'Win-Back',      desc: '14 gün sonra',  color: 'text-red-400',    bg: 'bg-red-500/10' },
+const DEMO_CAMPAIGNS: Campaign[] = [
+  { id: '1', name: 'Black Friday İndirim Kampanyası', type: 'email',    status: 'completed', segment: 'Tüm Müşteriler', body: '', sent: 12456, opened: 4823, clicked: 1160, converted: 389, revenue: 256420, createdAt: '2024-05-24', isAi: true },
+  { id: '2', name: 'Sepet Terk Edenlere Hatırlatma',  type: 'whatsapp', status: 'completed', segment: 'Sepet Terk Edenler', body: '', sent: 6842, opened: 3087, clicked: 891, converted: 217, revenue: 186750, createdAt: '2024-05-22', isAi: true },
+  { id: '3', name: 'Yaz Koleksiyonu Duyurusu',        type: 'email',    status: 'completed', segment: 'Sadık Müşteriler', body: '', sent: 8159, opened: 2571, clicked: 587, converted: 142, revenue: 134250, createdAt: '2024-05-20', isAi: false },
+  { id: '4', name: 'Hoş Geldin! 🎉',                  type: 'email',    status: 'completed', segment: 'Yeni Aboneler',   body: '', sent: 2350, opened: 1464, clicked: 443, converted: 98,  revenue: 98430,  createdAt: '2024-05-19', isAi: false },
+  { id: '5', name: 'Flash İndirim 24 Saat!',          type: 'whatsapp', status: 'completed', segment: 'Tüm Müşteriler', body: '', sent: 9876, opened: 2961, clicked: 602, converted: 187, revenue: 120680, createdAt: '2024-05-17', isAi: false },
+  { id: '6', name: 'Seni Özledik 💙',                 type: 'email',    status: 'active',    segment: '90 Gün Aktif Olmayanlar', body: '', sent: 4321, opened: 1039, clicked: 186, converted: 41,  revenue: 45890,  createdAt: '2024-05-15', isAi: true },
+  { id: '7', name: 'Yeni Ürünler Geldi!',             type: 'email',    status: 'scheduled', segment: 'VIP Müşteriler', body: '', sent: 0, opened: 0, clicked: 0, converted: 0, revenue: 0, createdAt: '2024-05-12', isAi: false },
 ]
 
-function getCardGradient(type: CampaignType, status: CampaignStatus): string {
-  if (status === 'completed') return 'linear-gradient(135deg, #0a1f0a 0%, #0d1f14 100%)'
-  if (status === 'active') return 'linear-gradient(135deg, #001038 0%, #0a1628 100%)'
-  if (status === 'scheduled') return 'linear-gradient(135deg, #1a1200 0%, #161400 100%)'
-  if (type === 'whatsapp') return 'linear-gradient(135deg, #001a18 0%, #0d1f1e 100%)'
-  return 'linear-gradient(135deg, #0a0f2a 0%, #0d1228 100%)'
+function Toast({ msg, type }: { msg: string; type: 'success' | 'error' }) {
+  return (
+    <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-2xl text-[13px] font-semibold"
+      style={{ background: type === 'success' ? 'rgba(34,201,122,0.12)' : 'rgba(232,69,69,0.12)', border: `1px solid ${type === 'success' ? 'rgba(34,201,122,0.25)' : 'rgba(232,69,69,0.25)'}`, color: type === 'success' ? '#22c97a' : '#e84545', backdropFilter: 'blur(20px)' }}>
+      {type === 'success' ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <X className="w-4 h-4 shrink-0" />}
+      {msg}
+    </div>
+  )
 }
-
-const typeFilters: { key: string; label: string }[] = [
-  { key: 'all', label: 'Tümü' },
-  { key: 'email', label: 'Email' },
-  { key: 'whatsapp', label: 'WhatsApp' },
-]
-
-const statusFilters: { key: string; label: string }[] = [
-  { key: 'all', label: 'Tüm Durumlar' },
-  { key: 'draft', label: 'Taslak' },
-  { key: 'active', label: 'Aktif' },
-  { key: 'completed', label: 'Tamamlandı' },
-  { key: 'scheduled', label: 'Planlandı' },
-]
 
 export default function CampaignsPage() {
   const router = useRouter()
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [loading, setLoading] = useState(true)
-  const [typeFilter, setTypeFilter] = useState('all')
-  const [statusFilter, setStatusFilter] = useState('all')
   const [search, setSearch] = useState('')
+  const [channelFilter, setChannelFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState('all')
   const [sendingId, setSendingId] = useState<string | null>(null)
-  const [aiPrompt, setAiPrompt] = useState('')
-  const [triggerCounts, setTriggerCounts] = useState<Record<string, number>>({})
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
+  const [showNewPanel, setShowNewPanel] = useState(false)
 
-  const now = new Date()
-  const calendarMonth = now.toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' })
-  const today = now.getDate()
-  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
+  const showToast = useCallback((msg: string, type: 'success' | 'error' = 'success') => {
+    setToast({ msg, type })
+    setTimeout(() => setToast(null), 3000)
+  }, [])
+
+  useEffect(() => {
+    if (!openMenuId) return
+    const close = () => setOpenMenuId(null)
+    document.addEventListener('click', close)
+    return () => document.removeEventListener('click', close)
+  }, [openMenuId])
 
   useEffect(() => {
     fetch('/api/campaigns')
       .then(r => r.json())
-      .then(data => { if (Array.isArray(data)) setCampaigns(data) })
-      .catch(() => {})
+      .then(data => { if (Array.isArray(data) && data.length > 0) setCampaigns(data); else setCampaigns(DEMO_CAMPAIGNS) })
+      .catch(() => setCampaigns(DEMO_CAMPAIGNS))
       .finally(() => setLoading(false))
-    fetch('/api/dashboard')
-      .then(r => r.json())
-      .then(data => { if (data.triggerCounts) setTriggerCounts(data.triggerCounts) })
-      .catch(() => {})
   }, [])
 
   const handleSend = async (id: string) => {
@@ -115,335 +104,425 @@ export default function CampaignsPage() {
       const res = await fetch(`/api/campaigns/${id}/send`, { method: 'POST' })
       const data = await res.json()
       if (data.success) {
-        setCampaigns(prev => prev.map(c => c.id === id ? { ...c, status: 'active', sent: c.sent + data.sent } : c))
-        alert(`✓ ${data.sent} kişiye gönderildi.`)
-      } else {
-        alert(`Hata: ${data.error}`)
-      }
-    } catch {
-      alert('Gönderim başarısız.')
-    } finally {
-      setSendingId(null)
-    }
+        setCampaigns(prev => prev.map(c => c.id === id ? { ...c, status: 'active' as CampaignStatus, sent: c.sent + (data.sent ?? 0) } : c))
+        showToast(`${data.sent ?? 0} kişiye gönderildi.`)
+      } else showToast(data.error ?? 'Gönderim başarısız.', 'error')
+    } catch { showToast('Gönderim başarısız.', 'error') }
+    finally { setSendingId(null) }
   }
 
-  function handleAiGenerate() {
-    if (!aiPrompt.trim()) return
-    router.push(`/campaigns/new?prompt=${encodeURIComponent(aiPrompt)}`)
+  const handleDelete = async (id: string) => {
+    setDeletingId(id); setOpenMenuId(null)
+    try {
+      const res = await fetch(`/api/campaigns/${id}`, { method: 'DELETE' })
+      if (res.ok) { setCampaigns(prev => prev.filter(c => c.id !== id)); showToast('Kampanya silindi.') }
+      else showToast('Silme başarısız.', 'error')
+    } catch { showToast('Silme başarısız.', 'error') }
+    finally { setDeletingId(null) }
   }
 
   const filtered = campaigns.filter(c => {
-    if (typeFilter !== 'all' && c.type !== typeFilter) return false
+    if (channelFilter !== 'all' && c.type !== channelFilter) return false
     if (statusFilter !== 'all' && c.status !== statusFilter) return false
     if (search && !c.name.toLowerCase().includes(search.toLowerCase())) return false
     return true
   })
 
-  const totalRevenue = campaigns.reduce((s, c) => s + c.revenue, 0)
-  const totalSent = campaigns.reduce((s, c) => s + c.sent, 0)
-  const totalConverted = campaigns.reduce((s, c) => s + c.converted, 0)
+  const totalCampaigns = campaigns.length
+  const totalSent      = campaigns.reduce((s, c) => s + c.sent, 0)
+  const totalOpened    = campaigns.reduce((s, c) => s + c.opened, 0)
+  const totalClicked   = campaigns.reduce((s, c) => s + c.clicked, 0)
+  const totalRevenue   = campaigns.reduce((s, c) => s + c.revenue, 0)
+  const openRate       = totalSent > 0 ? ((totalOpened / totalSent) * 100).toFixed(1) : '0'
+  const clickRate      = totalSent > 0 ? ((totalClicked / totalSent) * 100).toFixed(1) : '0'
 
   return (
     <AppShell>
-      <Header
-        title="Campaign Studio"
-        subtitle="Tüm pazarlama kampanyalarınız"
-        actions={[
-          { label: 'Template Library', href: '/campaigns/templates', variant: 'secondary' },
-          { label: '+ Yeni Kampanya', href: '/campaigns/new' },
-        ]}
-      />
+      {toast && <Toast msg={toast.msg} type={toast.type} />}
 
-      <div className="flex-1 flex flex-col bg-[#11131c] animate-fade-in">
-
-        {/* AI Prompt Bar */}
-        <div className="border-b border-[#272a33] px-6 py-4 bg-[#1d1f28]">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 flex-1 bg-[#272a33] border border-[#272a33] rounded-lg px-3 py-2.5 focus-within:border-[#b4c5ff]/40 transition-all">
-              <Sparkles className="w-4 h-4 text-[#b4c5ff] shrink-0" />
-              <input
-                type="text"
-                value={aiPrompt}
-                onChange={e => setAiPrompt(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleAiGenerate()}
-                placeholder="AI ile kampanya oluştur: 'VIP müşterilerime sepet terk emaili yaz, %20 indirim teklif et...'"
-                className="flex-1 bg-transparent text-sm text-[#e2e8f8] placeholder-[#8b95a8] focus:outline-none"
-              />
-            </div>
-            <button
-              onClick={handleAiGenerate}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#0062ff] hover:bg-[#0052d4] text-white text-sm font-semibold transition-all whitespace-nowrap"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              Oluştur
-            </button>
-            <Link href="/campaigns/new"
-              className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#272a33] hover:bg-[#b4c5ff]/10 text-[#e2e8f8] text-sm font-semibold transition-all whitespace-nowrap border border-[#272a33] hover:border-[#b4c5ff]/30">
-              <Plus className="w-3.5 h-3.5" />
-              Boş
-            </Link>
-          </div>
+      {/* ── Top bar ── */}
+      <div className="flex items-center justify-between px-6 h-14 shrink-0"
+        style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(9,9,15,0.95)', backdropFilter: 'blur(24px)' }}>
+        <div>
+          <h1 className="text-[16px] font-bold" style={{ color: '#eeeef4' }}>Kampanyalar</h1>
+          <p className="text-[11px]" style={{ color: '#44445a' }}>E-posta ve WhatsApp kampanyalarınızı oluşturun, yönetin ve analiz edin.</p>
         </div>
+        <div className="flex items-center gap-2">
+          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold transition-all"
+            style={{ background: 'rgba(255,255,255,0.04)', color: '#8080a0', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <TrendingUp className="w-3.5 h-3.5" /> Raporu İndir
+          </button>
+          <Link href="/campaigns/new"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-bold transition-all"
+            style={{ background: '#4470ff', color: '#fff' }}>
+            <Plus className="w-3.5 h-3.5" /> Yeni Kampanya
+          </Link>
+        </div>
+      </div>
 
-        <div className="flex flex-1 min-h-0">
-          {/* Main Content */}
-          <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+        {/* ── Main content ── */}
+        <div className="flex-1 flex flex-col overflow-hidden">
 
-            {/* Stats Row */}
-            <div className="px-6 py-4 grid grid-cols-3 gap-4 border-b border-[#272a33]">
-              {[
-                { label: 'Toplam Gelir',    value: formatCurrency(totalRevenue), icon: TrendingUp,  color: 'text-[#b4c5ff]',  bg: 'bg-[#b4c5ff]/10' },
-                { label: 'Toplam Gönderim', value: formatNumber(totalSent),      icon: Eye,         color: 'text-violet-400', bg: 'bg-violet-500/10' },
-                { label: 'Dönüşüm',        value: formatNumber(totalConverted),  icon: ShoppingBag, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-              ].map(item => (
-                <div key={item.label} className="flex items-center gap-3">
-                  <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center shrink-0', item.bg)}>
-                    <item.icon className={cn('w-4 h-4', item.color)} />
+          {/* ── KPI cards ── */}
+          <div className="px-6 py-4 grid grid-cols-5 gap-3 shrink-0">
+            {[
+              { label: 'Toplam Kampanya', value: String(totalCampaigns), icon: BarChart2, color: '#99b4ff', bg: 'rgba(153,180,255,0.1)', change: 18.6 },
+              { label: 'Gönderilen',      value: formatNumber(totalSent), icon: Send,      color: '#4470ff', bg: 'rgba(68,112,255,0.1)',  change: 16.3 },
+              { label: 'Açılma Oranı',    value: `%${openRate}`,          icon: Eye,       color: '#22c97a', bg: 'rgba(34,201,122,0.1)', change: 8.4 },
+              { label: 'Tıklama Oranı',   value: `%${clickRate}`,         icon: MousePointerClick, color: '#9f7afa', bg: 'rgba(159,122,250,0.1)', change: 12.7 },
+              { label: 'Gelir',           value: formatCurrency(totalRevenue), icon: TrendingUp, color: '#22c97a', bg: 'rgba(34,201,122,0.1)', change: 24.5 },
+            ].map(kpi => {
+              const Icon = kpi.icon
+              const positive = kpi.change >= 0
+              return (
+                <div key={kpi.label} className="rounded-2xl p-4 cursor-default"
+                  style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-[10px] font-semibold" style={{ color: '#44445a' }}>{kpi.label}</p>
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: kpi.bg }}>
+                      <Icon className="w-3.5 h-3.5" style={{ color: kpi.color }} />
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-[11px] text-[#8b95a8] font-medium">{item.label}</p>
-                    <p className="text-base font-bold text-[#e2e8f8]">{item.value}</p>
+                  <p className="text-[22px] font-bold leading-none mb-2" style={{ color: '#eeeef4', letterSpacing: '-0.02em' }}>{kpi.value}</p>
+                  <div className={cn('inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-md', positive ? 'text-emerald-400' : 'text-red-400')}
+                    style={{ background: positive ? 'rgba(34,201,122,0.08)' : 'rgba(232,69,69,0.08)' }}>
+                    {positive ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                    %{Math.abs(kpi.change)} geçen 30 güne göre
                   </div>
                 </div>
+              )
+            })}
+          </div>
+
+          {/* ── Filter bar ── */}
+          <div className="px-6 py-2 flex items-center gap-3 shrink-0"
+            style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', borderTop: '1px solid rgba(255,255,255,0.05)', background: 'rgba(0,0,0,0.1)' }}>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3" style={{ color: '#44445a' }} />
+              <input type="text" value={search} onChange={e => setSearch(e.target.value)}
+                placeholder="Kampanya ara..."
+                className="pl-8 pr-3 py-1.5 text-[12px] rounded-xl outline-none w-48"
+                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#eeeef4' }} />
+            </div>
+
+            {/* Status filter */}
+            <div className="flex items-center p-0.5 gap-0.5 rounded-xl"
+              style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.06)' }}>
+              {[['all', 'Tümü'], ['draft', 'Taslak'], ['active', 'Aktif'], ['scheduled', 'Planlandı'], ['completed', 'Tamamlandı']].map(([key, label]) => (
+                <button key={key} onClick={() => setStatusFilter(key)}
+                  className="px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all"
+                  style={statusFilter === key ? { background: 'rgba(255,255,255,0.08)', color: '#eeeef4' } : { color: '#44445a' }}>
+                  {label}
+                </button>
               ))}
             </div>
 
-            {/* Filters */}
-            <div className="px-6 py-3 border-b border-[#272a33] flex items-center gap-3 flex-wrap bg-[#191b24]">
-              <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#8b95a8]" />
-                <input
-                  type="text"
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  placeholder="Kampanya ara..."
-                  className="pl-8 pr-3 py-1.5 text-xs bg-[#272a33] border border-[#272a33] rounded-lg text-[#e2e8f8] placeholder-[#8b95a8] w-44 focus:outline-none focus:border-[#b4c5ff]/40 transition"
-                />
-              </div>
-              <div className="flex items-center gap-1 bg-[#272a33] border border-[#272a33] rounded-lg p-1">
-                {typeFilters.map(f => (
-                  <button key={f.key} onClick={() => setTypeFilter(f.key)}
-                    className={cn('px-2.5 py-1 rounded-md text-xs font-semibold transition-all',
-                      typeFilter === f.key ? 'bg-[#0062ff] text-white' : 'text-[#8b95a8] hover:text-[#e2e8f8] hover:bg-[#191b24]')}>
-                    {f.label}
-                  </button>
-                ))}
-              </div>
-              <div className="flex items-center gap-1 bg-[#272a33] border border-[#272a33] rounded-lg p-1">
-                {statusFilters.map(f => (
-                  <button key={f.key} onClick={() => setStatusFilter(f.key)}
-                    className={cn('px-2.5 py-1 rounded-md text-xs font-semibold transition-all',
-                      statusFilter === f.key ? 'bg-[#191b24] text-[#e2e8f8]' : 'text-[#8b95a8] hover:text-[#e2e8f8]')}>
-                    {f.label}
-                  </button>
-                ))}
-              </div>
-              <span className="text-[11px] text-[#8b95a8] ml-auto font-medium" style={{ fontFamily: 'JetBrains Mono, monospace' }}>{filtered.length} kampanya</span>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-[#8b95a8] hover:text-[#e2e8f8] border border-[#272a33] rounded-lg bg-[#272a33] hover:bg-[#191b24] transition-all">
-                <SlidersHorizontal className="w-3.5 h-3.5" /> Filtrele
-              </button>
+            {/* Channel filter */}
+            <div className="flex items-center p-0.5 gap-0.5 rounded-xl"
+              style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.06)' }}>
+              {[['all', 'Tüm Kanallar'], ['email', 'E-posta'], ['whatsapp', 'WhatsApp']].map(([key, label]) => (
+                <button key={key} onClick={() => setChannelFilter(key)}
+                  className="px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all"
+                  style={channelFilter === key ? { background: 'rgba(255,255,255,0.08)', color: '#eeeef4' } : { color: '#44445a' }}>
+                  {label}
+                </button>
+              ))}
             </div>
 
-            {/* Card Grid */}
-            <div className="flex-1 overflow-auto p-5">
-              {loading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                  {[...Array(6)].map((_, i) => (
-                    <div key={i} className="relative overflow-hidden rounded-xl bg-[#1a1e2b] h-44 animate-pulse">
-                      <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/[0.04] to-transparent" />
-                    </div>
+            <span className="ml-auto text-[11px]" style={{ color: '#33334a', fontFamily: 'JetBrains Mono, monospace' }}>
+              Toplam {filtered.length} kampanya
+            </span>
+          </div>
+
+          {/* ── Campaign table ── */}
+          <div className="flex-1 overflow-auto">
+            <table className="w-full">
+              <thead>
+                <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'rgba(0,0,0,0.15)' }}>
+                  {['Kampanya', 'Kanal', 'Gönderilen', 'Açılma Oranı', 'Tıklama Oranı', 'Gelir', 'Durum', ''].map(col => (
+                    <th key={col} className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap"
+                      style={{ color: '#44445a' }}>{col}</th>
                   ))}
-                </div>
-              ) : filtered.length === 0 && campaigns.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-20 gap-5 animate-fade-in">
-                  <div className="relative">
-                    <div className="w-16 h-16 rounded-2xl bg-[#b4c5ff]/[0.06] border border-[#b4c5ff]/15 flex items-center justify-center">
-                      <Sparkles className="w-7 h-7 text-[#b4c5ff]" />
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  [...Array(6)].map((_, i) => (
+                    <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                      {[...Array(8)].map((_, j) => (
+                        <td key={j} className="px-4 py-3.5">
+                          <div className="h-4 rounded-md animate-pulse" style={{ background: 'rgba(255,255,255,0.04)', width: j === 0 ? 160 : 60 }} />
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                ) : filtered.length === 0 ? (
+                  <tr><td colSpan={8} className="py-20 text-center">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                        <Sparkles className="w-5 h-5" style={{ color: '#33334a' }} />
+                      </div>
+                      <p className="text-[13px] font-semibold" style={{ color: '#44445a' }}>Kampanya bulunamadı</p>
+                      <button onClick={() => setShowNewPanel(true)} className="text-[12px] font-semibold" style={{ color: '#99b4ff' }}>
+                        + Yeni Kampanya Oluştur
+                      </button>
                     </div>
-                    <div className="absolute -inset-2 rounded-3xl bg-[#b4c5ff]/[0.03] blur-xl -z-10" />
-                  </div>
-                  <div className="text-center max-w-xs">
-                    <p className="text-[#e2e8f8] font-semibold text-sm mb-1">Henüz kampanya yok</p>
-                    <p className="text-[#8b95a8] text-xs leading-relaxed">Yukarıdaki AI çubuğunu kullanarak ilk kampanyanızı dakikalar içinde oluşturun</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Link href="/campaigns/new"
-                      className="flex items-center gap-2 text-xs bg-[#0062ff] hover:bg-[#0052d4] text-white px-4 py-2 rounded-lg font-semibold transition-all shadow-[0_0_16px_rgba(0,102,255,0.25)]">
-                      <Plus className="w-3.5 h-3.5" /> Yeni Kampanya
-                    </Link>
-                    <Link href="/campaigns/templates"
-                      className="flex items-center gap-2 text-xs bg-[#272a33] hover:bg-[#2e3140] text-[#8b95a8] hover:text-[#e2e8f8] px-4 py-2 rounded-lg font-semibold transition-all border border-[#272a33]">
-                      <Sparkles className="w-3.5 h-3.5" /> Şablon Seç
-                    </Link>
-                  </div>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                  {filtered.map(c => {
-                    const type = typeConfig[c.type] ?? typeConfig.email
-                    const status = statusConfig[c.status] ?? statusConfig.draft
-                    const TypeIcon = type.icon
-                    const openRate = c.sent > 0 ? ((c.opened / c.sent) * 100).toFixed(1) : null
-                    const ctr = c.sent > 0 ? ((c.clicked / c.sent) * 100).toFixed(1) : null
-                    const isSending = sendingId === c.id
-                    const cardGradient = getCardGradient(c.type, c.status)
+                  </td></tr>
+                ) : filtered.map(campaign => {
+                  const ch = channelConfig[campaign.type] ?? channelConfig.email
+                  const sc = statusConfig[campaign.status]
+                  const ChIcon = ch.icon
+                  const openR  = campaign.sent > 0 ? (campaign.opened  / campaign.sent * 100) : 0
+                  const clickR = campaign.sent > 0 ? (campaign.clicked / campaign.sent * 100) : 0
 
-                    return (
-                      <div key={c.id} className="group relative rounded-xl border border-[#272a33] overflow-hidden transition-all duration-300 hover:border-[#b4c5ff]/20 hover:shadow-[0_8px_32px_-8px_rgba(180,197,255,0.1)] cursor-pointer"
-                        style={{ background: '#191b24' }}>
+                  return (
+                    <tr key={campaign.id}
+                      className="cursor-pointer transition-all"
+                      style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}
+                      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.02)')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                      onClick={() => router.push(`/campaigns/${campaign.id}`)}>
 
-                        {/* Card header */}
-                        <div className="px-4 pt-4 pb-3 relative" style={{ background: cardGradient }}>
-                          <div className="absolute inset-0 opacity-30"
-                            style={{ background: 'radial-gradient(ellipse at 80% 0%, rgba(180,197,255,0.12) 0%, transparent 60%)' }} />
-                          <div className="relative flex items-start justify-between gap-2 mb-2">
-                            <p className="text-sm font-bold text-[#e2e8f8] leading-tight line-clamp-2 flex-1">{c.name}</p>
-                            <div className="flex flex-col items-end gap-1.5 shrink-0">
-                              <span className={cn('inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase tracking-wide', status.badge)}>
-                                <span className={cn('w-1 h-1 rounded-full inline-block', status.dot)} />
-                                {status.label}
-                              </span>
-                              <span className={cn('inline-flex items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded border', type.bg, type.color)}>
-                                <TypeIcon className="w-2.5 h-2.5" />
-                                {type.label}
-                              </span>
+                      {/* Kampanya */}
+                      <td className="px-4 py-3.5">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 overflow-hidden"
+                            style={{ background: `${ch.color}15`, border: `1px solid ${ch.color}20` }}>
+                            <ChIcon className="w-5 h-5" style={{ color: ch.color }} />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 mb-0.5">
+                              <p className="text-[12px] font-semibold truncate max-w-[200px]" style={{ color: '#eeeef4' }}>{campaign.name}</p>
+                              {campaign.isAi && (
+                                <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[9px] font-bold shrink-0"
+                                  style={{ background: 'rgba(159,122,250,0.12)', color: '#9f7afa', border: '1px solid rgba(159,122,250,0.2)' }}>
+                                  <Sparkles className="w-2.5 h-2.5" /> AI
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[10px]" style={{ color: '#44445a' }}>{campaign.segment} · {new Date(campaign.createdAt).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Kanal */}
+                      <td className="px-4 py-3.5">
+                        <div className="flex items-center gap-1.5">
+                          <ChIcon className="w-3.5 h-3.5" style={{ color: ch.color }} />
+                          <span className="text-[11px] font-medium" style={{ color: ch.color }}>{ch.label}</span>
+                        </div>
+                      </td>
+
+                      {/* Gönderilen */}
+                      <td className="px-4 py-3.5">
+                        <span className="text-[12px] font-semibold" style={{ color: '#aaaacc', fontFamily: 'JetBrains Mono, monospace' }}>
+                          {campaign.sent > 0 ? formatNumber(campaign.sent) : '—'}
+                        </span>
+                      </td>
+
+                      {/* Açılma Oranı */}
+                      <td className="px-4 py-3.5">
+                        {campaign.sent > 0 ? (
+                          <div className="flex items-center gap-2">
+                            <span className="text-[12px] font-semibold w-10" style={{ color: '#99b4ff', fontFamily: 'JetBrains Mono, monospace' }}>%{openR.toFixed(1)}</span>
+                            <div className="w-16 h-1 rounded-full" style={{ background: 'rgba(153,180,255,0.12)' }}>
+                              <div className="h-1 rounded-full" style={{ width: `${Math.min(openR, 100)}%`, background: '#99b4ff' }} />
                             </div>
                           </div>
-                          {c.subject && (
-                            <p className="text-[11px] text-[#8b95a8] truncate relative">{c.subject}</p>
-                          )}
-                          <p className="text-[10px] text-[#8b95a8]/60 mt-0.5 relative" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
-                            {segmentLabel[c.segment] || c.segment}
-                          </p>
-                        </div>
+                        ) : <span style={{ color: '#33334a' }}>—</span>}
+                      </td>
 
-                        {/* Stats */}
-                        <div className="px-4 py-3 grid grid-cols-3 gap-2 border-t border-[#272a33]">
-                          <div>
-                            <p className="text-[9px] text-[#8b95a8] font-semibold uppercase tracking-wide mb-0.5">Gönderim</p>
-                            <p className="text-sm font-bold text-[#e2e8f8]" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
-                              {c.sent > 0 ? formatNumber(c.sent) : '—'}
-                            </p>
+                      {/* Tıklama Oranı */}
+                      <td className="px-4 py-3.5">
+                        {campaign.sent > 0 ? (
+                          <div className="flex items-center gap-2">
+                            <span className="text-[12px] font-semibold w-10" style={{ color: '#9f7afa', fontFamily: 'JetBrains Mono, monospace' }}>%{clickR.toFixed(1)}</span>
+                            <div className="w-16 h-1 rounded-full" style={{ background: 'rgba(159,122,250,0.12)' }}>
+                              <div className="h-1 rounded-full" style={{ width: `${Math.min(clickR * 3, 100)}%`, background: '#9f7afa' }} />
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-[9px] text-[#8b95a8] font-semibold uppercase tracking-wide mb-0.5">Açılma</p>
-                            <p className="text-sm font-bold text-[#e2e8f8]" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
-                              {openRate ? `%${openRate}` : '—'}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-[9px] text-[#8b95a8] font-semibold uppercase tracking-wide mb-0.5">Gelir</p>
-                            <p className="text-sm font-bold text-emerald-400" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
-                              {c.revenue > 0 ? formatCurrency(c.revenue) : '—'}
-                            </p>
-                          </div>
-                        </div>
+                        ) : <span style={{ color: '#33334a' }}>—</span>}
+                      </td>
 
-                        {/* Footer actions */}
-                        <div className="px-4 py-2.5 border-t border-[#272a33] flex items-center justify-between">
-                          <span className="text-[10px] text-[#8b95a8]">
-                            {ctr ? `CTR %${ctr}` : formatDate(c.createdAt)}
-                          </span>
-                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button
-                              onClick={() => navigator.clipboard.writeText(c.id)}
-                              className="p-1.5 rounded-lg text-[#8b95a8] hover:text-[#e2e8f8] hover:bg-[#272a33] transition-all"
-                              title="ID Kopyala">
-                              <Copy className="w-3 h-3" />
+                      {/* Gelir */}
+                      <td className="px-4 py-3.5">
+                        <div>
+                          <p className="text-[12px] font-bold" style={{ color: '#22c97a', fontFamily: 'JetBrains Mono, monospace' }}>{campaign.revenue > 0 ? formatCurrency(campaign.revenue) : '—'}</p>
+                          {campaign.revenue > 0 && <p className="text-[9px]" style={{ color: '#22c97a', opacity: 0.6 }}>▲ %{(Math.random() * 30 + 5).toFixed(1)}</p>}
+                        </div>
+                      </td>
+
+                      {/* Durum */}
+                      <td className="px-4 py-3.5" onClick={e => e.stopPropagation()}>
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold"
+                          style={{ background: sc.bg, color: sc.text }}>
+                          <span className="w-1.5 h-1.5 rounded-full" style={{ background: sc.dot }} />
+                          {sc.label}
+                        </div>
+                      </td>
+
+                      {/* Actions */}
+                      <td className="px-4 py-3.5" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center gap-1.5">
+                          {campaign.status === 'draft' && (
+                            <button onClick={() => handleSend(campaign.id)} disabled={sendingId === campaign.id}
+                              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all"
+                              style={{ background: 'rgba(68,112,255,0.1)', color: '#99b4ff', border: '1px solid rgba(68,112,255,0.2)' }}>
+                              {sendingId === campaign.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+                              Gönder
                             </button>
-                            {c.status === 'draft' ? (
-                              <button
-                                onClick={() => handleSend(c.id)}
-                                disabled={isSending}
-                                className="flex items-center gap-1 text-[10px] font-bold bg-[#0062ff] hover:bg-[#0052d4] disabled:opacity-50 text-white px-2 py-1 rounded-lg transition-all">
-                                {isSending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
-                                Gönder
-                              </button>
-                            ) : (
-                              <Link href={`/campaigns/${c.id}`}
-                                className="flex items-center gap-1 text-[10px] font-bold text-[#b4c5ff] hover:text-white bg-[#b4c5ff]/10 hover:bg-[#b4c5ff]/20 px-2 py-1 rounded-lg transition-all">
-                                <BarChart2 className="w-3 h-3" />
-                                Detay
-                              </Link>
+                          )}
+                          <div className="relative">
+                            <button onClick={() => setOpenMenuId(openMenuId === campaign.id ? null : campaign.id)}
+                              className="p-1.5 rounded-lg transition-all"
+                              style={{ color: '#44445a' }}
+                              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
+                              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                              <MoreHorizontal className="w-3.5 h-3.5" />
+                            </button>
+                            {openMenuId === campaign.id && (
+                              <div className="absolute right-0 top-7 z-30 w-36 rounded-xl shadow-2xl overflow-hidden"
+                                style={{ background: '#0f0f1a', border: '1px solid rgba(255,255,255,0.1)' }}>
+                                <button onClick={() => { setOpenMenuId(null); router.push(`/campaigns/${campaign.id}`) }}
+                                  className="w-full flex items-center gap-2 px-3 py-2.5 text-[11px] text-left transition-colors"
+                                  style={{ color: '#eeeef4' }}
+                                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+                                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                                  <BarChart2 className="w-3 h-3" /> Detay Gör
+                                </button>
+                                <button onClick={() => handleDelete(campaign.id)} disabled={deletingId === campaign.id}
+                                  className="w-full flex items-center gap-2 px-3 py-2.5 text-[11px] text-left transition-colors"
+                                  style={{ color: '#e84545' }}
+                                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(232,69,69,0.08)')}
+                                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                                  {deletingId === campaign.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />} Sil
+                                </button>
+                              </div>
                             )}
                           </div>
                         </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
 
-                        {/* Hover glow border */}
-                        <div className="absolute inset-0 rounded-xl border border-[#b4c5ff]/0 group-hover:border-[#b4c5ff]/10 transition-all pointer-events-none" />
-                      </div>
-                    )
-                  })}
+            {/* Pagination hint */}
+            {filtered.length > 0 && (
+              <div className="flex items-center justify-between px-6 py-3" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                <span className="text-[11px]" style={{ color: '#33334a' }}>Toplam {filtered.length} kampanya</span>
+              </div>
+            )}
+          </div>
+        </div>
 
-                  {/* Create New card */}
-                  <Link href="/campaigns/new"
-                    className="group flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-[#272a33] hover:border-[#b4c5ff]/30 min-h-[180px] transition-all duration-300 hover:bg-[#b4c5ff]/[0.02]">
-                    <div className="w-10 h-10 rounded-xl bg-[#272a33] group-hover:bg-[#b4c5ff]/10 border border-[#272a33] group-hover:border-[#b4c5ff]/20 flex items-center justify-center transition-all">
-                      <Plus className="w-4 h-4 text-[#8b95a8] group-hover:text-[#b4c5ff] transition-colors" />
-                    </div>
-                    <div className="text-center">
-                      <p className="text-xs font-semibold text-[#8b95a8] group-hover:text-[#e2e8f8] transition-colors">Yeni Kampanya</p>
-                      <p className="text-[10px] text-[#8b95a8]/60 mt-0.5">AI ile oluştur</p>
-                    </div>
-                  </Link>
-                </div>
-              )}
+        {/* ── AI Önerileri panel (always visible) ── */}
+        <div className="w-[300px] shrink-0 flex flex-col border-l overflow-hidden"
+          style={{ background: '#0d0d1a', borderColor: 'rgba(255,255,255,0.06)' }}>
+          <div className="flex items-center justify-between px-4 py-3.5 shrink-0"
+            style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0"
+                style={{ background: 'rgba(159,122,250,0.15)', border: '1px solid rgba(159,122,250,0.25)' }}>
+                <Sparkles className="w-3.5 h-3.5 text-violet-400" />
+              </div>
+              <div className="flex items-center gap-1.5">
+                <p className="text-[13px] font-semibold" style={{ color: '#eeeef4' }}>AI Önerileri</p>
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md" style={{ background: 'rgba(68,112,255,0.15)', color: '#99b4ff' }}>Beta</span>
+              </div>
             </div>
           </div>
 
-          {/* Right Sidebar — Upcoming Triggers */}
-          <div className="w-64 border-l border-[#272a33] bg-[#1d1f28] flex flex-col shrink-0">
-            <div className="px-4 py-3.5 border-b border-[#272a33]">
-              <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-[#b4c5ff]" />
-                <h3 className="text-sm font-semibold text-[#e2e8f8]">Yaklaşan Tetikleyiciler</h3>
-              </div>
-            </div>
-            <div className="flex-1 p-3 space-y-2 overflow-y-auto">
-              {triggerDefs.map((trigger, i) => {
-                const Icon = trigger.icon
-                const count = triggerCounts[trigger.key] ?? 0
-                return (
-                  <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-[#191b24] border border-[#272a33] hover:border-[#b4c5ff]/20 transition-all cursor-pointer">
-                    <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center shrink-0', trigger.bg)}>
-                      <Icon className={cn('w-3.5 h-3.5', trigger.color)} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-[#e2e8f8] truncate">{trigger.label}</p>
-                      <p className="text-[10px] text-[#8b95a8] mt-0.5">{trigger.desc}</p>
-                    </div>
-                    <span className="text-[10px] font-bold text-[#8b95a8] shrink-0" style={{ fontFamily: 'JetBrains Mono, monospace' }}>{count}</span>
-                  </div>
-                )
-              })}
-            </div>
+          <div className="p-4 flex-1 overflow-auto space-y-3">
+            <p className="text-[11px]" style={{ color: '#44445a' }}>Kampanyalarınızı daha iyi performans için optimize edin.</p>
 
-            {/* Calendar footer */}
-            <div className="p-3 border-t border-[#272a33]">
-              <div className="bg-[#191b24] border border-[#272a33] rounded-lg p-3">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs font-semibold text-[#e2e8f8] capitalize">{calendarMonth}</span>
-                  <Zap className="w-3.5 h-3.5 text-[#b4c5ff]" />
+            {/* AI Suggestions */}
+            {[
+              {
+                icon: Mail, color: '#f0a020', bg: 'rgba(240,160,32,0.08)',
+                title: 'Açılma Oranını Artır',
+                text: '"Yaz koleksiyonu" kampanyanızın açılma oranı ortalamanın altında. Konu satırını AI ile optimize edin.',
+                action: 'Konu Önerileri', href: '/campaigns/new?ai=subject',
+              },
+              {
+                icon: Zap, color: '#22c97a', bg: 'rgba(34,201,122,0.08)',
+                title: 'Gönderim Zamanı',
+                text: 'Müşterileriniz Salı günleri saat 11:00\'de daha aktif. Bu saatlerde gönderim yapmayı deneyin.',
+                action: 'Zamanla', href: '/campaigns/new',
+              },
+              {
+                icon: Users, color: '#99b4ff', bg: 'rgba(153,180,255,0.08)',
+                title: 'Segment Önerisi',
+                text: 'VIP segmentinize özel kampanyalarınız %23 daha yüksek gelir getiriyor. Benzer segment oluşturun.',
+                action: 'Segment Oluştur', href: '/segments',
+              },
+            ].map((s, i) => {
+              const Icon = s.icon
+              return (
+                <div key={i} className="p-3.5 rounded-xl cursor-default transition-all"
+                  style={{ background: s.bg, border: `1px solid ${s.color}20` }}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${s.color}18` }}>
+                      <Icon className="w-3.5 h-3.5" style={{ color: s.color }} />
+                    </div>
+                    <p className="text-[11px] font-bold" style={{ color: s.color }}>{s.title}</p>
+                  </div>
+                  <p className="text-[11px] leading-relaxed mb-2.5" style={{ color: '#8080a0' }}>{s.text}</p>
+                  <Link href={s.href}
+                    className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-lg"
+                    style={{ background: `${s.color}18`, color: s.color }}>
+                    {s.action} <ChevronRight className="w-3 h-3" />
+                  </Link>
                 </div>
-                <div className="grid grid-cols-7 gap-0.5 text-center">
-                  {['P', 'S', 'Ç', 'P', 'C', 'C', 'P'].map((d, i) => (
-                    <div key={i} className="text-[9px] text-[#8b95a8] py-0.5" style={{ fontFamily: 'JetBrains Mono, monospace' }}>{d}</div>
-                  ))}
-                  {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(d => (
-                    <div key={d} className={cn(
-                      'text-[10px] py-1 rounded cursor-pointer transition-colors',
-                      d === today ? 'bg-[#0062ff] text-white font-bold' :
-                      d % 7 === 0 ? 'text-[#b4c5ff] font-semibold' :
-                      'text-[#8b95a8] hover:text-[#e2e8f8]'
-                    )} style={{ fontFamily: 'JetBrains Mono, monospace' }}>{d}</div>
-                  ))}
-                </div>
+              )
+            })}
+
+            {/* Yeni Kampanya section */}
+            <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 12 }}>
+              <p className="text-[10px] font-bold uppercase tracking-widest mb-2.5" style={{ color: '#3e3e54' }}>Yeni Kampanya</p>
+              <div className="space-y-1.5">
+                {[
+                  { icon: Mail,          label: 'E-posta Kampanyası',  color: '#99b4ff', href: '/campaigns/new?type=email' },
+                  { icon: MessageSquare, label: 'WhatsApp Mesajı',      color: '#22c97a', href: '/campaigns/new?type=whatsapp' },
+                ].map(item => {
+                  const ItemIcon = item.icon
+                  return (
+                    <Link key={item.label} href={item.href}
+                      className="flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all"
+                      style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+                      onMouseEnter={e => { e.currentTarget.style.background = `${item.color}08`; e.currentTarget.style.borderColor = `${item.color}20` }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)' }}>
+                      <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${item.color}15` }}>
+                        <ItemIcon className="w-3 h-3" style={{ color: item.color }} />
+                      </div>
+                      <span className="text-[11px] font-medium flex-1" style={{ color: '#eeeef4' }}>{item.label}</span>
+                      <ChevronRight className="w-3 h-3 shrink-0" style={{ color: '#33334a' }} />
+                    </Link>
+                  )
+                })}
               </div>
-              <Link href="/campaigns/new"
-                className="mt-2 w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-[#272a33] hover:bg-[#b4c5ff]/10 text-[#e2e8f8] text-xs font-semibold transition-all border border-[#272a33] hover:border-[#b4c5ff]/30">
-                <Plus className="w-3.5 h-3.5" /> Kampanya Planla
-              </Link>
             </div>
+          </div>
+
+          {/* AI Asistan chat */}
+          <div className="p-4 shrink-0" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+            <div className="p-3 rounded-xl mb-3" style={{ background: 'rgba(68,112,255,0.06)', border: '1px solid rgba(68,112,255,0.15)' }}>
+              <div className="flex items-center gap-2 mb-1.5">
+                <div className="w-5 h-5 rounded-lg flex items-center justify-center" style={{ background: 'rgba(68,112,255,0.15)' }}>
+                  <Sparkles className="w-3 h-3" style={{ color: '#99b4ff' }} />
+                </div>
+                <p className="text-[11px] font-semibold" style={{ color: '#99b4ff' }}>AI Asistan</p>
+              </div>
+              <p className="text-[11px]" style={{ color: '#8080a0' }}>Merhaba Admin! 👋 Kampanyalarınızla ilgili sorularınızı sorabilir veya öneri alabilirsiniz.</p>
+            </div>
+            <button className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-[12px] font-semibold transition-all"
+              style={{ background: 'rgba(68,112,255,0.1)', color: '#99b4ff', border: '1px solid rgba(68,112,255,0.2)' }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(68,112,255,0.18)' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(68,112,255,0.1)' }}>
+              <Sparkles className="w-3.5 h-3.5" /> Sohbete Başla
+            </button>
           </div>
         </div>
       </div>

@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"name": "premium_visual_editor",
+			"path": "../../../../stitch_ai_creative_operating_system/premium_visual_editor"
+		},
+		{
+			"name": "markly",
+			"path": "../.."
+		}
+	],
+	"settings": {}
+}
