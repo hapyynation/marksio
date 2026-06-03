@@ -1,11 +1,12 @@
 'use client'
 
-import { useState } from 'react'
-import { Check, Zap, Star, Building2, Rocket, ArrowRight } from 'lucide-react'
+import { useState, useEffect, Suspense } from 'react'
+import { Check, Zap, Star, Building2, Rocket, ArrowRight, Loader2, CheckCircle, AlertCircle } from 'lucide-react'
 import AppShell from '@/components/layout/AppShell'
 import Header from '@/components/layout/Header'
 import { cn } from '@/lib/utils'
 import { useSession } from '@/lib/hooks/use-session'
+import { useSearchParams, useRouter } from 'next/navigation'
 
 const plans = [
   {
@@ -25,6 +26,7 @@ const plans = [
       'Dashboard analytics',
     ],
     cta: 'Ücretsiz Başla',
+    lsVariant: null,
   },
   {
     id: 'starter',
@@ -45,6 +47,7 @@ const plans = [
       'Email tracking & analytics',
     ],
     cta: "Starter'a Geç",
+    lsVariant: 'starter',
   },
   {
     id: 'growth',
@@ -67,6 +70,7 @@ const plans = [
       'Öncelikli destek',
     ],
     cta: "Growth'a Geç",
+    lsVariant: 'growth',
   },
   {
     id: 'agency',
@@ -88,6 +92,7 @@ const plans = [
       'Dedicated destek',
     ],
     cta: "Agency'e Geç",
+    lsVariant: 'agency',
   },
 ]
 
@@ -98,13 +103,91 @@ const faqs = [
   { q: 'WhatsApp gönderimi için ne gerekiyor?', a: 'Meta Business API onayı gerekiyor. Ayarlar → Entegrasyonlar bölümünden bağlayabilirsiniz.' },
 ]
 
-export default function PlansPage() {
+const PLAN_STATUS_LABELS: Record<string, { label: string; color: string }> = {
+  active:    { label: 'Aktif',       color: '#22c97a' },
+  cancelled: { label: 'İptal Edildi', color: '#f0a020' },
+  expired:   { label: 'Süresi Doldu', color: '#e84545' },
+  past_due:  { label: 'Ödeme Gecikmiş', color: '#e84545' },
+}
+
+function PlansContent() {
   const { data: session } = useSession()
+  const searchParams = useSearchParams()
+  const router = useRouter()
+
   const currentPlan = (session?.user as { plan?: string })?.plan ?? 'free'
-  const [billing, setBilling] = useState<'monthly' | 'yearly'>('monthly')
+  const planStatus  = (session?.user as { planStatus?: string })?.planStatus ?? 'active'
+  const renewsAt    = (session?.user as { planRenewsAt?: string })?.planRenewsAt
+
+  const [billing,     setBilling]     = useState<'monthly' | 'yearly'>('monthly')
+  const [loadingPlan, setLoadingPlan] = useState<string | null>(null)
+  const [toast,       setToast]       = useState<{ type: 'success' | 'error'; msg: string } | null>(null)
+
+  // Handle redirect back from Lemon Squeezy
+  useEffect(() => {
+    const success   = searchParams.get('success')
+    const cancelled = searchParams.get('cancelled')
+    const plan      = searchParams.get('plan')
+
+    if (success) {
+      setToast({ type: 'success', msg: `${plan ? plan.charAt(0).toUpperCase() + plan.slice(1) : 'Plan'} planı aktif edildi! Birkaç saniye içinde güncellenir.` })
+      router.replace('/plans')
+    } else if (cancelled) {
+      setToast({ type: 'error', msg: 'Ödeme iptal edildi.' })
+      router.replace('/plans')
+    }
+  }, [searchParams, router])
+
+  useEffect(() => {
+    if (!toast) return
+    const t = setTimeout(() => setToast(null), 5000)
+    return () => clearTimeout(t)
+  }, [toast])
+
+  async function handleUpgrade(planId: string) {
+    if (!planId || planId === 'free') return
+    setLoadingPlan(planId)
+    try {
+      const res = await fetch('/api/billing/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ planId }),
+      })
+      const data = await res.json() as { url?: string; error?: string }
+
+      if (!res.ok || !data.url) {
+        setToast({ type: 'error', msg: data.error ?? 'Checkout oluşturulamadı' })
+        return
+      }
+
+      window.location.href = data.url
+    } catch {
+      setToast({ type: 'error', msg: 'Bağlantı hatası. Lütfen tekrar deneyin.' })
+    } finally {
+      setLoadingPlan(null)
+    }
+  }
+
+  const statusInfo = PLAN_STATUS_LABELS[planStatus] ?? PLAN_STATUS_LABELS.active
 
   return (
     <AppShell>
+      {/* Toast */}
+      {toast && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-2xl text-[13px] font-semibold"
+          style={{
+            background: toast.type === 'success' ? 'rgba(34,201,122,0.12)' : 'rgba(232,69,69,0.12)',
+            border: `1px solid ${toast.type === 'success' ? 'rgba(34,201,122,0.3)' : 'rgba(232,69,69,0.3)'}`,
+            color: toast.type === 'success' ? '#22c97a' : '#e84545',
+            backdropFilter: 'blur(20px)',
+          }}>
+          {toast.type === 'success'
+            ? <CheckCircle className="w-4 h-4 shrink-0" />
+            : <AlertCircle className="w-4 h-4 shrink-0" />}
+          {toast.msg}
+        </div>
+      )}
+
       <Header title="Planlar & Fiyatlandırma" subtitle="İhtiyacınıza göre plan seçin" />
       <div className="page-content space-y-10 flex-1 max-w-5xl">
 
@@ -115,9 +198,7 @@ export default function PlansPage() {
               <button key={b} onClick={() => setBilling(b)}
                 className={cn(
                   'flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold transition-all',
-                  billing === b
-                    ? 'text-white'
-                    : 'text-[#8c90a1] hover:text-[#c2c6d8]'
+                  billing === b ? 'text-white' : 'text-[#8c90a1] hover:text-[#c2c6d8]'
                 )}
                 style={billing === b ? { background: '#1c1b1b', border: '1px solid rgba(255,255,255,0.08)' } : undefined}
               >
@@ -133,12 +214,13 @@ export default function PlansPage() {
         {/* Plan cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {plans.map(plan => {
-            const Icon = plan.icon
-            const price = plan.price[billing]
+            const Icon      = plan.icon
+            const price     = plan.price[billing]
             const isCurrent = currentPlan === plan.id
+            const isLoading = loadingPlan === plan.id
 
             return (
-              <div key={plan.id} className={cn('bento-card flex flex-col', plan.popular && 'gradient-border')}
+              <div key={plan.id} className={cn('bento-card flex flex-col relative', plan.popular && 'gradient-border')}
                 style={plan.popular ? {
                   borderColor: plan.accentBorder,
                   background: `linear-gradient(145deg, ${plan.accentColor}, #131313)`,
@@ -189,29 +271,33 @@ export default function PlansPage() {
                   </ul>
 
                   <button
-                    disabled={isCurrent}
-                    onClick={() => {
-                      if (!isCurrent && plan.id !== 'free') {
-                        window.open('mailto:destek@marksio.com?subject=Plan Yükseltme - ' + plan.name, '_blank')
-                      }
-                    }}
+                    disabled={isCurrent || isLoading || !plan.lsVariant}
+                    onClick={() => plan.lsVariant && !isCurrent && handleUpgrade(plan.id)}
                     className={cn(
                       'w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all',
-                      isCurrent ? 'cursor-default' : 'cursor-pointer',
-                      plan.popular && !isCurrent ? 'btn-gradient' : ''
+                      isCurrent ? 'cursor-default' : plan.lsVariant ? 'cursor-pointer' : 'cursor-default',
+                      plan.popular && !isCurrent && plan.lsVariant ? 'btn-gradient' : ''
                     )}
-                    style={!plan.popular && !isCurrent ? {
+                    style={!plan.popular && !isCurrent && plan.lsVariant ? {
                       background: '#1c1b1b',
                       border: '1px solid rgba(255,255,255,0.07)',
                       color: '#c2c6d8',
                     } : isCurrent ? {
+                      background: 'rgba(34,201,122,0.08)',
+                      border: '1px solid rgba(34,201,122,0.2)',
+                      color: '#22c97a',
+                    } : plan.id === 'free' ? {
                       background: 'rgba(255,255,255,0.03)',
                       border: '1px solid rgba(255,255,255,0.06)',
                       color: '#424656',
                     } : undefined}
                   >
-                    {isCurrent
+                    {isLoading
+                      ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Yükleniyor…</>
+                      : isCurrent
                       ? <><Check className="w-3.5 h-3.5" /> Mevcut Plan</>
+                      : plan.id === 'free'
+                      ? 'Ücretsiz'
                       : <>{plan.cta} <ArrowRight className="w-3.5 h-3.5" /></>
                     }
                   </button>
@@ -226,11 +312,33 @@ export default function PlansPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="label">Mevcut Plan</p>
-              <p className="text-lg font-black capitalize" style={{ color: '#e5e2e1' }}>{currentPlan}</p>
+              <div className="flex items-center gap-2 mt-0.5">
+                <p className="text-lg font-black capitalize" style={{ color: '#e5e2e1' }}>
+                  {currentPlan.charAt(0).toUpperCase() + currentPlan.slice(1)}
+                </p>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                  style={{ background: `${statusInfo.color}15`, color: statusInfo.color, border: `1px solid ${statusInfo.color}30` }}>
+                  {statusInfo.label}
+                </span>
+              </div>
+              {planStatus === 'past_due' && (
+                <p className="text-[11px] mt-1" style={{ color: '#e84545' }}>
+                  Ödeme alınamadı. Hesabınızı aktif tutmak için ödeme yöntemini güncelleyin.
+                </p>
+              )}
+              {planStatus === 'cancelled' && renewsAt && (
+                <p className="text-[11px] mt-1" style={{ color: '#f0a020' }}>
+                  Plan {new Date(renewsAt).toLocaleDateString('tr-TR')} tarihinde sona erecek.
+                </p>
+              )}
             </div>
             <div className="text-right">
               <p className="label" style={{ textAlign: 'right' }}>Sonraki yenileme</p>
-              <p className="text-sm" style={{ color: '#8c90a1' }}>1 Temmuz 2026</p>
+              <p className="text-sm" style={{ color: '#8c90a1' }}>
+                {renewsAt
+                  ? new Date(renewsAt).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })
+                  : currentPlan === 'free' ? '—' : 'Bilinmiyor'}
+              </p>
             </div>
           </div>
         </div>
@@ -250,5 +358,19 @@ export default function PlansPage() {
 
       </div>
     </AppShell>
+  )
+}
+
+export default function PlansPage() {
+  return (
+    <Suspense fallback={
+      <AppShell>
+        <div className="flex items-center justify-center flex-1">
+          <Loader2 className="w-6 h-6 animate-spin" style={{ color: '#4470ff' }} />
+        </div>
+      </AppShell>
+    }>
+      <PlansContent />
+    </Suspense>
   )
 }

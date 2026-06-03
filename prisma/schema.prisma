@@ -20,6 +20,14 @@ model User {
   timezone    String   @default("Europe/Istanbul")
   onboarded   Boolean  @default(false)
   onboardingData String @default("{}")
+
+  // Lemon Squeezy billing
+  lsSubscriptionId String?
+  lsCustomerId      String?
+  lsOrderId         String?
+  planStatus        String   @default("active") // active | cancelled | expired | past_due
+  planRenewsAt      DateTime?
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
