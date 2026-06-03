@@ -32,7 +32,7 @@ const plans = [
     id: 'starter',
     name: 'Starter',
     icon: Zap,
-    price: { monthly: 19, yearly: 15 },
+    price: { monthly: 29, yearly: 23 },
     desc: 'Büyüyen mağazalar için',
     accentColor: 'rgba(0,102,255,0.08)',
     accentBorder: 'rgba(0,102,255,0.2)',
@@ -53,7 +53,7 @@ const plans = [
     id: 'growth',
     name: 'Growth',
     icon: Star,
-    price: { monthly: 49, yearly: 39 },
+    price: { monthly: 59, yearly: 47 },
     desc: 'En çok tercih edilen',
     popular: true,
     accentColor: 'rgba(0,241,254,0.06)',
@@ -76,7 +76,7 @@ const plans = [
     id: 'agency',
     name: 'Agency',
     icon: Building2,
-    price: { monthly: 119, yearly: 95 },
+    price: { monthly: 99, yearly: 79 },
     desc: 'Ajans ve yüksek hacim',
     accentColor: 'rgba(167,139,250,0.08)',
     accentBorder: 'rgba(167,139,250,0.2)',
@@ -250,12 +250,12 @@ function PlansContent() {
 
                   <div className="mb-5">
                     <div className="flex items-end gap-1">
-                      <span className="text-3xl font-black" style={{ color: '#e5e2e1' }}>₺{price}</span>
+                      <span className="text-3xl font-black" style={{ color: '#e5e2e1' }}>${price}</span>
                       <span className="text-xs mb-1" style={{ color: '#8c90a1' }}>/ay</span>
                     </div>
                     {billing === 'yearly' && plan.price.monthly > 0 && (
                       <p className="text-[10px] mt-0.5">
-                        <span className="line-through" style={{ color: '#424656' }}>₺{plan.price.monthly}/ay</span>
+                        <span className="line-through" style={{ color: '#424656' }}>${plan.price.monthly}/ay</span>
                         <span className="ml-1" style={{ color: '#34d399' }}>%20 tasarruf</span>
                       </p>
                     )}
