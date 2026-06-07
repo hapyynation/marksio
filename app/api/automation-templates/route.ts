@@ -468,6 +468,14 @@ export async function POST(req: NextRequest) {
   if (!template) return NextResponse.json({ error: 'Şablon bulunamadı' }, { status: 404 })
 
   try {
+    const existing = await prisma.automation.findFirst({
+      where: { userId, name: template.name },
+      select: { id: true, name: true },
+    })
+    if (existing) {
+      return NextResponse.json({ id: existing.id, name: existing.name }, { status: 200 })
+    }
+
     const automation = await prisma.automation.create({
       data: {
         userId,

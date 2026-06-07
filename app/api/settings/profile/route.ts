@@ -12,9 +12,14 @@ export async function GET() {
   })
 
   let phone = ''
-  try { phone = (JSON.parse(user?.onboardingData ?? '{}') as { phone?: string }).phone ?? '' } catch {}
+  let avatarUrl = ''
+  try {
+    const extra = JSON.parse(user?.onboardingData ?? '{}') as { phone?: string; avatarUrl?: string }
+    phone = extra.phone ?? ''
+    avatarUrl = extra.avatarUrl ?? ''
+  } catch {}
 
-  return NextResponse.json({ name: user?.name ?? '', email: user?.email ?? '', storeName: user?.storeName ?? '', phone })
+  return NextResponse.json({ name: user?.name ?? '', email: user?.email ?? '', storeName: user?.storeName ?? '', phone, avatarUrl })
 }
 
 export async function PUT(req: Request) {

@@ -7,12 +7,9 @@ import {
   Zap, Link2, Users, Trash2, Edit2, ToggleLeft, ToggleRight,
   WifiOff, AlertTriangle, CheckCircle2, RefreshCw, Eye, EyeOff,
   Clock, Phone, Key, Shield, Activity, TrendingUp, Bot,
-  ChevronRight, ChevronDown, MessageCircle, Copy, ArrowLeft,
+  ChevronRight, MessageCircle, Copy, ArrowLeft,
 } from 'lucide-react'
 import { cn, formatNumber } from '@/lib/utils'
-import {
-  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
-} from 'recharts'
 
 /* ─── Types ──────────────────────────────────────────────────────────────────── */
 
@@ -81,33 +78,14 @@ interface ConversationDetail extends Conversation {
   messages: WaMessage[]
 }
 
-/* ─── Demo / fallback data ───────────────────────────────────────────────────── */
-
-const DEMO_STATS: WaStats = {
-  totalConversations: 248,
-  activeConversations: 12,
-  botResolutionRate: 74,
-  humanHandoffs: 64,
-  campaignMessagesSent: 18675,
-  failedMessages: 213,
+const EMPTY_STATS: WaStats = {
+  totalConversations: 0,
+  activeConversations: 0,
+  botResolutionRate: 0,
+  humanHandoffs: 0,
+  campaignMessagesSent: 0,
+  failedMessages: 0,
 }
-
-const DEMO_CONVS: Conversation[] = [
-  { id: 'd1', customerPhone: '+90 532 111 2233', customerName: 'Ayşe Kaya',    status: 'open',   resolvedBy: 'bot',   lastMessage: 'Teşekkürler, yardımcı oldunuz!',   updatedAt: new Date(Date.now() - 120000).toISOString(),   createdAt: new Date(Date.now() - 600000).toISOString() },
-  { id: 'd2', customerPhone: '+90 544 222 3344', customerName: 'Mehmet Demir', status: 'open',   resolvedBy: undefined, lastMessage: 'İndirim kodu var mı?',            updatedAt: new Date(Date.now() - 300000).toISOString(),   createdAt: new Date(Date.now() - 900000).toISOString() },
-  { id: 'd3', customerPhone: '+90 505 333 4455', customerName: 'Zeynep Arslan',status: 'closed', resolvedBy: 'human', lastMessage: 'Siparişim nerede?',               updatedAt: new Date(Date.now() - 3600000).toISOString(),  createdAt: new Date(Date.now() - 7200000).toISOString() },
-  { id: 'd4', customerPhone: '+90 533 444 5566', customerName: 'Can Yılmaz',   status: 'closed', resolvedBy: 'bot',   lastMessage: 'İade sürecim ne zaman tamamlanır?',updatedAt: new Date(Date.now() - 86400000).toISOString(), createdAt: new Date(Date.now() - 172800000).toISOString() },
-  { id: 'd5', customerPhone: '+90 512 555 6677', customerName: 'Fatma Öz',     status: 'open',   resolvedBy: 'human', lastMessage: 'Ürün hasarlı geldi.',               updatedAt: new Date(Date.now() - 1800000).toISOString(),  createdAt: new Date(Date.now() - 3600000).toISOString() },
-]
-
-const MSG_CHART: { day: string; sent: number; delivered: number; read: number }[] = [
-  { day: '1 May',  sent: 380, delivered: 360, read: 290 },
-  { day: '7 May',  sent: 510, delivered: 495, read: 398 },
-  { day: '13 May', sent: 560, delivered: 543, read: 435 },
-  { day: '19 May', sent: 580, delivered: 562, read: 451 },
-  { day: '25 May', sent: 720, delivered: 698, read: 563 },
-  { day: '31 May', sent: 810, delivered: 786, read: 635 },
-]
 
 /* ─── Shared helpers ─────────────────────────────────────────────────────────── */
 
@@ -201,7 +179,7 @@ function Toggle({ value, onChange, label }: { value: boolean; onChange: (v: bool
 export default function WhatsAppPage() {
   const [tab, setTab] = useState<WaTab>('overview')
   const [settings, setSettings] = useState<WaSettings | null>(null)
-  const [stats, setStats] = useState<WaStats>(DEMO_STATS)
+  const [stats, setStats] = useState<WaStats>(EMPTY_STATS)
   const [loading, setLoading] = useState(true)
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
 
@@ -216,9 +194,7 @@ export default function WhatsAppPage() {
       const data = await res.json()
       if (data.settings) setSettings(data.settings)
       if (data.stats) {
-        const s: WaStats = data.stats
-        const isEmpty = s.totalConversations === 0 && s.campaignMessagesSent === 0
-        setStats(isEmpty ? DEMO_STATS : s)
+        setStats(data.stats as WaStats)
       }
     } catch { /* keep demo */ }
     finally { setLoading(false) }
@@ -302,35 +278,51 @@ export default function WhatsAppPage() {
 /* ─── Overview Tab ───────────────────────────────────────────────────────────── */
 
 function OverviewTab({ stats, settings, onGoConnection }: { stats: WaStats; settings: WaSettings | null; onGoConnection: () => void }) {
+  const isDisconnected = !settings?.connectionStatus || settings.connectionStatus === 'disconnected'
+
+  if (isDisconnected) {
+    return (
+      <div className="flex flex-col items-center justify-center py-32 gap-5">
+        <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
+          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+          <WifiOff size={26} style={{ color: '#33334a' }} />
+        </div>
+        <div className="text-center">
+          <p className="text-[15px] font-semibold mb-1" style={{ color: '#eeeef4' }}>WhatsApp API bağlantısı kurulmamış</p>
+          <p className="text-[13px]" style={{ color: '#44445a' }}>Meta Cloud API bilgilerini girerek bağlantı kurun</p>
+        </div>
+        <button onClick={onGoConnection}
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-bold transition-all"
+          style={{ background: '#22c97a', color: '#050505' }}>
+          Bağlantı Kur <ChevronRight size={14} />
+        </button>
+      </div>
+    )
+  }
+
   const kpis = [
     { label: 'Toplam Konuşma',    value: formatNumber(stats.totalConversations),   color: '#22c97a', icon: MessageSquare },
     { label: 'Aktif Konuşmalar',  value: String(stats.activeConversations),        color: '#4470ff', icon: Activity },
-    { label: 'Bot Çözüm Oranı',   value: `%${stats.botResolutionRate}`,            color: '#9f7afa', icon: Bot },
+    { label: 'Bot Çözüm Oranı',   value: stats.botResolutionRate > 0 ? `%${stats.botResolutionRate}` : '—', color: '#9f7afa', icon: Bot },
     { label: 'İnsana Aktarılan',  value: String(stats.humanHandoffs),              color: '#f0a020', icon: Users },
     { label: 'Toplam Mesaj',      value: formatNumber(stats.campaignMessagesSent), color: '#22c97a', icon: Send },
     { label: 'Başarısız Mesaj',   value: String(stats.failedMessages),             color: '#e84545', icon: AlertTriangle },
   ]
 
-  const isDisconnected = !settings?.connectionStatus || settings.connectionStatus === 'disconnected'
+  if (stats.totalConversations === 0 && stats.campaignMessagesSent === 0) {
+    return (
+      <div className="p-6 max-w-6xl">
+        <EmptyState
+          icon={MessageSquare}
+          title="Henüz konuşma verisi yok"
+          desc="WhatsApp bağlantınız aktif. İlk müşteri mesajı geldiğinde veriler burada görünecek."
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="p-6 space-y-5 max-w-6xl">
-      {/* Connection banner */}
-      {isDisconnected && (
-        <div className="flex items-center justify-between p-4 rounded-2xl" style={{ background: 'rgba(240,160,32,0.06)', border: '1px solid rgba(240,160,32,0.2)' }}>
-          <div className="flex items-center gap-3">
-            <AlertTriangle size={16} style={{ color: '#f0a020' }} />
-            <div>
-              <p className="text-[13px] font-semibold" style={{ color: '#f0a020' }}>WhatsApp bağlantısı kurulmamış</p>
-              <p className="text-[11px] mt-0.5" style={{ color: '#8080a0' }}>Meta Cloud API bilgilerini girerek bağlantı kurun</p>
-            </div>
-          </div>
-          <button onClick={onGoConnection} className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-bold transition-all" style={{ background: 'rgba(240,160,32,0.15)', color: '#f0a020', border: '1px solid rgba(240,160,32,0.3)' }}>
-            Bağlantı Kur <ChevronRight size={13} />
-          </button>
-        </div>
-      )}
-
       {/* KPI grid */}
       <div className="grid grid-cols-3 gap-3">
         {kpis.map(k => {
@@ -347,54 +339,6 @@ function OverviewTab({ stats, settings, onGoConnection }: { stats: WaStats; sett
             </div>
           )
         })}
-      </div>
-
-      {/* Chart */}
-      <div className="rounded-2xl p-5" style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)' }}>
-        <p className="text-[13px] font-bold mb-1" style={{ color: '#eeeef4' }}>Mesaj Performansı</p>
-        <p className="text-[11px] mb-5" style={{ color: '#44445a' }}>Son 30 gün</p>
-        <ResponsiveContainer width="100%" height={180}>
-          <AreaChart data={MSG_CHART} margin={{ left: -20 }}>
-            <defs>
-              <linearGradient id="gradSent" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#22c97a" stopOpacity={0.2} />
-                <stop offset="100%" stopColor="#22c97a" stopOpacity={0} />
-              </linearGradient>
-              <linearGradient id="gradRead" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#4470ff" stopOpacity={0.2} />
-                <stop offset="100%" stopColor="#4470ff" stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <XAxis dataKey="day" tick={{ fill: '#44445a', fontSize: 10 }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fill: '#44445a', fontSize: 10 }} axisLine={false} tickLine={false} />
-            <Tooltip contentStyle={{ background: '#0f0f1a', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, fontSize: 12, color: '#eeeef4' }} />
-            <Area type="monotone" dataKey="sent" stroke="#22c97a" strokeWidth={2} fill="url(#gradSent)" name="Gönderilen" />
-            <Area type="monotone" dataKey="delivered" stroke="#9f7afa" strokeWidth={1.5} fill="none" name="Teslim" />
-            <Area type="monotone" dataKey="read" stroke="#4470ff" strokeWidth={2} fill="url(#gradRead)" name="Okundu" />
-          </AreaChart>
-        </ResponsiveContainer>
-      </div>
-
-      {/* Recent conversations */}
-      <div className="rounded-2xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)' }}>
-        <div className="px-5 py-3.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-          <p className="text-[13px] font-bold" style={{ color: '#eeeef4' }}>Son Konuşmalar</p>
-        </div>
-        {DEMO_CONVS.slice(0, 4).map(c => (
-          <div key={c.id} className="flex items-center gap-3 px-5 py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(34,201,122,0.1)' }}>
-              <span className="text-[13px] font-bold" style={{ color: '#22c97a' }}>{(c.customerName ?? c.customerPhone).charAt(0).toUpperCase()}</span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[12px] font-semibold truncate" style={{ color: '#eeeef4' }}>{c.customerName ?? c.customerPhone}</p>
-              <p className="text-[11px] truncate" style={{ color: '#44445a' }}>{c.lastMessage}</p>
-            </div>
-            <div className="shrink-0 text-right">
-              <ConvStatusBadge status={c.status} resolvedBy={c.resolvedBy} />
-              <p className="text-[10px] mt-1" style={{ color: '#44445a' }}>{relTime(c.updatedAt)}</p>
-            </div>
-          </div>
-        ))}
       </div>
     </div>
   )
@@ -975,27 +919,14 @@ function ConversationsTab() {
       const q = f === 'all' ? '' : `?status=${f}`
       const res = await fetch(`/api/whatsapp/conversations${q}`)
       const data = await res.json()
-      const convs: Conversation[] = data.conversations ?? []
-      if (convs.length === 0) setConversations(DEMO_CONVS)
-      else setConversations(convs)
-    } catch { setConversations(DEMO_CONVS) }
+      setConversations(data.conversations ?? [])
+    } catch { setConversations([]) }
     finally { setLoading(false) }
   }, [])
 
   useEffect(() => { load(filter) }, [filter, load])
 
   const openDetail = async (c: Conversation) => {
-    if (c.id.startsWith('d')) {
-      setSelected({
-        ...c,
-        messages: [
-          { id: 'm1', role: 'customer', content: 'Merhaba, siparişimin durumunu öğrenebilir miyim?', createdAt: new Date(Date.now() - 300000).toISOString() },
-          { id: 'm2', role: 'bot',      content: 'Merhaba! Sipariş numaranızı paylaşır mısınız?', createdAt: new Date(Date.now() - 295000).toISOString() },
-          { id: 'm3', role: 'customer', content: c.lastMessage ?? '', createdAt: c.updatedAt },
-        ],
-      })
-      return
-    }
     setDetailLoading(true)
     try {
       const res = await fetch(`/api/whatsapp/conversations/${c.id}`)

@@ -18,8 +18,8 @@ const HREF_MAP: Record<string, string> = {
   zap:         '/automations',
   users:       '/segments',
   trending_up: '/analytics',
-  target:      '/campaigns/new',
-  clock:       '/campaigns/new',
+  target:      '/ai-studio',
+  clock:       '/ai-studio',
 }
 
 // Server-side computed fallback — no Groq needed
@@ -152,7 +152,7 @@ JSON:
 
     const enriched = suggestions.slice(0, 3).map((s: { icon?: string; [key: string]: unknown }) => ({
       ...s,
-      href: HREF_MAP[s.icon ?? ''] ?? '/campaigns/new',
+      href: HREF_MAP[s.icon ?? ''] ?? '/ai-studio',
     }))
 
     return NextResponse.json(enriched)

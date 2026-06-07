@@ -128,7 +128,7 @@ export async function GET() {
       where: { userId },
       orderBy: { revenue: 'desc' },
       take: 8,
-      select: { name: true, revenue: true, type: true },
+      select: { name: true, revenue: true, type: true, sent: true, opened: true, clicked: true },
     })
 
     // ── Top 10 ürün — gerçek sipariş verisinden ───────────────────────────────
@@ -201,9 +201,12 @@ export async function GET() {
       },
       revenueData,
       campaignROI: topCampaigns.map(c => ({
-        name: c.name.length > 18 ? c.name.slice(0, 18) + '…' : c.name,
+        name: c.name,
         revenue: Math.round(c.revenue),
         type: c.type,
+        sent: c.sent,
+        opened: c.opened,
+        clicked: c.clicked,
       })),
       kpiTable: [
         { metric: 'Toplam Gelir',        current: `₺${Math.round(thisRev).toLocaleString('tr-TR')}`,  prev: `₺${Math.round(lastRev).toLocaleString('tr-TR')}`,   change: lastRev  > 0 ? `+${((thisRev  - lastRev)  / lastRev  * 100).toFixed(1)}%` : 'Yeni', pos: thisRev  >= lastRev  },

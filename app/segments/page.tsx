@@ -73,6 +73,18 @@ const TEXT_OPS = [
 const ICON_OPTIONS = ['👥','👑','💎','🤝','✨','🛒','💤','🚨','⚠️','🎯','⭐','🔄','📦','🏆','💰','🎁']
 const COLOR_OPTIONS = ['#4470ff','#f0a020','#9f7afa','#22c97a','#e84545','#8080a0','#00bcd4','#f59e0b','#ec4899','#10b981']
 
+const LUCIDE_TO_EMOJI: Record<string, string> = {
+  AlertTriangle: '⚠️', UserPlus: '👤', UserMinus: '👤', Users: '👥',
+  Crown: '👑', ShoppingCart: '🛒', Target: '🎯', Flame: '🔥',
+  Heart: '❤️', Star: '⭐', Activity: '📊', Circle: '⭕',
+  Package: '📦', Zap: '⚡', Sparkles: '✨', Tag: '🏷️',
+  Clock: '⏰', TrendingUp: '📈', Gift: '🎁', RefreshCw: '🔄',
+}
+
+function resolveIcon(icon: string): string {
+  return LUCIDE_TO_EMOJI[icon] ?? icon
+}
+
 // ─── Small components ─────────────────────────────────────────────────────────
 
 function Toggle({ enabled, onChange }: { enabled: boolean; onChange: (v: boolean) => void }) {
@@ -399,7 +411,7 @@ export default function SegmentsPage() {
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-xl flex items-center justify-center text-[16px] shrink-0"
                           style={{ background: `${seg.color}15`, border: `1px solid ${seg.color}25` }}>
-                          {seg.icon}
+                          {resolveIcon(seg.icon)}
                         </div>
                         <div>
                           <p className="text-[12px] font-semibold" style={{ color: '#eeeef4' }}>{seg.name}</p>
@@ -464,7 +476,7 @@ export default function SegmentsPage() {
                     {/* Actions */}
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-1">
-                        <Link href={`/campaigns/new?segment=${encodeURIComponent(seg.name)}`}
+                        <Link href={`/ai-studio`}
                           className="px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-all"
                           style={{ background: 'rgba(68,112,255,0.08)', color: '#99b4ff', border: '1px solid rgba(68,112,255,0.15)' }}>
                           Kampanya Oluştur
@@ -638,7 +650,7 @@ export default function SegmentsPage() {
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-8 h-8 rounded-xl flex items-center justify-center text-[15px]"
                     style={{ background: `${form.color}15`, border: `1px solid ${form.color}25` }}>
-                    {form.icon}
+                    {resolveIcon(form.icon)}
                   </div>
                   <div>
                     <p className="text-[12px] font-semibold" style={{ color: '#eeeef4' }}>{form.name || 'Segment Adı'}</p>

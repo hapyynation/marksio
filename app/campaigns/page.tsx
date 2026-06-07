@@ -110,8 +110,8 @@ export default function CampaignsPage() {
   useEffect(() => {
     fetch('/api/campaigns')
       .then(r => r.json())
-      .then(data => { if (Array.isArray(data) && data.length > 0) setCampaigns(data); else setCampaigns(DEMO_CAMPAIGNS) })
-      .catch(() => setCampaigns(DEMO_CAMPAIGNS))
+      .then(data => { if (Array.isArray(data)) setCampaigns(data) })
+      .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
 
@@ -121,10 +121,13 @@ export default function CampaignsPage() {
     const opened  = data.reduce((s, c) => s + c.opened, 0)
     const clicked = data.reduce((s, c) => s + c.clicked, 0)
     const rev     = data.reduce((s, c) => s + c.revenue, 0)
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 15000)
     try {
       const res = await fetch('/api/ai/campaign-suggestions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
         body: JSON.stringify({
           campaigns: data,
           openRate:  sent > 0 ? ((opened  / sent) * 100).toFixed(1) : '0',
@@ -135,9 +138,11 @@ export default function CampaignsPage() {
       })
       const suggestions = await res.json()
       if (Array.isArray(suggestions)) setAiSuggestions(suggestions)
+      else setAiSuggestions([])
     } catch {
       setAiSuggestions([])
     } finally {
+      clearTimeout(timeout)
       setAiLoading(false)
     }
   }, [])
@@ -200,7 +205,7 @@ export default function CampaignsPage() {
             style={{ background: 'rgba(255,255,255,0.04)', color: '#8080a0', border: '1px solid rgba(255,255,255,0.08)' }}>
             <TrendingUp className="w-3.5 h-3.5" /> Raporu İndir
           </button>
-          <Link href="/campaigns/new"
+          <Link href="/ai-studio"
             className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-bold transition-all"
             style={{ background: '#4470ff', color: '#fff' }}>
             <Plus className="w-3.5 h-3.5" /> Yeni Kampanya
@@ -397,7 +402,6 @@ export default function CampaignsPage() {
                       <td className="px-4 py-3.5">
                         <div>
                           <p className="text-[12px] font-bold" style={{ color: '#22c97a', fontFamily: 'JetBrains Mono, monospace' }}>{campaign.revenue > 0 ? formatCurrency(campaign.revenue) : '—'}</p>
-                          {campaign.revenue > 0 && <p className="text-[9px]" style={{ color: '#22c97a', opacity: 0.6 }}>▲ %{(Math.random() * 30 + 5).toFixed(1)}</p>}
                         </div>
                       </td>
 
@@ -516,7 +520,7 @@ export default function CampaignsPage() {
               aiSuggestions.map((s, i) => {
                 const Icon = ICON_MAP[s.icon] ?? Sparkles
                 return (
-                  <Link key={i} href={s.href ?? '/campaigns/new'}
+                  <Link key={i} href={s.href ?? '/ai-studio'}
                     className="block p-3.5 rounded-xl transition-all cursor-pointer"
                     style={{ background: `${s.color}10`, border: `1px solid ${s.color}20` }}
                     onMouseEnter={e => { e.currentTarget.style.background = `${s.color}1e`; e.currentTarget.style.borderColor = `${s.color}40` }}

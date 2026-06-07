@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import {
   User, CreditCard, Link2, Mail, MessageCircle, Sparkles, Bell, Users, Shield,
   AlertTriangle, Check, Eye, EyeOff, Copy, Link2Off, RefreshCw, Loader2,
@@ -621,21 +622,56 @@ function HesapSection() {
   const [email, setEmail]         = useState('')
   const [storeName, setStoreName] = useState('')
   const [phone, setPhone]         = useState('')
+  const [avatarUrl, setAvatarUrl] = useState('')
   const [saving, setSaving]       = useState(false)
   const [saved, setSaved]         = useState(false)
   const [loaded, setLoaded]       = useState(false)
+  const [uploadError, setUploadError] = useState('')
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    fetch('/api/settings/profile').then(r => r.json()).then((d: { name?: string; email?: string; storeName?: string; phone?: string }) => {
+    fetch('/api/settings/profile').then(r => r.json()).then((d: { name?: string; email?: string; storeName?: string; phone?: string; avatarUrl?: string }) => {
       setName(d.name ?? ''); setEmail(d.email ?? ''); setStoreName(d.storeName ?? ''); setPhone(d.phone ?? '')
+      setAvatarUrl(d.avatarUrl ?? '')
       setLoaded(true)
     }).catch(() => setLoaded(true))
   }, [])
 
+  async function handleAvatarSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadError('')
+    const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
+    if (!['jpg', 'jpeg', 'png', 'webp'].includes(ext)) {
+      setUploadError('Geçersiz dosya türü. JPG, PNG veya WebP olmalı.')
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setUploadError('Dosya çok büyük (maks 5MB).')
+      return
+    }
+    setUploading(true)
+    try {
+      const form = new FormData()
+      form.append('file', file)
+      const res = await fetch('/api/settings/avatar', { method: 'POST', body: form })
+      const data = await res.json() as { url?: string; error?: string }
+      if (!res.ok) throw new Error(data.error ?? 'Yükleme başarısız')
+      setAvatarUrl(data.url ?? '')
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'Yükleme başarısız')
+    } finally {
+      setUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
   async function handleSave() {
     setSaving(true)
-    await fetch('/api/settings/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, storeName, phone }) })
-    setSaved(true); setTimeout(() => setSaved(false), 2500); setSaving(false)
+    const res = await fetch('/api/settings/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, storeName, phone }) })
+    if (res.ok) { setSaved(true); setTimeout(() => setSaved(false), 2500) }
+    setSaving(false)
   }
 
   if (!loaded) return <div className="flex items-center justify-center py-16"><Loader2 className="w-5 h-5 animate-spin" style={{ color: 'var(--text-3)' }} /></div>
@@ -649,16 +685,32 @@ function HesapSection() {
       <div className="bento-card p-6">
         {/* Avatar */}
         <div className="flex items-center gap-4 pb-5 mb-2" style={{ borderBottom: '1px solid var(--border)' }}>
-          <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-xl font-bold select-none"
-            style={{ background: 'var(--blue-soft)', color: 'var(--blue)', border: '1px solid rgba(68,112,255,0.2)' }}>
-            {initials}
-          </div>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="w-16 h-16 rounded-2xl flex items-center justify-center overflow-hidden relative group"
+            style={{ background: 'var(--blue-soft)', border: '1px solid rgba(68,112,255,0.2)' }}
+            title="Fotoğraf yükle">
+            {avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-xl font-bold" style={{ color: 'var(--blue)' }}>{initials}</span>
+            )}
+            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+              style={{ background: 'rgba(0,0,0,0.5)' }}>
+              {uploading ? <Loader2 className="w-4 h-4 text-white animate-spin" /> : <Upload className="w-4 h-4 text-white" />}
+            </div>
+          </button>
+          <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleAvatarSelect} />
           <div>
             <p className="text-sm font-semibold" style={{ color: 'var(--text-1)' }}>Profil Fotoğrafı</p>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--text-3)' }}>PNG veya JPG — maks 2MB</p>
-            <button className="btn-ghost text-xs mt-2 gap-1.5 opacity-40 cursor-not-allowed">
-              <Upload className="w-3 h-3" /> Fotoğraf Yükle <span className="chip chip-muted ml-1">Yakında</span>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--text-3)' }}>JPG, PNG veya WebP — maks 5MB</p>
+            <button onClick={() => fileInputRef.current?.click()} disabled={uploading}
+              className="btn-ghost text-xs mt-2 gap-1.5 disabled:opacity-40">
+              {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
+              {uploading ? 'Yükleniyor...' : 'Fotoğraf Yükle'}
             </button>
+            {uploadError && <p className="text-[11px] mt-1" style={{ color: 'var(--red)' }}>{uploadError}</p>}
           </div>
         </div>
 
@@ -837,15 +889,6 @@ function EntegrasyonlarSection({ integrations, onRefresh, oauthSuccess }: {
         />
 
         <IntegrationCard icon={ShoppingBag} name="Trendyol" desc="Trendyol pazar yeri siparişleri" iconBg="bg-orange-900" iconColor="#fb923c"
-          integration={undefined} onConnected={() => {}} connectUrl="" disconnectUrl="" modalFields={[]} comingSoon />
-      </div>
-
-      {/* Pazarlama */}
-      <div className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-wider px-1" style={{ color: 'var(--text-3)' }}>Pazarlama & Analitik</p>
-        <IntegrationCard icon={Globe} name="Meta Ads" desc="Facebook & Instagram reklam verilerini izle" iconBg="bg-blue-900" iconColor="#3b82f6"
-          integration={undefined} onConnected={() => {}} connectUrl="" disconnectUrl="" modalFields={[]} comingSoon />
-        <IntegrationCard icon={Globe} name="Google Analytics" desc="Web sitesi trafik ve dönüşüm verileri" iconBg="bg-orange-900" iconColor="#f59e0b"
           integration={undefined} onConnected={() => {}} connectUrl="" disconnectUrl="" modalFields={[]} comingSoon />
       </div>
 
@@ -1233,7 +1276,23 @@ function AIStudioSection() {
   const [secondary,  setSecondary]  = useState('#9f7afa')
   const [font,       setFont]       = useState('inter')
   const [style,      setStyle]      = useState('minimal')
+  const [saving,     setSaving]     = useState(false)
   const [saved,      setSaved]      = useState(false)
+  const [saveError,  setSaveError]  = useState('')
+
+  async function handleSave() {
+    setSaving(true); setSaveError('')
+    try {
+      const res = await fetch('/api/settings/store', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ brandSettings: { primary, secondary, font, style } }),
+      })
+      if (!res.ok) throw new Error('Kaydedilemedi')
+      setSaved(true); setTimeout(() => setSaved(false), 2500)
+    } catch (e) { setSaveError(e instanceof Error ? e.message : 'Hata oluştu') }
+    finally { setSaving(false) }
+  }
 
   return (
     <div className="space-y-4">
@@ -1306,11 +1365,8 @@ function AIStudioSection() {
         </SettingRow>
       </div>
 
-      <button onClick={() => { setSaved(true); setTimeout(() => setSaved(false), 2500) }}
-        className={cn('btn-primary gap-2', saved ? '!bg-emerald-600 !border-emerald-600' : '')}>
-        {saved ? <Check className="w-4 h-4" /> : null}
-        {saved ? 'Kaydedildi' : 'Marka Kimliğini Kaydet'}
-      </button>
+      {saveError && <p className="text-xs" style={{ color: 'var(--red)' }}>{saveError}</p>}
+      <SaveButton saving={saving} saved={saved} onClick={handleSave} />
     </div>
   )
 }
@@ -1334,8 +1390,9 @@ function BildirimlerSection() {
 
   async function handleSave() {
     setSaving(true)
-    await fetch('/api/settings/store', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ notificationPrefs: prefs }) })
-    setSaved(true); setTimeout(() => setSaved(false), 2500); setSaving(false)
+    const res = await fetch('/api/settings/store', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ notificationPrefs: prefs }) })
+    if (res.ok) { setSaved(true); setTimeout(() => setSaved(false), 2500) }
+    setSaving(false)
   }
 
   return (
@@ -1653,8 +1710,12 @@ const TAB_META: Record<Tab, { label: string; desc: string; icon: React.ElementTy
   danger:        { label: 'Tehlikeli Bölge',   desc: 'Hesap silme ve dondurma',       icon: AlertTriangle, danger: true },
 }
 
-export default function SettingsPage() {
-  const [activeTab,    setActiveTab]    = useState<Tab>('hesap')
+function SettingsPageInner() {
+  const router       = useRouter()
+  const searchParams = useSearchParams()
+  const tabParam     = searchParams.get('tab') as Tab | null
+  const activeTab: Tab = (tabParam && tabs.some(t => t.key === tabParam)) ? tabParam : 'hesap'
+
   const [integrations, setIntegrations] = useState<Integration[]>([])
   const [oauthSuccess, setOauthSuccess] = useState(false)
   const { open: openDrawer } = useSettingsDrawer()
@@ -1667,24 +1728,22 @@ export default function SettingsPage() {
     } catch {}
   }, [])
 
+  // Load integrations once on mount; handle Shopify OAuth callback
   useEffect(() => {
     loadIntegrations()
-    const params = new URLSearchParams(window.location.search)
-    if (params.get('connected') === 'shopify') {
+    if (searchParams.get('connected') === 'shopify') {
       setOauthSuccess(true)
-      setActiveTab('integrations')
-      window.history.replaceState({}, '', '/settings?tab=integrations')
+      router.replace('/settings?tab=integrations')
       setTimeout(() => setOauthSuccess(false), 5000)
-    }
-    const tab = params.get('tab') as Tab | null
-    if (tab && tabs.some(t => t.key === tab)) {
-      setActiveTab(tab)
-    } else if (!tab) {
-      // No tab in URL — open the drawer for category selection
-      openDrawer()
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadIntegrations])
+
+  // Open the drawer when there is no tab in the URL
+  useEffect(() => {
+    if (!tabParam) openDrawer()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tabParam])
 
   const meta = TAB_META[activeTab]
   const Icon = meta.icon
@@ -1731,10 +1790,7 @@ export default function SettingsPage() {
           {tabs.slice(0, 5).map(t => (
             <button
               key={t.key}
-              onClick={() => {
-                setActiveTab(t.key)
-                window.history.replaceState({}, '', `/settings?tab=${t.key}`)
-              }}
+              onClick={() => router.replace(`/settings?tab=${t.key}`)}
               className="shrink-0 px-2.5 py-1 rounded-lg text-[11.5px] font-medium transition-all"
               style={
                 activeTab === t.key
@@ -1801,5 +1857,13 @@ export default function SettingsPage() {
         </div>
       </div>
     </AppShell>
+  )
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense>
+      <SettingsPageInner />
+    </Suspense>
   )
 }
