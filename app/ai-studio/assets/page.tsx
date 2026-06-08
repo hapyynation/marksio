@@ -127,7 +127,7 @@ export default function AIAssetsPage() {
                       <button onClick={() => {
                         const id = asset.id
                         localStorage.setItem(`marksio_banner_asset_${id}`, JSON.stringify(asset))
-                        router.push(`/campaigns/new?bannerId=${id}`)
+                        router.push('/ai-studio')
                       }} className="p-1.5 rounded-lg transition-colors hover:bg-purple-50" title="Kampanyada Kullan" style={{ color: '#6c47ff' }}>
                         <ExternalLink className="w-3.5 h-3.5" />
                       </button>

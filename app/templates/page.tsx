@@ -219,12 +219,12 @@ export default function TemplatesPage() {
                         {/* Hover overlay */}
                         <div className="absolute inset-0 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-all"
                           style={{ background: 'rgba(0,0,0,0.5)' }}>
-                          <Link href={`/campaigns/new?template=${tpl.id}`}
+                          <Link href={`/ai-studio?template=${tpl.id}`}
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-semibold"
                             style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', backdropFilter: 'blur(8px)' }}>
                             <Eye className="w-3 h-3" /> Önizle
                           </Link>
-                          <Link href={`/campaigns/new?template=${tpl.id}`}
+                          <Link href={`/ai-studio?template=${tpl.id}`}
                             className="w-8 h-8 rounded-xl flex items-center justify-center"
                             style={{ background: '#4470ff', color: '#fff' }}>
                             <Plus className="w-4 h-4" />
@@ -254,7 +254,7 @@ export default function TemplatesPage() {
                             <Eye className="w-2.5 h-2.5" />
                             <span style={{ fontFamily: 'JetBrains Mono, monospace' }}>{formatNumber(tpl.uses)} kullanıldı</span>
                           </div>
-                          <Link href={`/campaigns/new?template=${tpl.id}`}
+                          <Link href={`/ai-studio?template=${tpl.id}`}
                             className="flex items-center justify-center w-6 h-6 rounded-lg transition-all"
                             style={{ background: 'rgba(68,112,255,0.1)', color: '#99b4ff', border: '1px solid rgba(68,112,255,0.2)' }}>
                             <Plus className="w-3.5 h-3.5" />

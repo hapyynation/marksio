@@ -218,7 +218,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
               <h3 className="text-sm font-semibold text-white mb-3">Hızlı İletişim</h3>
               <div className="space-y-2">
                 <Link
-                  href={`/campaigns/new?to=${customer.id}`}
+                  href={`/ai-studio?to=${customer.id}`}
                   className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm font-medium text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 rounded-xl transition-colors"
                 >
                   <Mail className="w-4 h-4" />
@@ -268,7 +268,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                 ))}
               </ul>
               <Link
-                href="/campaigns/new"
+                href="/ai-studio"
                 className="mt-4 flex items-center justify-center gap-1.5 w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold py-2 rounded-xl transition-colors"
               >
                 <Send className="w-3.5 h-3.5" />

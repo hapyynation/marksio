@@ -303,19 +303,19 @@ export default function SegmentsPage() {
     <AppShell>
 
       {/* ── Top bar ── */}
-      <div className="flex items-center justify-between px-6 h-14 shrink-0"
+      <div className="flex items-center justify-between px-4 md:px-6 h-14 shrink-0 gap-2"
         style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(9,9,15,0.95)', backdropFilter: 'blur(24px)' }}>
         <div>
-          <h1 className="text-[16px] font-bold" style={{ color: '#eeeef4' }}>Segmentler</h1>
-          <p className="text-[11px]" style={{ color: '#44445a' }}>
+          <h1 className="text-[15px] md:text-[16px] font-bold" style={{ color: '#eeeef4' }}>Segmentler</h1>
+          <p className="text-[11px] hidden sm:block" style={{ color: '#44445a' }}>
             Müşterilerinizi davranış ve alışveriş geçmişine göre otomatik segmentlere ayırın.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <button
             onClick={refreshCounts}
             disabled={refreshing}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-semibold transition-all"
+            className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-semibold transition-all"
             style={{ background: 'rgba(255,255,255,0.04)', color: '#8080a0', border: '1px solid rgba(255,255,255,0.08)' }}
           >
             <RefreshCw className={cn('w-3.5 h-3.5', refreshing && 'animate-spin')} />
@@ -323,10 +323,10 @@ export default function SegmentsPage() {
           </button>
           <button
             onClick={() => { setShowCreate(true); setSaveError('') }}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-bold"
+            className="flex items-center gap-1.5 px-3 md:px-4 py-2 rounded-xl text-[12px] font-bold min-h-[44px]"
             style={{ background: '#4470ff', color: '#fff' }}
           >
-            <Plus className="w-3.5 h-3.5" /> Yeni Segment
+            <Plus className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Yeni Segment</span>
           </button>
         </div>
       </div>

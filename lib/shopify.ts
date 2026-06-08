@@ -150,13 +150,20 @@ const WEBHOOK_TOPICS = [
   'checkouts/update',
   'products/create',
   'products/update',
+  'app/uninstalled',
 ] as const
+
+export type WebhookRegistrationResult = {
+  topic: string
+  success: boolean
+  error?: string
+}
 
 export async function registerWebhooks(
   domain: string,
   token: string,
   appBaseUrl: string,
-): Promise<void> {
+): Promise<WebhookRegistrationResult[]> {
   const address = `${appBaseUrl}/api/webhooks/shopify`
 
   const existing = await shopifyFetch<{ webhooks: Array<{ id: number; topic: string }> }>(
@@ -164,15 +171,22 @@ export async function registerWebhooks(
   ).catch(() => ({ webhooks: [] }))
 
   const existingTopics = new Set(existing.webhooks.map((w) => w.topic))
+  const toRegister = WEBHOOK_TOPICS.filter((t) => !existingTopics.has(t))
 
-  await Promise.allSettled(
-    WEBHOOK_TOPICS.filter((t) => !existingTopics.has(t)).map((topic) =>
+  const results = await Promise.allSettled(
+    toRegister.map((topic) =>
       shopifyFetch(domain, token, '/webhooks.json', {
         method: 'POST',
         body: JSON.stringify({ webhook: { topic, address, format: 'json' } }),
       }),
     ),
   )
+
+  return toRegister.map((topic, i) => {
+    const r = results[i]
+    if (r.status === 'fulfilled') return { topic, success: true }
+    return { topic, success: false, error: String((r as PromiseRejectedResult).reason) }
+  })
 }
 
 /**

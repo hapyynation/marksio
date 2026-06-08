@@ -1,4 +1,4 @@
-# Marksio — Claude Code Instructions
+# Marksio — Codex Instructions
 
 ## Kaynak Doküman
 

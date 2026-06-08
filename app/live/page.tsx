@@ -28,7 +28,7 @@ export default function LivePage() {
   return (
     <AppShell>
       {/* Top bar */}
-      <div className="sticky top-0 z-20 flex items-center justify-between px-6 h-14 shrink-0"
+      <div className="sticky top-0 z-20 flex items-center justify-between px-4 md:px-6 h-14 shrink-0"
         style={{ background: 'rgba(8,8,15,0.95)', backdropFilter: 'blur(24px)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
         <div className="flex items-center gap-3">
           <h1 className="text-[16px] font-bold" style={{ color: '#eeeef4' }}>Canlı Takip</h1>
@@ -42,7 +42,7 @@ export default function LivePage() {
               <span className="text-[11px] font-semibold" style={{ color: '#22c97a' }}>Canlı</span>
             </div>
           )}
-          <p className="text-[12px]" style={{ color: '#44445a' }}>Ziyaretçilerinizi anlık olarak takip edin</p>
+          <p className="text-[12px] hidden sm:block" style={{ color: '#44445a' }}>Ziyaretçilerinizi anlık olarak takip edin</p>
         </div>
         <div className="flex items-center gap-2">
           <button

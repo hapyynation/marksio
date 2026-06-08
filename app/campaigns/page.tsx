@@ -28,7 +28,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
 }
 
 type CampaignType = 'email' | 'whatsapp'
-type CampaignStatus = 'draft' | 'active' | 'scheduled' | 'completed'
+type CampaignStatus = 'draft' | 'active' | 'scheduled' | 'completed' | 'sending' | 'failed'
 
 interface Campaign {
   id: string
@@ -49,9 +49,11 @@ interface Campaign {
 }
 
 const statusConfig: Record<CampaignStatus, { label: string; dot: string; text: string; bg: string }> = {
-  completed: { label: 'Tamamlandı', dot: '#22c97a', text: '#22c97a', bg: 'rgba(34,201,122,0.1)' },
-  active:    { label: 'Aktif',      dot: '#4470ff', text: '#99b4ff', bg: 'rgba(68,112,255,0.1)' },
-  scheduled: { label: 'Planlandı',  dot: '#f0a020', text: '#f0a020', bg: 'rgba(240,160,32,0.1)' },
+  completed: { label: 'Tamamlandı', dot: '#22c97a', text: '#22c97a', bg: 'rgba(34,201,122,0.1)'  },
+  active:    { label: 'Aktif',      dot: '#4470ff', text: '#99b4ff', bg: 'rgba(68,112,255,0.1)'  },
+  scheduled: { label: 'Planlandı',  dot: '#f0a020', text: '#f0a020', bg: 'rgba(240,160,32,0.1)'  },
+  sending:   { label: 'Gönderiliyor', dot: '#4470ff', text: '#99b4ff', bg: 'rgba(68,112,255,0.08)' },
+  failed:    { label: 'Başarısız',  dot: '#e84545', text: '#e84545', bg: 'rgba(232,69,69,0.1)'   },
   draft:     { label: 'Taslak',     dot: '#3e3e54', text: '#8080a0', bg: 'rgba(255,255,255,0.04)' },
 }
 
@@ -60,15 +62,6 @@ const channelConfig: Record<string, { icon: React.ElementType; color: string; la
   whatsapp: { icon: MessageSquare, color: '#22c97a', label: 'WhatsApp' },
 }
 
-const DEMO_CAMPAIGNS: Campaign[] = [
-  { id: '1', name: 'Black Friday İndirim Kampanyası', type: 'email',    status: 'completed', segment: 'Tüm Müşteriler', body: '', sent: 12456, opened: 4823, clicked: 1160, converted: 389, revenue: 256420, createdAt: '2024-05-24', isAi: true },
-  { id: '2', name: 'Sepet Terk Edenlere Hatırlatma',  type: 'whatsapp', status: 'completed', segment: 'Sepet Terk Edenler', body: '', sent: 6842, opened: 3087, clicked: 891, converted: 217, revenue: 186750, createdAt: '2024-05-22', isAi: true },
-  { id: '3', name: 'Yaz Koleksiyonu Duyurusu',        type: 'email',    status: 'completed', segment: 'Sadık Müşteriler', body: '', sent: 8159, opened: 2571, clicked: 587, converted: 142, revenue: 134250, createdAt: '2024-05-20', isAi: false },
-  { id: '4', name: 'Hoş Geldin! 🎉',                  type: 'email',    status: 'completed', segment: 'Yeni Aboneler',   body: '', sent: 2350, opened: 1464, clicked: 443, converted: 98,  revenue: 98430,  createdAt: '2024-05-19', isAi: false },
-  { id: '5', name: 'Flash İndirim 24 Saat!',          type: 'whatsapp', status: 'completed', segment: 'Tüm Müşteriler', body: '', sent: 9876, opened: 2961, clicked: 602, converted: 187, revenue: 120680, createdAt: '2024-05-17', isAi: false },
-  { id: '6', name: 'Seni Özledik 💙',                 type: 'email',    status: 'active',    segment: '90 Gün Aktif Olmayanlar', body: '', sent: 4321, opened: 1039, clicked: 186, converted: 41,  revenue: 45890,  createdAt: '2024-05-15', isAi: true },
-  { id: '7', name: 'Yeni Ürünler Geldi!',             type: 'email',    status: 'scheduled', segment: 'VIP Müşteriler', body: '', sent: 0, opened: 0, clicked: 0, converted: 0, revenue: 0, createdAt: '2024-05-12', isAi: false },
-]
 
 function Toast({ msg, type }: { msg: string; type: 'success' | 'error' }) {
   return (
@@ -186,48 +179,93 @@ export default function CampaignsPage() {
   const totalOpened    = campaigns.reduce((s, c) => s + c.opened, 0)
   const totalClicked   = campaigns.reduce((s, c) => s + c.clicked, 0)
   const totalRevenue   = campaigns.reduce((s, c) => s + c.revenue, 0)
-  const openRate       = totalSent > 0 ? ((totalOpened / totalSent) * 100).toFixed(1) : '0'
-  const clickRate      = totalSent > 0 ? ((totalClicked / totalSent) * 100).toFixed(1) : '0'
+  const openRate  = totalSent > 0 ? ((totalOpened  / totalSent) * 100).toFixed(1) : '0'
+  const clickRate = totalSent > 0 ? ((totalClicked / totalSent) * 100).toFixed(1) : '0'
+
+  // Real month-over-month changes — null when previous month has no data
+  const nowDate         = new Date()
+  const startOfThisMonth = new Date(nowDate.getFullYear(), nowDate.getMonth(), 1)
+  const startOfLastMonth = new Date(nowDate.getFullYear(), nowDate.getMonth() - 1, 1)
+  const thisMonthC = campaigns.filter(c => new Date(c.createdAt) >= startOfThisMonth)
+  const lastMonthC = campaigns.filter(c => {
+    const d = new Date(c.createdAt)
+    return d >= startOfLastMonth && d < startOfThisMonth
+  })
+  const thisMSent    = thisMonthC.reduce((s, c) => s + c.sent,    0)
+  const lastMSent    = lastMonthC.reduce((s, c) => s + c.sent,    0)
+  const thisMOpened  = thisMonthC.reduce((s, c) => s + c.opened,  0)
+  const lastMOpened  = lastMonthC.reduce((s, c) => s + c.opened,  0)
+  const thisMClicked = thisMonthC.reduce((s, c) => s + c.clicked, 0)
+  const lastMClicked = lastMonthC.reduce((s, c) => s + c.clicked, 0)
+  const thisMRev     = thisMonthC.reduce((s, c) => s + c.revenue, 0)
+  const lastMRev     = lastMonthC.reduce((s, c) => s + c.revenue, 0)
+
+  function momPct(curr: number, prev: number): number | null {
+    if (prev === 0) return null
+    return +((curr - prev) / prev * 100).toFixed(1)
+  }
+  function momRatePP(cSent: number, cVal: number, pSent: number, pVal: number): number | null {
+    if (pSent === 0) return null
+    const cRate = cSent > 0 ? cVal / cSent * 100 : 0
+    const pRate = pVal / pSent * 100
+    return +(cRate - pRate).toFixed(1)
+  }
+
+  const kpiChanges = {
+    campaigns: momPct(thisMonthC.length, lastMonthC.length),
+    sent:      momPct(thisMSent,  lastMSent),
+    openRate:  momRatePP(thisMSent, thisMOpened,  lastMSent, lastMOpened),
+    clickRate: momRatePP(thisMSent, thisMClicked, lastMSent, lastMClicked),
+    revenue:   momPct(thisMRev, lastMRev),
+  }
 
   return (
     <AppShell>
       {toast && <Toast msg={toast.msg} type={toast.type} />}
 
       {/* ── Top bar ── */}
-      <div className="flex items-center justify-between px-6 h-14 shrink-0"
+      <div className="flex items-center justify-between px-4 md:px-6 h-14 shrink-0"
         style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(9,9,15,0.95)', backdropFilter: 'blur(24px)' }}>
         <div>
-          <h1 className="text-[16px] font-bold" style={{ color: '#eeeef4' }}>Kampanyalar</h1>
-          <p className="text-[11px]" style={{ color: '#44445a' }}>E-posta ve WhatsApp kampanyalarınızı oluşturun, yönetin ve analiz edin.</p>
+          <h1 className="text-[15px] md:text-[16px] font-bold" style={{ color: '#eeeef4' }}>Kampanyalar</h1>
+          <p className="text-[11px] hidden sm:block" style={{ color: '#44445a' }}>E-posta ve WhatsApp kampanyalarınızı oluşturun, yönetin ve analiz edin.</p>
         </div>
         <div className="flex items-center gap-2">
-          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold transition-all"
+          <button className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold transition-all"
             style={{ background: 'rgba(255,255,255,0.04)', color: '#8080a0', border: '1px solid rgba(255,255,255,0.08)' }}>
             <TrendingUp className="w-3.5 h-3.5" /> Raporu İndir
           </button>
           <Link href="/ai-studio"
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-bold transition-all"
+            className="hidden md:flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-bold transition-all"
             style={{ background: '#4470ff', color: '#fff' }}>
             <Plus className="w-3.5 h-3.5" /> Yeni Kampanya
           </Link>
         </div>
       </div>
 
+      {/* Mobile FAB */}
+      <Link href="/ai-studio"
+        className="fixed bottom-20 right-4 z-30 md:hidden w-14 h-14 flex items-center justify-center rounded-full shadow-2xl"
+        style={{ background: '#4470ff', touchAction: 'manipulation' }}>
+        <Plus className="w-6 h-6 text-white" />
+      </Link>
+
       <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* ── Main content ── */}
         <div className="flex-1 flex flex-col overflow-hidden">
 
           {/* ── KPI cards ── */}
-          <div className="px-6 py-4 grid grid-cols-5 gap-3 shrink-0">
+          <div className="px-4 md:px-6 py-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 shrink-0">
             {[
-              { label: 'Toplam Kampanya', value: String(totalCampaigns), icon: BarChart2, color: '#99b4ff', bg: 'rgba(153,180,255,0.1)', change: 18.6 },
-              { label: 'Gönderilen',      value: formatNumber(totalSent), icon: Send,      color: '#4470ff', bg: 'rgba(68,112,255,0.1)',  change: 16.3 },
-              { label: 'Açılma Oranı',    value: `%${openRate}`,          icon: Eye,       color: '#22c97a', bg: 'rgba(34,201,122,0.1)', change: 8.4 },
-              { label: 'Tıklama Oranı',   value: `%${clickRate}`,         icon: MousePointerClick, color: '#9f7afa', bg: 'rgba(159,122,250,0.1)', change: 12.7 },
-              { label: 'Gelir',           value: formatCurrency(totalRevenue), icon: TrendingUp, color: '#22c97a', bg: 'rgba(34,201,122,0.1)', change: 24.5 },
+              { label: 'Toplam Kampanya', value: String(totalCampaigns),      icon: BarChart2,         color: '#99b4ff', bg: 'rgba(153,180,255,0.1)', change: kpiChanges.campaigns },
+              { label: 'Gönderilen',      value: formatNumber(totalSent),      icon: Send,              color: '#4470ff', bg: 'rgba(68,112,255,0.1)',  change: kpiChanges.sent      },
+              { label: 'Açılma Oranı',    value: `%${openRate}`,               icon: Eye,               color: '#22c97a', bg: 'rgba(34,201,122,0.1)', change: kpiChanges.openRate  },
+              { label: 'Tıklama Oranı',   value: `%${clickRate}`,              icon: MousePointerClick, color: '#9f7afa', bg: 'rgba(159,122,250,0.1)', change: kpiChanges.clickRate },
+              { label: 'Gelir',           value: formatCurrency(totalRevenue), icon: TrendingUp,        color: '#22c97a', bg: 'rgba(34,201,122,0.1)', change: kpiChanges.revenue   },
             ].map(kpi => {
-              const Icon = kpi.icon
-              const positive = kpi.change >= 0
+              const Icon      = kpi.icon
+              const hasChange = kpi.change !== null
+              const positive  = hasChange && kpi.change! >= 0
               return (
                 <div key={kpi.label} className="rounded-2xl p-4 cursor-default"
                   style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)' }}>
@@ -238,25 +276,32 @@ export default function CampaignsPage() {
                     </div>
                   </div>
                   <p className="text-[22px] font-bold leading-none mb-2" style={{ color: '#eeeef4', letterSpacing: '-0.02em' }}>{kpi.value}</p>
-                  <div className={cn('inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-md', positive ? 'text-emerald-400' : 'text-red-400')}
-                    style={{ background: positive ? 'rgba(34,201,122,0.08)' : 'rgba(232,69,69,0.08)' }}>
-                    {positive ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-                    %{Math.abs(kpi.change)} geçen 30 güne göre
-                  </div>
+                  {hasChange ? (
+                    <div className={cn('inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-md', positive ? 'text-emerald-400' : 'text-red-400')}
+                      style={{ background: positive ? 'rgba(34,201,122,0.08)' : 'rgba(232,69,69,0.08)' }}>
+                      {positive ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                      %{Math.abs(kpi.change!)} geçen 30 güne göre
+                    </div>
+                  ) : (
+                    <div className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-md"
+                      style={{ color: '#3e3e54', background: 'rgba(255,255,255,0.03)' }}>
+                      — geçen ay verisi yok
+                    </div>
+                  )}
                 </div>
               )
             })}
           </div>
 
           {/* ── Filter bar ── */}
-          <div className="px-6 py-2 flex items-center gap-3 shrink-0"
+          <div className="px-4 md:px-6 py-2 flex items-center gap-2 md:gap-3 shrink-0 overflow-x-auto no-scrollbar"
             style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', borderTop: '1px solid rgba(255,255,255,0.05)', background: 'rgba(0,0,0,0.1)' }}>
-            <div className="relative">
+            <div className="relative shrink-0">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3" style={{ color: '#44445a' }} />
               <input type="text" value={search} onChange={e => setSearch(e.target.value)}
                 placeholder="Kampanya ara..."
-                className="pl-8 pr-3 py-1.5 text-[12px] rounded-xl outline-none w-48"
-                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#eeeef4' }} />
+                className="pl-8 pr-3 py-1.5 text-base md:text-[12px] rounded-xl outline-none w-36 md:w-48"
+                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#eeeef4', fontSize: 16 }} />
             </div>
 
             {/* Status filter */}
@@ -288,8 +333,86 @@ export default function CampaignsPage() {
             </span>
           </div>
 
-          {/* ── Campaign table ── */}
-          <div className="flex-1 overflow-auto">
+          {/* ── Mobile card list ── */}
+          <div className="md:hidden flex-1 overflow-auto">
+            <div className="p-4 space-y-2">
+              {loading ? (
+                [...Array(4)].map((_, i) => (
+                  <div key={i} className="rounded-2xl p-4 animate-pulse" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl" style={{ background: 'rgba(255,255,255,0.06)' }} />
+                      <div className="flex-1 space-y-1.5">
+                        <div className="h-3.5 rounded-md w-3/4" style={{ background: 'rgba(255,255,255,0.06)' }} />
+                        <div className="h-2.5 rounded-md w-1/2" style={{ background: 'rgba(255,255,255,0.04)' }} />
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : filtered.length === 0 ? (
+                <div className="flex flex-col items-center gap-4 py-16 text-center">
+                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
+                    style={{ background: 'rgba(68,112,255,0.08)', border: '1.5px dashed rgba(68,112,255,0.25)' }}>
+                    <Send className="w-6 h-6" style={{ color: '#99b4ff' }} />
+                  </div>
+                  <div>
+                    <p className="text-[14px] font-bold mb-1" style={{ color: '#eeeef4' }}>
+                      {search || channelFilter !== 'all' || statusFilter !== 'all' ? 'Filtreyle eşleşen kampanya bulunamadı' : 'Henüz kampanya oluşturmadınız'}
+                    </p>
+                    <p className="text-[12px]" style={{ color: '#44445a' }}>
+                      {search || channelFilter !== 'all' || statusFilter !== 'all' ? 'Filtreleri temizleyerek tüm kampanyaları görün' : 'AI destekli ilk kampanyanızı oluşturmak için başlayın'}
+                    </p>
+                  </div>
+                  {!search && channelFilter === 'all' && statusFilter === 'all' && (
+                    <Link href="/ai-studio" className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-[13px] font-bold"
+                      style={{ background: '#4470ff', color: '#fff' }}>
+                      <Plus className="w-4 h-4" /> Yeni Kampanya
+                    </Link>
+                  )}
+                </div>
+              ) : filtered.map(campaign => {
+                const ch = channelConfig[campaign.type] ?? channelConfig.email
+                const sc = statusConfig[campaign.status] ?? statusConfig.draft
+                const ChIcon = ch.icon
+                return (
+                  <div key={campaign.id}
+                    onClick={() => router.push(`/campaigns/${campaign.id}`)}
+                    className="rounded-2xl p-4 cursor-pointer active:scale-[0.98] transition-all"
+                    style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                        style={{ background: `${ch.color}15`, border: `1px solid ${ch.color}20` }}>
+                        <ChIcon className="w-5 h-5" style={{ color: ch.color }} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[13px] font-semibold truncate" style={{ color: '#eeeef4' }}>{campaign.name}</p>
+                        <p className="text-[11px]" style={{ color: '#44445a' }}>
+                          {campaign.status === 'scheduled' && campaign.scheduledAt
+                            ? `Planlanan: ${new Date(campaign.scheduledAt).toLocaleString('tr-TR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`
+                            : new Date(campaign.createdAt).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-semibold shrink-0"
+                        style={{ background: sc.bg, color: sc.text }}>
+                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: sc.dot }} />
+                        {sc.label}
+                      </div>
+                    </div>
+                    {campaign.sent > 0 && (
+                      <div className="flex items-center gap-4 pt-2.5 border-t" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+                        <span className="text-[11px]" style={{ color: '#44445a' }}>{formatNumber(campaign.sent)} gönderildi</span>
+                        <span className="text-[11px]" style={{ color: '#44445a' }}>%{campaign.sent > 0 ? ((campaign.opened / campaign.sent) * 100).toFixed(0) : 0} açıldı</span>
+                        {campaign.revenue > 0 && <span className="text-[11px] font-bold ml-auto" style={{ color: '#22c97a' }}>{formatCurrency(campaign.revenue)}</span>}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+              <div className="h-4" />
+            </div>
+          </div>
+
+          {/* ── Desktop table ── */}
+          <div className="hidden md:flex flex-1 overflow-auto flex-col">
             <table className="w-full">
               <thead>
                 <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'rgba(0,0,0,0.15)' }}>
@@ -312,14 +435,30 @@ export default function CampaignsPage() {
                   ))
                 ) : filtered.length === 0 ? (
                   <tr><td colSpan={8} className="py-20 text-center">
-                    <div className="flex flex-col items-center gap-3">
-                      <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.04)' }}>
-                        <Sparkles className="w-5 h-5" style={{ color: '#33334a' }} />
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
+                        style={{ background: 'rgba(68,112,255,0.08)', border: '1.5px dashed rgba(68,112,255,0.25)' }}>
+                        <Send className="w-6 h-6" style={{ color: '#99b4ff' }} />
                       </div>
-                      <p className="text-[13px] font-semibold" style={{ color: '#44445a' }}>Kampanya bulunamadı</p>
-                      <button onClick={() => setShowNewPanel(true)} className="text-[12px] font-semibold" style={{ color: '#99b4ff' }}>
-                        + Yeni Kampanya Oluştur
-                      </button>
+                      <div>
+                        <p className="text-[14px] font-bold mb-1" style={{ color: '#eeeef4' }}>
+                          {search || channelFilter !== 'all' || statusFilter !== 'all'
+                            ? 'Filtreyle eşleşen kampanya bulunamadı'
+                            : 'Henüz kampanya oluşturmadınız'}
+                        </p>
+                        <p className="text-[12px]" style={{ color: '#44445a' }}>
+                          {search || channelFilter !== 'all' || statusFilter !== 'all'
+                            ? 'Filtreleri temizleyerek tüm kampanyaları görün'
+                            : 'AI destekli ilk kampanyanızı oluşturmak için başlayın'}
+                        </p>
+                      </div>
+                      {!search && channelFilter === 'all' && statusFilter === 'all' && (
+                        <Link href="/ai-studio"
+                          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-bold"
+                          style={{ background: '#4470ff', color: '#fff' }}>
+                          <Plus className="w-3.5 h-3.5" /> Yeni Kampanya
+                        </Link>
+                      )}
                     </div>
                   </td></tr>
                 ) : filtered.map(campaign => {
@@ -354,7 +493,12 @@ export default function CampaignsPage() {
                                 </span>
                               )}
                             </div>
-                            <p className="text-[10px]" style={{ color: '#44445a' }}>{campaign.segment} · {new Date(campaign.createdAt).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                            <p className="text-[10px]" style={{ color: '#44445a' }}>
+                              {campaign.segment} ·{' '}
+                              {campaign.status === 'scheduled' && campaign.scheduledAt
+                                ? `Planlanan: ${new Date(campaign.scheduledAt).toLocaleString('tr-TR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`
+                                : new Date(campaign.createdAt).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric' })}
+                            </p>
                           </div>
                         </div>
                       </td>
@@ -470,8 +614,8 @@ export default function CampaignsPage() {
           </div>
         </div>
 
-        {/* ── AI Önerileri panel (always visible) ── */}
-        <div className="w-[300px] shrink-0 flex flex-col border-l overflow-hidden"
+        {/* ── AI Önerileri panel — desktop only ── */}
+        <div className="hidden lg:flex w-[300px] shrink-0 flex-col border-l overflow-hidden"
           style={{ background: '#0d0d1a', borderColor: 'rgba(255,255,255,0.06)' }}>
           <div className="flex items-center justify-between px-4 py-3.5 shrink-0"
             style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>

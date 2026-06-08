@@ -191,7 +191,7 @@ export async function GET() {
       },
       integrationStatus: {
         shopify:    { ok: !!integration,                              detail: integration?.shopDomain ?? null },
-        email:      { ok: emailDomain?.status === 'verified',        detail: emailDomain?.domain     ?? null },
+        email:      { ok: true,                                       detail: 'mg.marksio.com' },
         whatsapp:   { ok: waSettings?.connectionStatus === 'connected', detail: null },
         customerCount: totalCustomers,
       },

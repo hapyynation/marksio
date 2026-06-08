@@ -6,6 +6,8 @@ const PUBLIC_PATHS = [
   '/register',
   '/forgot-password',
   '/reset-password',
+  '/verify-email',
+  '/onboarding',
   '/auth/callback',
   '/unsubscribe',
   '/api/auth',
@@ -17,6 +19,12 @@ const PUBLIC_PATHS = [
 
 function isPublicPath(pathname: string): boolean {
   return PUBLIC_PATHS.some(p => pathname === p || pathname.startsWith(p + '/') || pathname.startsWith(p + '?'))
+}
+
+function isOnboardingRequired(pathname: string): boolean {
+  // Paths that are accessible even without completing onboarding
+  const exempt = ['/onboarding', '/verify-email', '/api/']
+  return !exempt.some(p => pathname === p || pathname.startsWith(p))
 }
 
 export async function middleware(request: NextRequest) {
@@ -64,6 +72,14 @@ export async function middleware(request: NextRequest) {
     const loginUrl = new URL('/login', request.url)
     loginUrl.searchParams.set('next', pathname)
     return NextResponse.redirect(loginUrl)
+  }
+
+  // Onboarding gate — redirect authenticated users who haven't completed onboarding
+  if (user && isOnboardingRequired(pathname)) {
+    const onboardedCookie = request.cookies.get('marksio_onboarded')?.value
+    if (!onboardedCookie) {
+      return NextResponse.redirect(new URL('/onboarding', request.url))
+    }
   }
 
   return supabaseResponse

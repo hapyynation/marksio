@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getApiSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { getLimits, isAtLimit, getUpgradePlan } from '@/lib/plan-limits'
 
 /* ─── Template flow data ──────────────────────────────────────── */
 
@@ -461,7 +462,8 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const session = await getApiSession()
   if (!session?.user) return NextResponse.json({ error: 'Yetkisiz' }, { status: 401 })
-  const userId = (session.user as { id: string }).id
+  const userId = session.user.id
+  const effectivePlan = session.user.effectivePlan
 
   const { templateId } = await req.json() as { templateId: string }
   const template = TEMPLATES.find(t => t.id === templateId)
@@ -474,6 +476,30 @@ export async function POST(req: NextRequest) {
     })
     if (existing) {
       return NextResponse.json({ id: existing.id, name: existing.name }, { status: 200 })
+    }
+
+    // Plan limit check — only when a NEW automation would be created
+    const limits = getLimits(effectivePlan)
+    if (limits.automations === 0) {
+      return NextResponse.json({
+        error: 'PLAN_LIMIT_REACHED',
+        feature: 'automations',
+        currentPlan: effectivePlan,
+        requiredPlan: getUpgradePlan(effectivePlan),
+      }, { status: 403 })
+    }
+    if (limits.automations !== -1) {
+      const count = await prisma.automation.count({
+        where: { userId, status: { in: ['active', 'paused'] } },
+      })
+      if (isAtLimit(count, limits.automations)) {
+        return NextResponse.json({
+          error: 'PLAN_LIMIT_REACHED',
+          feature: 'automations',
+          currentPlan: effectivePlan,
+          requiredPlan: getUpgradePlan(effectivePlan),
+        }, { status: 403 })
+      }
     }
 
     const automation = await prisma.automation.create({

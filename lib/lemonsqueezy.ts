@@ -79,9 +79,10 @@ export async function createCheckout(params: {
             name:  params.userName,
             custom: { user_id: params.userId },
           },
+          product_options: {
+            redirect_url: params.successUrl,
+          },
           checkout_options: {
-            success_url: params.successUrl,
-            cancel_url:  params.cancelUrl,
             embed: false,
           },
           expires_at: null,

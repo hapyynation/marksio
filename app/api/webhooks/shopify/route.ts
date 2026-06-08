@@ -9,7 +9,7 @@ import {
   detectProductCategory,
   type ShopifyProduct,
 } from '@/lib/shopify'
-import { processUnhandledEvents } from '@/lib/automation/engine'
+import { triggerAutomationsForEvent } from '@/lib/automation/engine'
 
 export async function POST(req: NextRequest) {
   const topic = req.headers.get('x-shopify-topic') ?? ''
@@ -41,23 +41,31 @@ export async function POST(req: NextRequest) {
   try {
     switch (topic) {
       case 'orders/create':
-      case 'orders/updated':
-        await handleOrder(userId, integration.id, payload)
-        // Anlık otomasyon tetikle — order_placed event'ini hemen işle
-        processUnhandledEvents(userId).catch(err => console.error('[Webhook Auto]', err))
+      case 'orders/updated': {
+        const event = await handleOrder(userId, integration.id, payload)
+        if (event) triggerAutomationsForEvent(event).catch(err => console.error('[Webhook Trigger]', err))
         break
+      }
 
       case 'customers/create':
-      case 'customers/update':
-        await handleCustomer(userId, payload)
-        processUnhandledEvents(userId).catch(err => console.error('[Webhook Auto]', err))
+      case 'customers/update': {
+        const event = await handleCustomer(userId, payload)
+        if (event) triggerAutomationsForEvent(event).catch(err => console.error('[Webhook Trigger]', err))
         break
+      }
 
       case 'checkouts/create':
-      case 'checkouts/update':
-        await handleCheckout(userId, payload)
-        // Sepet terk otomasyonunu hemen tetikle — cron bekleme
-        processUnhandledEvents(userId).catch(err => console.error('[Webhook Auto]', err))
+      case 'checkouts/update': {
+        const event = await handleCheckout(userId, payload)
+        if (event) triggerAutomationsForEvent(event).catch(err => console.error('[Webhook Trigger]', err))
+        break
+      }
+
+      case 'app/uninstalled':
+        await prisma.integration.updateMany({
+          where: { shopDomain, platform: 'shopify', userId },
+          data: { status: 'disconnected' },
+        })
         break
 
       case 'products/create':
@@ -77,9 +85,11 @@ export async function POST(req: NextRequest) {
 
 // ─── Sipariş event handler ─────────────────────────────────────────────────
 
-async function handleOrder(userId: string, integrationId: string, o: Record<string, unknown>) {
+type CreatedEvent = Awaited<ReturnType<typeof prisma.customerEvent.create>>
+
+async function handleOrder(userId: string, integrationId: string, o: Record<string, unknown>): Promise<CreatedEvent | null> {
   const customerEmail = (o.customer as Record<string, unknown> | undefined)?.email as string | undefined
-  if (!customerEmail) return
+  if (!customerEmail) return null
 
   // Müşteriyi bul/oluştur
   const customer = await prisma.customer.upsert({
@@ -137,8 +147,7 @@ async function handleOrder(userId: string, integrationId: string, o: Record<stri
       })
     }
 
-    // CustomerEvent: order_placed
-    await prisma.customerEvent.create({
+    const event = await prisma.customerEvent.create({
       data: {
         userId,
         customerId: customer.id,
@@ -149,27 +158,22 @@ async function handleOrder(userId: string, integrationId: string, o: Record<stri
       },
     })
 
-    // Revenue attribution — fire-and-forget, never block the webhook response
-    attributeRevenue(
-      userId,
-      customer.id,
-      order.id,
-      orderData.total,
-      order.placedAt,
-    ).catch(err => console.error('[Attribution]', err))
+    attributeRevenue(userId, customer.id, order.id, orderData.total, order.placedAt)
+      .catch(err => console.error('[Attribution]', err))
 
-    // Müşteri istatistiklerini güncelle
     await updateCustomerStats(userId, customer.id)
+    return event
   } else {
     await prisma.order.update({ where: { id: existing.id }, data: orderData })
   }
+  return null
 }
 
 // ─── Müşteri event handler ─────────────────────────────────────────────────
 
-async function handleCustomer(userId: string, c: Record<string, unknown>) {
+async function handleCustomer(userId: string, c: Record<string, unknown>): Promise<CreatedEvent | null> {
   const email = (c.email as string | undefined)?.toLowerCase()
-  if (!email) return
+  if (!email) return null
 
   const existing = await prisma.customer.findUnique({ where: { userId_email: { userId, email } } })
 
@@ -190,60 +194,40 @@ async function handleCustomer(userId: string, c: Record<string, unknown>) {
     },
   })
 
-  /* Fire new_customer trigger only on first creation */
   if (!existing) {
-    await prisma.customerEvent.create({
+    return prisma.customerEvent.create({
       data: {
         userId,
         customerId: customer.id,
-        type: 'new_customer',
+        type: 'customer_created',
         source: 'shopify',
         data: JSON.stringify({ email, source: 'shopify', platformId: String(c.id) }),
       },
     })
   }
+  return null
 }
 
 // ─── Checkout (sepet terk) event handler ─────────────────────────────────
 
-async function handleCheckout(userId: string, ch: Record<string, unknown>) {
+async function handleCheckout(userId: string, ch: Record<string, unknown>): Promise<CreatedEvent | null> {
   const email = (ch.email as string | undefined)?.toLowerCase()
-  if (!email) return
+  if (!email) return null
 
   const checkoutId = String(ch.id)
-  const completedAt = ch.completed_at
-
-  // Tamamlanmış checkout'u atla
-  if (completedAt) return
+  if (ch.completed_at) return null
 
   const customer = await prisma.customer.findUnique({
     where: { userId_email: { userId, email } },
   })
-  if (!customer) return
+  if (!customer) return null
 
-  /* Fire checkout_started once per checkout */
-  const existingStarted = await prisma.customerEvent.findFirst({
-    where: { customerId: customer.id, type: 'checkout_started', data: { contains: checkoutId } },
-  })
-  if (!existingStarted) {
-    await prisma.customerEvent.create({
-      data: {
-        userId,
-        customerId: customer.id,
-        type: 'checkout_started',
-        source: 'shopify',
-        data: JSON.stringify({ checkoutId, total: ch.total_price, currency: ch.currency }),
-      },
-    })
-  }
-
-  /* Fire cart_abandoned (de-duplicated) */
-  const existingEvent = await prisma.customerEvent.findFirst({
+  const existingAbandoned = await prisma.customerEvent.findFirst({
     where: { customerId: customer.id, type: 'cart_abandoned', data: { contains: checkoutId } },
   })
-  if (existingEvent) return
+  if (existingAbandoned) return null
 
-  await prisma.customerEvent.create({
+  return prisma.customerEvent.create({
     data: {
       userId,
       customerId: customer.id,

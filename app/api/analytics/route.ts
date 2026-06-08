@@ -100,6 +100,35 @@ export async function GET() {
       where: { userId, type: 'cart_abandoned' },
     })
 
+    // ── Gerçek attribution ve teslimat verileri ───────────────────────────────
+    const [campaignRevData, emailDeliveredCount, waMessagesRead, waMessagesTotal] = await Promise.all([
+      // Real per-campaign revenue for monthly attribution
+      prisma.campaign.findMany({
+        where: { userId, sentAt: { not: null, gte: twelveMonthsAgo } },
+        select: { type: true, revenue: true, sentAt: true },
+      }),
+      // Actual delivered events from Resend webhooks (0 if webhooks not configured)
+      prisma.emailEvent.count({
+        where: { type: 'delivered', campaign: { userId } },
+      }),
+      // WhatsApp messages read (status = 'read' set by Meta delivery webhooks)
+      prisma.whatsAppMessage.count({
+        where: { status: 'read', conversation: { userId } },
+      }),
+      // Total WhatsApp messages sent by the bot (role = 'assistant')
+      prisma.whatsAppMessage.count({
+        where: { role: 'assistant', conversation: { userId } },
+      }),
+    ])
+
+    // Delivered: use real count if Resend webhooks are configured, otherwise use sent count
+    const emailDelivered = emailDeliveredCount > 0 ? emailDeliveredCount : emailSent
+
+    // WhatsApp open rate from real read receipts; 0 when no message data exists
+    const waOpenRate = waMessagesTotal > 0
+      ? +((waMessagesRead / waMessagesTotal) * 100).toFixed(1)
+      : 0
+
     // ── Son 12 aylık gelir trendi ─────────────────────────────────────────────
     const recentOrders = await prisma.order.findMany({
       where: { userId, placedAt: { gte: twelveMonthsAgo }, financialStatus: 'paid' },
@@ -117,10 +146,20 @@ export async function GET() {
       if (key in monthMap) monthMap[key] += o.total
     }
 
-    const revenueData = Object.entries(monthMap).map(([month, total]) => ({
+    // Real monthly attribution from campaign revenue (no hardcoded split)
+    const emailRevByMonth: Record<string, number> = {}
+    const waRevByMonth:    Record<string, number> = {}
+    for (const c of campaignRevData) {
+      if (!c.sentAt || c.revenue <= 0) continue
+      const key = c.sentAt.toLocaleDateString('tr-TR', { month: 'short', year: 'numeric' })
+      if (c.type === 'email')    emailRevByMonth[key] = (emailRevByMonth[key] ?? 0) + c.revenue
+      else if (c.type === 'whatsapp') waRevByMonth[key] = (waRevByMonth[key] ?? 0) + c.revenue
+    }
+
+    const revenueData = Object.keys(monthMap).map(month => ({
       month,
-      email:    Math.round(total * 0.68),
-      whatsapp: Math.round(total * 0.32),
+      email:    Math.round(emailRevByMonth[month] ?? 0),
+      whatsapp: Math.round(waRevByMonth[month]    ?? 0),
     }))
 
     // ── Top kampanyalar (ROI grafiği) ─────────────────────────────────────────
@@ -146,14 +185,11 @@ export async function GET() {
       name: p.title,
       revenue: Math.round((p._sum.price ?? 0) * (p._sum.quantity ?? 1)),
       orders:  p._count.id,
-      views:   Math.round(p._count.id * (8 + Math.random() * 12)), // estimated
+      views:   0, // no page-view tracking implemented yet
       conv:    +((p._count.id / totalOrderCount) * 100).toFixed(2),
     }))
 
     const convRate = totalSent > 0 ? +(emailConv / totalSent * 100).toFixed(1) : 0
-
-    // ── Funnel — 5 adımlı (teslim edilen tahmin dahil) ────────────────────────
-    const emailDelivered = Math.round(emailSent * 0.97)
 
     return NextResponse.json({
       kpis: {
@@ -194,7 +230,7 @@ export async function GET() {
           roi: emailRevenue > 0 && emailSent > 0 ? Math.round(emailRevenue / (emailSent * 0.05) * 100) : 0,
         },
         whatsapp: {
-          sent: waSent, openRate: 87, clickRate: 0, convRate: 0,
+          sent: waSent, openRate: waOpenRate, clickRate: 0, convRate: 0,
           revenue: waRevenue,
           roi: waRevenue > 0 && waSent > 0 ? Math.round(waRevenue / (waSent * 0.10) * 100) : 0,
         },
@@ -211,7 +247,7 @@ export async function GET() {
       kpiTable: [
         { metric: 'Toplam Gelir',        current: `₺${Math.round(thisRev).toLocaleString('tr-TR')}`,  prev: `₺${Math.round(lastRev).toLocaleString('tr-TR')}`,   change: lastRev  > 0 ? `+${((thisRev  - lastRev)  / lastRev  * 100).toFixed(1)}%` : 'Yeni', pos: thisRev  >= lastRev  },
         { metric: 'Email Açılma Oranı',  current: `%${thisOR}`,                                        prev: `%${lastOR}`,                                         change: `${(thisOR - lastOR).toFixed(1)} pp`,                                         pos: thisOR   >= lastOR   },
-        { metric: 'WhatsApp Okunma',     current: waSent > 0 ? '%87' : '—',                            prev: '—',                                                  change: '—',                                                                          pos: true },
+        { metric: 'WhatsApp Okunma',     current: waOpenRate > 0 ? `%${waOpenRate}` : '—',             prev: '—',                                                  change: '—',                                                                          pos: true },
         { metric: 'Ort. Sipariş Değeri', current: `₺${aov.toLocaleString('tr-TR')}`,                  prev: '—',                                                  change: '—',                                                                          pos: true },
         { metric: 'Sepet Terk',          current: cartAbandons.toString(),                             prev: '—',                                                  change: '—',                                                                          pos: false },
         { metric: 'VIP Müşteri Sayısı',  current: vipCnt.toString(),                                  prev: '—',                                                  change: '—',                                                                          pos: true },

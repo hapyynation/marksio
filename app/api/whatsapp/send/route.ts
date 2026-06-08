@@ -2,10 +2,23 @@
 import { getApiSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { sendWhatsAppMessage } from '@/lib/whatsapp'
+import { getLimits, getUpgradePlan } from '@/lib/plan-limits'
 
 export async function POST(req: NextRequest) {
   const session = await getApiSession()
   if (!session?.user?.id) return NextResponse.json({ error: 'Yetkisiz' }, { status: 401 })
+
+  const effectivePlan = session.user.effectivePlan
+  const limits = getLimits(effectivePlan)
+
+  if (limits.whatsappSends === 0) {
+    return NextResponse.json({
+      error: 'PLAN_LIMIT_REACHED',
+      feature: 'whatsapp',
+      currentPlan: effectivePlan,
+      requiredPlan: getUpgradePlan(effectivePlan),
+    }, { status: 403 })
+  }
 
   try {
     const { to, body, campaignId } = await req.json()

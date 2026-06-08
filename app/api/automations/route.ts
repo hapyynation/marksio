@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getApiSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { getLimits, isAtLimit, getUpgradePlan } from '@/lib/plan-limits'
 
 export async function GET() {
   const session = await getApiSession()
@@ -75,7 +76,33 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const session = await getApiSession()
   if (!session?.user) return NextResponse.json({ error: 'Yetkisiz' }, { status: 401 })
-  const userId = (session.user as { id: string }).id
+  const userId = session.user.id
+  const effectivePlan = session.user.effectivePlan
+
+  const limits = getLimits(effectivePlan)
+
+  if (limits.automations === 0) {
+    return NextResponse.json({
+      error: 'PLAN_LIMIT_REACHED',
+      feature: 'automations',
+      currentPlan: effectivePlan,
+      requiredPlan: getUpgradePlan(effectivePlan),
+    }, { status: 403 })
+  }
+
+  if (limits.automations !== -1) {
+    const count = await prisma.automation.count({
+      where: { userId, status: { in: ['active', 'paused'] } },
+    })
+    if (isAtLimit(count, limits.automations)) {
+      return NextResponse.json({
+        error: 'PLAN_LIMIT_REACHED',
+        feature: 'automations',
+        currentPlan: effectivePlan,
+        requiredPlan: getUpgradePlan(effectivePlan),
+      }, { status: 403 })
+    }
+  }
 
   try {
     const body = await req.json()

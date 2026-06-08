@@ -104,7 +104,12 @@ export async function runSync(
       const spent = parseFloat(c.total_spent ?? '0')
       const segment = classifySegment({ totalOrders: c.orders_count ?? 0, totalSpent: spent })
 
-      await prisma.customer.upsert({
+      const existingCustomer = await prisma.customer.findUnique({
+        where: { userId_email: { userId, email } },
+        select: { id: true },
+      })
+
+      const customer = await prisma.customer.upsert({
         where: { userId_email: { userId, email } },
         create: {
           userId,
@@ -134,6 +139,23 @@ export async function runSync(
           segment,
         },
       })
+
+      if (!existingCustomer) {
+        await prisma.customerEvent.create({
+          data: {
+            userId,
+            customerId: customer.id,
+            type: 'customer_created',
+            source: 'shopify',
+            data: JSON.stringify({
+              email,
+              platformId: String(c.id),
+              createdAt: c.created_at,
+            }),
+          },
+        }).catch(() => null)
+      }
+
       stats.customers++
     }
 

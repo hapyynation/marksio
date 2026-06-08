@@ -131,7 +131,7 @@ function PresetCard({ preset, isPremiumUser }: { preset: typeof templatePresets[
               Bu Şablonu Kullan
             </button>
             <button
-              onClick={e => { e.stopPropagation(); router.push(`/campaigns/new?template=${preset.id}`) }}
+              onClick={e => { e.stopPropagation(); router.push('/ai-studio') }}
               className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/15 text-white text-xs font-semibold rounded-xl transition-all border border-white/10">
               <Sparkles className="w-3.5 h-3.5" />
               AI ile Özelleştir

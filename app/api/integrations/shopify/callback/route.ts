@@ -63,18 +63,29 @@ export async function GET(req: NextRequest) {
       },
     })
 
-    // Register webhooks async (non-blocking)
+    // Register webhooks — awaited so we can report status per topic
     const appUrl = process.env.NEXTAUTH_URL ?? process.env.APP_URL ?? ''
+    let webhooksRegistered = false
     if (appUrl) {
-      registerWebhooks(shop, access_token, appUrl)
-        .then(() =>
-          prisma.integration.update({
-            where: { id: integration.id },
-            data: { meta: JSON.stringify({ shopName, webhooksRegistered: true }) },
-          }),
-        )
-        .catch(console.error)
+      try {
+        const results = await registerWebhooks(shop, access_token, appUrl)
+        webhooksRegistered = results.every(r => r.success)
+        for (const r of results) {
+          if (r.success) {
+            console.log(`[Shopify Webhook] registered: ${r.topic}`)
+          } else {
+            console.error(`[Shopify Webhook] failed: ${r.topic} — ${r.error}`)
+          }
+        }
+      } catch (err) {
+        console.error('[Shopify Webhook] registration error:', err)
+      }
     }
+
+    await prisma.integration.update({
+      where: { id: integration.id },
+      data: { meta: JSON.stringify({ shopName, webhooksRegistered }) },
+    })
 
     const res = NextResponse.redirect(
       new URL('/settings?tab=integrations&connected=shopify', req.url),

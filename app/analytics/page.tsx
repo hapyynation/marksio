@@ -218,19 +218,19 @@ export default function AnalyticsPage() {
   return (
     <AppShell>
       {/* ── Top bar ── */}
-      <div className="sticky top-0 z-20 flex items-center justify-between px-6 h-14 shrink-0"
+      <div className="sticky top-0 z-20 flex items-center justify-between px-4 md:px-6 h-14 shrink-0 gap-2"
         style={{ background: 'rgba(8,8,15,0.95)', backdropFilter: 'blur(24px)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
         <div>
-          <h1 className="text-[16px] font-bold" style={{ color: '#eeeef4' }}>Analitik</h1>
-          <p className="text-[11px]" style={{ color: '#44445a' }}>Pazarlama performansınızı analiz edin ve büyüme fırsatlarını keşfedin.</p>
+          <h1 className="text-[15px] md:text-[16px] font-bold" style={{ color: '#eeeef4' }}>Analitik</h1>
+          <p className="text-[11px] hidden sm:block" style={{ color: '#44445a' }}>Pazarlama performansınızı analiz edin ve büyüme fırsatlarını keşfedin.</p>
         </div>
         <div className="flex items-center gap-2">
-          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold transition-all"
+          <button className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold transition-all"
             style={{ background: 'rgba(255,255,255,0.04)', color: '#8080a0', border: '1px solid rgba(255,255,255,0.08)' }}>
             <span className="text-[11px]">📅</span> {dateRangeLabel}
             <ChevronDown className="w-3 h-3" />
           </button>
-          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold transition-all"
+          <button className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold transition-all"
             style={{ background: 'rgba(255,255,255,0.04)', color: '#8080a0', border: '1px solid rgba(255,255,255,0.08)' }}>
             Önceki 30 gün ile karşılaştır <ChevronDown className="w-3 h-3" />
           </button>
@@ -589,8 +589,8 @@ export default function AnalyticsPage() {
 
         </div>
 
-        {/* ── AI Analiz Asistanı ── */}
-        <div className="w-[320px] shrink-0 flex flex-col border-l overflow-hidden"
+        {/* ── AI Analiz Asistanı — desktop only ── */}
+        <div className="hidden lg:flex w-[320px] shrink-0 flex-col border-l overflow-hidden"
           style={{ background: '#0d0d1a', borderColor: 'rgba(255,255,255,0.06)' }}>
           <div className="flex items-center justify-between px-4 py-3.5 shrink-0"
             style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>

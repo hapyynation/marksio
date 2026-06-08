@@ -547,13 +547,15 @@ function MailDomainSection() {
         </div>
       )}
 
-      {domains.length === 0 && !showAdd && (
-        <div className="empty-state py-8">
-          <div className="empty-state-icon"><Globe2 className="w-5 h-5" /></div>
-          <p className="empty-state-title">Henüz domain eklenmedi</p>
-          <p className="empty-state-desc">Kendi domaininizden mail göndermek için domain ekleyin</p>
-        </div>
-      )}
+      <div className="flex items-start gap-3 px-4 py-3.5 rounded-xl"
+        style={{ background: 'rgba(34,201,122,0.05)', border: '1px solid rgba(34,201,122,0.15)' }}>
+        <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" style={{ color: '#22c97a' }} />
+        <p className="text-[11px] leading-relaxed" style={{ color: 'var(--text-3)' }}>
+          Tüm e-postalar Marksio&apos;nun doğrulanmış domain&apos;i{' '}
+          <span className="font-mono" style={{ color: 'var(--text-2)' }}>mg.marksio.com</span>{' '}
+          üzerinden gönderilmektedir. Özel domain desteği yakında eklenecektir.
+        </p>
+      </div>
 
       {domains.map(d => {
         let records: DnsRecord[] = []

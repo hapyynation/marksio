@@ -152,7 +152,7 @@ function buildInsights(d: DashboardData): AiInsight[] {
 function buildChecklist(d: DashboardData | null): ChecklistItem[] {
   return [
     { key: 'store',      label: 'Mağazanı bağla',          href: '/settings#integrations', done: d?.integrationStatus?.shopify.ok ?? false },
-    { key: 'domain',     label: 'Email domain doğrula',     href: '/settings#email',        done: d?.integrationStatus?.email.ok ?? false },
+    { key: 'domain',     label: 'E-posta gönderimi hazır',   href: '/settings?tab=email',    done: true },
     { key: 'segment',    label: 'İlk segmenti oluştur',     href: '/segments',              done: (d?.segments?.length ?? 0) > 0 },
     { key: 'campaign',   label: 'İlk kampanyayı oluştur',   href: '/ai-studio',         done: (d?.recentCampaigns?.length ?? 0) > 0 },
     { key: 'automation', label: 'İlk otomasyonu aktif et',  href: '/automations',           done: d?.recentAutomations?.some(a => a.status === 'active') ?? false },
@@ -445,7 +445,7 @@ export default function DashboardPage() {
   return (
     <AppShell>
       {/* ── Top bar ── */}
-      <div className="sticky top-0 z-20 flex items-center justify-between px-6 h-14 shrink-0"
+      <div className="sticky top-0 z-20 flex items-center justify-between px-4 md:px-6 h-14 shrink-0 gap-2"
         style={{ background:'rgba(10,10,15,0.9)', backdropFilter:'blur(24px)', borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
         <div className="flex items-center gap-1">
           {([
@@ -934,7 +934,7 @@ export default function DashboardPage() {
           {/* ── Hızlı İşlemler ── */}
           <div className="rounded-2xl px-5 py-4" style={{ background:'rgba(255,255,255,0.02)', border:'1px solid rgba(255,255,255,0.07)' }}>
             <p className="text-[11px] font-semibold mb-3" style={{ color:'#44445a' }}>Hızlı İşlemler</p>
-            <div className="grid grid-cols-6 gap-2">
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
               {([
                 { href:'/ai-studio',   icon:Megaphone,     label:'Yeni Kampanya', sub:'Oluştur',        color:'#99b4ff', bg:'rgba(153,180,255,0.1)' },
                 { href:'/automations/new', icon:Zap,           label:'Otomasyon',     sub:'Oluştur',        color:'#a78bfa', bg:'rgba(167,139,250,0.1)' },

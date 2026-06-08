@@ -1,6 +1,7 @@
 ﻿import { NextRequest, NextResponse } from 'next/server'
 import { getApiSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { getLimits, isAtLimit, getUpgradePlan } from '@/lib/plan-limits'
 
 export async function GET() {
   const session = await getApiSession()
@@ -26,7 +27,22 @@ export async function POST(req: NextRequest) {
   const session = await getApiSession()
   if (!session?.user) return NextResponse.json({ error: 'Yetkisiz' }, { status: 401 })
 
-  const userId = (session.user as any).id
+  const userId = session.user.id
+  const effectivePlan = session.user.effectivePlan
+  const limits = getLimits(effectivePlan)
+
+  if (limits.campaigns !== -1) {
+    const count = await prisma.campaign.count({ where: { userId } })
+    if (isAtLimit(count, limits.campaigns)) {
+      return NextResponse.json({
+        error: 'PLAN_LIMIT_REACHED',
+        feature: 'campaigns',
+        currentPlan: effectivePlan,
+        requiredPlan: getUpgradePlan(effectivePlan),
+      }, { status: 403 })
+    }
+  }
+
   try {
     const body = await req.json()
     const campaign = await prisma.campaign.create({

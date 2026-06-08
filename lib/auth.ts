@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { prisma } from '@/lib/prisma'
+import { getEffectivePlan } from '@/lib/plan-limits'
 
 export interface ApiSession {
   user: {
@@ -9,6 +10,9 @@ export interface ApiSession {
     name: string
     storeName: string
     plan: string
+    planStatus: string
+    /** plan downgraded to 'free' when planStatus is expired or past_due */
+    effectivePlan: string
     onboarded: boolean
   }
 }
@@ -16,33 +20,6 @@ export interface ApiSession {
 // Drop-in replacement for getServerSession(authOptions) across all API routes.
 // Reads the Supabase cookie session, then finds or auto-creates the matching Prisma User.
 export async function getApiSession(): Promise<ApiSession | null> {
-  /* ── Bypass mode ──────────────────────────────────────────
-     BYPASS_AUTH_USER_ID set ise Supabase session kontrolü
-     yapılmaz; doğrudan o kullanıcı döndürülür.
-     Üretimde bu env var'ı kaldır.
-  ─────────────────────────────────────────────────────────── */
-  const bypassId = process.env.BYPASS_AUTH_USER_ID
-  if (bypassId) {
-    let user = await prisma.user.findUnique({ where: { id: bypassId } })
-    if (!user) {
-      // Bypass user not found in DB — find or auto-create a dev user
-      const devEmail = 'dev@marksio.co'
-      user = await prisma.user.findUnique({ where: { email: devEmail } })
-      if (!user) {
-        try {
-          user = await prisma.user.create({
-            data: { email: devEmail, name: 'Dev Kullanıcı', storeName: 'Marksio Store', password: '' },
-          })
-        } catch {
-          user = await prisma.user.findFirst()
-        }
-      }
-    }
-    if (user) return {
-      user: { id: user.id, email: user.email, name: user.name, storeName: user.storeName, plan: user.plan, onboarded: user.onboarded },
-    }
-  }
-
   const cookieStore = await cookies()
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -80,6 +57,8 @@ export async function getApiSession(): Promise<ApiSession | null> {
       name: user.name,
       storeName: user.storeName,
       plan: user.plan,
+      planStatus: user.planStatus,
+      effectivePlan: getEffectivePlan(user.plan, user.planStatus),
       onboarded: user.onboarded,
     },
   }

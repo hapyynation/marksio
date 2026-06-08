@@ -174,27 +174,27 @@ export default function CustomersPage() {
       {showImport && <ImportModal onClose={() => setShowImport(false)} onSuccess={() => { setShowImport(false) }} />}
 
       {/* ── Top bar ── */}
-      <div className="flex items-center justify-between px-6 h-14 shrink-0"
+      <div className="flex items-center justify-between px-4 md:px-6 h-14 shrink-0 gap-2"
         style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(8,8,15,0.95)', backdropFilter: 'blur(24px)' }}>
         <div>
-          <h1 className="text-[16px] font-bold" style={{ color: '#eeeef4' }}>Müşteriler</h1>
-          <p className="text-[11px]" style={{ color: '#44445a' }}>Müşterilerinizi segmentlere ayırın, davranışlarını analiz edin ve ilişkilerinizi geliştirin.</p>
+          <h1 className="text-[15px] md:text-[16px] font-bold" style={{ color: '#eeeef4' }}>Müşteriler</h1>
+          <p className="text-[11px] hidden sm:block" style={{ color: '#44445a' }}>Müşterilerinizi segmentlere ayırın, davranışlarını analiz edin ve ilişkilerinizi geliştirin.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <button onClick={() => setShowImport(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold"
+            className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold"
             style={{ background: 'rgba(255,255,255,0.04)', color: '#8080a0', border: '1px solid rgba(255,255,255,0.08)' }}>
             <Download className="w-3.5 h-3.5" /> Dışa Aktar
           </button>
           <button onClick={() => setShowImport(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-semibold min-h-[44px]"
             style={{ background: 'rgba(255,255,255,0.04)', color: '#8080a0', border: '1px solid rgba(255,255,255,0.08)' }}>
-            <UserPlus className="w-3.5 h-3.5" /> Müşteri Ekle
+            <UserPlus className="w-4 h-4" /> <span className="hidden sm:inline">Müşteri Ekle</span>
           </button>
           <Link href="/segments"
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-bold"
+            className="flex items-center gap-1.5 px-3 md:px-4 py-2 rounded-xl text-[12px] font-bold min-h-[44px]"
             style={{ background: '#4470ff', color: '#fff' }}>
-            <Plus className="w-3.5 h-3.5" /> Yeni Segment
+            <Plus className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Yeni Segment</span>
           </Link>
         </div>
       </div>
@@ -277,8 +277,69 @@ export default function CustomersPage() {
             ))}
           </div>
 
-          {/* ── Table ── */}
-          <div className="flex-1 overflow-auto">
+          {/* ── Mobile card list ── */}
+          <div className="md:hidden flex-1 overflow-auto">
+            <div className="p-4 space-y-2">
+              {loading ? (
+                [...Array(5)].map((_, i) => (
+                  <div key={i} className="rounded-2xl p-4 animate-pulse" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full" style={{ background: 'rgba(255,255,255,0.06)' }} />
+                      <div className="flex-1 space-y-1.5">
+                        <div className="h-3.5 rounded-md w-1/2" style={{ background: 'rgba(255,255,255,0.06)' }} />
+                        <div className="h-2.5 rounded-md w-3/4" style={{ background: 'rgba(255,255,255,0.04)' }} />
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : filtered.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                    <Users className="w-5 h-5" style={{ color: '#33334a' }} />
+                  </div>
+                  <p className="text-[13px] font-semibold" style={{ color: '#44445a' }}>Müşteri bulunamadı</p>
+                  <button onClick={() => setShowImport(true)} className="text-[12px] font-semibold" style={{ color: '#99b4ff' }}>+ Müşteri İçe Aktar</button>
+                </div>
+              ) : filtered.map(c => {
+                const seg = segmentConfig[c.segment as Segment] ?? segmentConfig.inactive
+                const SegIcon = seg.icon
+                const initials = c.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+                const isActive = c.segment !== 'inactive' && c.segment !== 'at_risk'
+                return (
+                  <Link key={c.id} href={`/customers/${c.id}`}
+                    className="flex items-center gap-3 rounded-2xl p-4 transition-all active:scale-[0.98] block"
+                    style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                    <div className="w-11 h-11 rounded-full flex items-center justify-center text-[12px] font-bold shrink-0"
+                      style={{ background: `${seg.color}18`, border: `1px solid ${seg.color}30`, color: seg.color }}>
+                      {initials}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-0.5">
+                        <p className="text-[13px] font-semibold truncate" style={{ color: '#eeeef4' }}>{c.name}</p>
+                        <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold shrink-0"
+                          style={{ background: seg.badgeBg, color: seg.badgeText }}>
+                          <SegIcon className="w-2.5 h-2.5" />{seg.label}
+                        </div>
+                      </div>
+                      <p className="text-[11px] truncate" style={{ color: '#44445a' }}>{c.email}</p>
+                      <div className="flex items-center gap-3 mt-1.5">
+                        <span className="text-[11px] font-bold" style={{ color: '#22c97a' }}>{formatCurrency(c.totalSpent)}</span>
+                        <span className="text-[11px]" style={{ color: '#44445a' }}>{c.totalOrders} sipariş</span>
+                        <span className="flex items-center gap-1 text-[10px]" style={{ color: isActive ? '#22c97a' : '#e84545' }}>
+                          <span className="w-1.5 h-1.5 rounded-full" style={{ background: isActive ? '#22c97a' : '#e84545' }} />
+                          {isActive ? 'Aktif' : 'Pasif'}
+                        </span>
+                      </div>
+                    </div>
+                  </Link>
+                )
+              })}
+              <div className="h-4" />
+            </div>
+          </div>
+
+          {/* ── Desktop table ── */}
+          <div className="hidden md:flex flex-1 overflow-auto flex-col">
             {loading ? (
               <div className="p-5 space-y-2">
                 {[...Array(8)].map((_, i) => <div key={i} className="skeleton rounded-xl h-14" />)}
@@ -420,8 +481,8 @@ export default function CustomersPage() {
 
         </div>
 
-        {/* ── AI Müşteri Asistanı panel ── */}
-        <div className="w-[300px] shrink-0 flex flex-col border-l overflow-hidden"
+        {/* ── AI Müşteri Asistanı panel — desktop only ── */}
+        <div className="hidden lg:flex w-[300px] shrink-0 flex-col border-l overflow-hidden"
           style={{ background: '#0d0d1a', borderColor: 'rgba(255,255,255,0.06)' }}>
           <div className="flex items-center justify-between px-4 py-3.5 shrink-0"
             style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>

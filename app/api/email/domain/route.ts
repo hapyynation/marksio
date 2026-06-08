@@ -17,14 +17,14 @@ export async function GET() {
   return NextResponse.json({ domains })
 }
 
-// Custom domain registration is disabled — Resend free plan supports a single
-// verified domain (mg.marksio.com). Re-enable by restoring Resend domain.create
-// call when the plan is upgraded.
+// Custom domain creation is not available on the current Resend plan.
+// All outbound email is sent via the pre-verified system domain.
 export async function POST() {
-  return NextResponse.json(
-    { error: 'Özel domain bağlama şu an devre dışıdır. Tüm gönderimler mg.marksio.com üzerinden yapılmaktadır.' },
-    { status: 503 }
-  )
+  return NextResponse.json({
+    managed: true,
+    domain: 'mg.marksio.com',
+    message: 'E-postalar şu an mg.marksio.com üzerinden gönderilmektedir.',
+  })
 }
 
 // PATCH — update sender settings for an existing domain

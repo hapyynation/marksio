@@ -6,16 +6,17 @@ import {
   Upload, X, Check, Send, Mail, Monitor, Smartphone, Link2,
   ShoppingBag, Loader2, Copy, Sparkles, Tag, ShoppingCart,
   Star, Zap, Package, RefreshCw, AlertCircle, Search, Users,
-  ChevronDown, Eye,
+  Eye, Pencil, Type, MousePointer,
 } from 'lucide-react'
 import { BANNER_HERO_STYLES, type BannerStyleId } from '@/lib/banner-hero'
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 type ProductSrc      = 'upload' | 'shopify' | 'url'
 type EmailTemplateId = 'indirim' | 'yeniurun' | 'sepetterk' | 'premium' | 'blackfriday' | 'minimal'
 type PreviewMode     = 'desktop' | 'mobile'
 type SendStep        = 'idle' | 'test' | 'campaign' | 'sending' | 'done'
+type EditorZone      = 'hero' | 'title' | 'desc' | 'cta' | null
 
 interface EmailFields {
   title: string; description: string; discount: string
@@ -38,6 +39,10 @@ interface Segment {
 interface EmailTemplateConfig {
   id: EmailTemplateId; name: string; icon: React.ElementType
   previewImage: string; defaults: Partial<EmailFields>; accentColor: string; dark?: boolean
+}
+
+interface ZoneRect {
+  name: EditorZone; label: string; icon: React.ElementType; top: number; height: number
 }
 
 // ─── Email Templates ──────────────────────────────────────────────────────────
@@ -63,7 +68,7 @@ const DEFAULT_FIELDS: EmailFields = {
 // ─── HTML Email Generators ────────────────────────────────────────────────────
 
 function emailWrapper(inner: string, bg = '#f0f2f5') {
-  return `<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Email</title><style>body,table,td,a{-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%}img{-ms-interpolation-mode:bicubic;border:0;height:auto;line-height:100%;outline:none;text-decoration:none}@media(max-width:480px){.em-pad{padding-left:20px!important;padding-right:20px!important}.em-title{font-size:20px!important}.em-hero img{height:200px!important}}</style></head><body style="margin:0;padding:0;background-color:${bg};font-family:'Inter','Helvetica Neue',Arial,sans-serif;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:${bg};padding:20px 0;"><tr><td align="center" style="padding:0 12px;"><table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;border-radius:14px;overflow:hidden;background-color:#ffffff;">${inner}</table></td></tr></table></body></html>`
+  return `<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Email</title><style>body,table,td,a{-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%}img{-ms-interpolation-mode:bicubic;border:0;height:auto;line-height:100%;outline:none;text-decoration:none}@media(max-width:480px){.em-pad{padding-left:20px!important;padding-right:20px!important}.em-title{font-size:26px!important;line-height:1.2!important}.em-hero img{height:220px!important;object-fit:cover!important}.em-price{font-size:28px!important}.em-cta{padding:15px 20px!important;font-size:14px!important}.em-2col-img{display:none!important}.em-2col-full{display:block!important;width:100%!important}}</style></head><body style="margin:0;padding:0;background-color:${bg};font-family:'Inter','Helvetica Neue',Arial,sans-serif;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:${bg};padding:24px 0;"><tr><td align="center" style="padding:0 12px;"><table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;border-radius:16px;overflow:hidden;background-color:#ffffff;box-shadow:0 4px 24px rgba(0,0,0,0.08);">${inner}</table></td></tr></table></body></html>`
 }
 
 function footerHtml(brandName: string, footer: string, unsub: string, a: string, bg = '#f8f9fa') {
@@ -71,11 +76,11 @@ function footerHtml(brandName: string, footer: string, unsub: string, a: string,
 }
 
 function ctaHtml(label: string, url: string, a: string, textColor = '#ffffff') {
-  return `<tr><td style="padding:0 40px 28px;text-align:center;"><table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto;"><tr><td bgcolor="${a}" style="border-radius:12px;background-color:${a};"><a href="${url||'#'}" style="display:block;padding:15px 38px;font-size:13px;font-weight:700;color:${textColor};text-decoration:none;letter-spacing:0.04em;font-family:'Inter',Arial,sans-serif;white-space:nowrap;">${label} →</a></td></tr></table></td></tr>`
+  return `<tr><td class="em-pad" style="padding:8px 40px 36px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td bgcolor="${a}" style="border-radius:8px;background-color:${a};text-align:center;"><a class="em-cta" href="${url||'#'}" style="display:block;padding:18px 32px;font-size:16px;font-weight:800;color:${textColor};text-decoration:none;letter-spacing:0.01em;font-family:'Inter',Arial,sans-serif;">${label} →</a></td></tr></table></td></tr>`
 }
 
 function heroHtml(src: string | null, fallback: string, alt: string) {
-  return `<tr class="em-hero"><td style="padding:0;line-height:0;font-size:0;"><img src="${src||fallback}" width="600" alt="${alt}" style="display:block;width:100%;max-width:600px;height:300px;object-fit:cover;border:0;"></td></tr>`
+  return `<tr class="em-hero"><td style="padding:0;line-height:0;font-size:0;"><img src="${src||fallback}" width="600" alt="${alt}" style="display:block;width:100%;max-width:600px;height:340px;object-fit:cover;border:0;"></td></tr>`
 }
 
 function generateEmail(tplId: EmailTemplateId, f: EmailFields, hero: string | null): string {
@@ -83,9 +88,9 @@ function generateEmail(tplId: EmailTemplateId, f: EmailFields, hero: string | nu
 
   if (tplId === 'indirim') {
     return emailWrapper(
-      `<tr><td bgcolor="${a}" height="4" style="line-height:0;font-size:0;background-color:${a};">&nbsp;</td></tr>` +
-      `<tr><td style="padding:0;line-height:0;font-size:0;position:relative;"><img src="${hero||'/templates/email-indirim.jpeg'}" width="600" alt="${f.title}" style="display:block;width:100%;height:300px;object-fit:cover;border:0;">${f.discount?`<div style="position:absolute;top:20px;right:20px;background:${a};color:#fff;font-size:20px;font-weight:900;padding:10px 16px;border-radius:10px;font-family:'Inter',Arial,sans-serif;line-height:1;text-align:center;">${f.discount}<br><span style="font-size:9px;font-weight:600;letter-spacing:1px;">İNDİRİM</span></div>`:''}</td></tr>` +
-      `<tr><td class="em-pad" style="padding:28px 40px 0;"><p style="margin:0 0 6px;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:${a};font-family:'Inter',Arial,sans-serif;">${f.brandName}</p><h1 class="em-title" style="margin:0 0 10px;font-size:26px;font-weight:900;color:#111827;letter-spacing:-0.025em;line-height:1.15;font-family:'Inter',Arial,sans-serif;">${f.title}</h1><p style="margin:0 0 14px;font-size:14px;color:#6b7280;line-height:1.55;font-family:'Inter',Arial,sans-serif;">${f.description}</p><table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:18px;"><tr>${f.originalPrice?`<td style="font-size:16px;color:#9ca3af;text-decoration:line-through;font-family:'Inter',Arial,sans-serif;padding-right:10px;">${f.originalPrice}</td>`:''}<td style="font-size:34px;font-weight:900;color:${a};letter-spacing:-0.04em;font-family:'Inter',Arial,sans-serif;">${f.price}</td></tr></table>${f.coupon?`<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;"><tr><td style="padding:12px 18px;border:2px dashed ${a};border-radius:10px;text-align:center;background:${a}0d;"><p style="margin:0 0 3px;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:${a};font-family:'Inter',Arial,sans-serif;">Kupon Kodu</p><p style="margin:0;font-size:20px;font-weight:900;letter-spacing:5px;color:${a};font-family:'Courier New',monospace;">${f.coupon}</p></td></tr></table>`:''}</td></tr>` +
+      `<tr><td bgcolor="${a}" height="5" style="line-height:0;font-size:0;background-color:${a};">&nbsp;</td></tr>` +
+      `<tr><td style="padding:0;line-height:0;font-size:0;position:relative;"><img src="${hero||'/templates/email-indirim.jpeg'}" width="600" alt="${f.title}" style="display:block;width:100%;height:340px;object-fit:cover;border:0;">${f.discount?`<div style="position:absolute;top:18px;right:18px;background:${a};color:#fff;font-size:22px;font-weight:900;padding:12px 16px;border-radius:12px;font-family:'Inter',Arial,sans-serif;line-height:1;text-align:center;min-width:64px;box-shadow:0 4px 16px rgba(0,0,0,0.25);">${f.discount}<br><span style="font-size:8px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;">İNDİRİM</span></div>`:''}</td></tr>` +
+      `<tr><td class="em-pad" style="padding:32px 40px 0;"><p style="margin:0 0 8px;font-size:10px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:${a};font-family:'Inter',Arial,sans-serif;">${f.brandName}</p><h1 class="em-title" style="margin:0 0 12px;font-size:36px;font-weight:900;color:#111827;letter-spacing:-0.03em;line-height:1.1;font-family:'Inter',Arial,sans-serif;">${f.title}</h1><p style="margin:0 0 20px;font-size:15px;color:#6b7280;line-height:1.6;font-family:'Inter',Arial,sans-serif;">${f.description}</p><table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:${f.coupon?'20':'24'}px;"><tr>${f.originalPrice?`<td style="font-size:17px;color:#9ca3af;text-decoration:line-through;font-family:'Inter',Arial,sans-serif;padding-right:12px;vertical-align:middle;">${f.originalPrice}</td>`:''}<td class="em-price" style="font-size:42px;font-weight:900;color:${a};letter-spacing:-0.04em;font-family:'Inter',Arial,sans-serif;line-height:1;">${f.price}</td></tr></table>${f.coupon?`<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;"><tr><td style="padding:14px 20px;border:2px dashed ${a};border-radius:10px;text-align:center;background:${a}0d;"><p style="margin:0 0 3px;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:${a};font-family:'Inter',Arial,sans-serif;">Kupon Kodu</p><p style="margin:0;font-size:22px;font-weight:900;letter-spacing:6px;color:${a};font-family:'Courier New',monospace;">${f.coupon}</p></td></tr></table>`:''}</td></tr>` +
       ctaHtml(f.cta, f.ctaUrl, a) +
       footerHtml(f.brandName, f.footer, f.unsubscribeUrl, a)
     )
@@ -93,9 +98,9 @@ function generateEmail(tplId: EmailTemplateId, f: EmailFields, hero: string | nu
 
   if (tplId === 'yeniurun') {
     return emailWrapper(
-      `<tr><td bgcolor="${a}" style="padding:18px 40px;background-color:${a};"><table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="border-radius:20px;padding:4px 14px;background:rgba(255,255,255,0.2);"><span style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#fff;font-family:'Inter',Arial,sans-serif;">✨ YENİ ÜRÜN</span></td></tr></table><p style="margin:6px 0 0;font-size:18px;font-weight:700;color:#fff;font-family:'Inter',Arial,sans-serif;">${f.brandName}</p></td></tr>` +
+      `<tr><td bgcolor="${a}" style="padding:20px 40px;background-color:${a};"><table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="border-radius:20px;padding:5px 14px;background:rgba(255,255,255,0.22);"><span style="font-size:10px;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;color:#fff;font-family:'Inter',Arial,sans-serif;">✨ YENİ ÜRÜN</span></td></tr></table><p style="margin:8px 0 0;font-size:20px;font-weight:800;color:#fff;font-family:'Inter',Arial,sans-serif;">${f.brandName}</p></td></tr>` +
       heroHtml(hero, '/templates/email-yeniurun.jpeg', f.title) +
-      `<tr><td class="em-pad" style="padding:26px 40px 0;"><h1 class="em-title" style="margin:0 0 10px;font-size:24px;font-weight:900;color:#111827;letter-spacing:-0.025em;font-family:'Inter',Arial,sans-serif;">${f.title}</h1><p style="margin:0 0 16px;font-size:14px;color:#6b7280;line-height:1.55;font-family:'Inter',Arial,sans-serif;">${f.description}</p><p style="margin:0 0 20px;font-size:30px;font-weight:900;color:${a};letter-spacing:-0.03em;font-family:'Inter',Arial,sans-serif;">${f.price}</p></td></tr>` +
+      `<tr><td class="em-pad" style="padding:32px 40px 0;"><h1 class="em-title" style="margin:0 0 12px;font-size:36px;font-weight:900;color:#111827;letter-spacing:-0.03em;line-height:1.1;font-family:'Inter',Arial,sans-serif;">${f.title}</h1><p style="margin:0 0 20px;font-size:15px;color:#6b7280;line-height:1.6;font-family:'Inter',Arial,sans-serif;">${f.description}</p><p class="em-price" style="margin:0 0 4px;font-size:38px;font-weight:900;color:${a};letter-spacing:-0.04em;font-family:'Inter',Arial,sans-serif;line-height:1;">${f.price}</p></td></tr>` +
       ctaHtml(f.cta, f.ctaUrl, a) +
       footerHtml(f.brandName, f.footer, f.unsubscribeUrl, a)
     )
@@ -103,11 +108,11 @@ function generateEmail(tplId: EmailTemplateId, f: EmailFields, hero: string | nu
 
   if (tplId === 'sepetterk') {
     return emailWrapper(
-      `<tr><td bgcolor="${a}" height="4" style="line-height:0;font-size:0;background-color:${a};">&nbsp;</td></tr>` +
-      `<tr><td class="em-pad" style="padding:22px 40px 14px;"><p style="margin:0 0 4px;font-size:12px;font-weight:700;color:${a};font-family:'Inter',Arial,sans-serif;">🛒 Sepetiniz Sizi Bekliyor</p><h1 class="em-title" style="margin:0;font-size:22px;font-weight:900;color:#111827;font-family:'Inter',Arial,sans-serif;">${f.title}</h1></td></tr>` +
-      `<tr><td class="em-pad" style="padding:0 40px 18px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border-radius:12px;overflow:hidden;"><tr><td width="130" style="padding:14px;vertical-align:middle;"><img src="${hero||'/templates/email-sepetterk.jpeg'}" width="102" alt="${f.title}" style="display:block;width:102px;height:102px;object-fit:cover;border:0;border-radius:8px;"></td><td style="padding:14px 14px 14px 0;vertical-align:middle;"><p style="margin:0 0 5px;font-size:14px;font-weight:700;color:#111827;font-family:'Inter',Arial,sans-serif;">${f.title}</p><p style="margin:0 0 8px;font-size:12px;color:#6b7280;line-height:1.5;font-family:'Inter',Arial,sans-serif;">${f.description}</p><table role="presentation" cellpadding="0" cellspacing="0"><tr>${f.originalPrice?`<td style="font-size:13px;color:#9ca3af;text-decoration:line-through;font-family:'Inter',Arial,sans-serif;padding-right:8px;">${f.originalPrice}</td>`:''}<td style="font-size:20px;font-weight:900;color:${a};font-family:'Inter',Arial,sans-serif;">${f.price}</td></tr></table></td></tr></table></td></tr>` +
-      `<tr><td class="em-pad" style="padding:0 40px 14px;text-align:center;"><p style="margin:0;font-size:12px;color:#6b7280;font-family:'Inter',Arial,sans-serif;">⏰ Stok tükenmeden tamamlayın!</p></td></tr>` +
-      (f.coupon ? `<tr><td class="em-pad" style="padding:0 40px 18px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:11px 18px;border:2px dashed ${a};border-radius:9px;text-align:center;background:${a}0d;"><p style="margin:0 0 2px;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:${a};font-family:'Inter',Arial,sans-serif;">Ekstra İndirim</p><p style="margin:0;font-size:18px;font-weight:900;letter-spacing:4px;color:${a};font-family:'Courier New',monospace;">${f.coupon}</p></td></tr></table></td></tr>` : '') +
+      `<tr><td bgcolor="${a}" height="5" style="line-height:0;font-size:0;background-color:${a};">&nbsp;</td></tr>` +
+      `<tr><td class="em-pad" style="padding:26px 40px 16px;"><p style="margin:0 0 6px;font-size:11px;font-weight:800;letter-spacing:1px;color:${a};font-family:'Inter',Arial,sans-serif;">🛒 Sepetiniz Sizi Bekliyor</p><h1 class="em-title" style="margin:0;font-size:30px;font-weight:900;color:#111827;letter-spacing:-0.025em;line-height:1.15;font-family:'Inter',Arial,sans-serif;">${f.title}</h1></td></tr>` +
+      `<tr><td class="em-pad" style="padding:0 40px 20px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border-radius:14px;overflow:hidden;border:1px solid #f0f0f0;"><tr><td width="140" style="padding:16px;vertical-align:middle;"><img src="${hero||'/templates/email-sepetterk.jpeg'}" width="108" alt="${f.title}" style="display:block;width:108px;height:108px;object-fit:cover;border:0;border-radius:10px;"></td><td style="padding:16px 16px 16px 0;vertical-align:middle;"><p style="margin:0 0 6px;font-size:15px;font-weight:700;color:#111827;font-family:'Inter',Arial,sans-serif;">${f.title}</p><p style="margin:0 0 10px;font-size:13px;color:#6b7280;line-height:1.5;font-family:'Inter',Arial,sans-serif;">${f.description}</p><table role="presentation" cellpadding="0" cellspacing="0"><tr>${f.originalPrice?`<td style="font-size:14px;color:#9ca3af;text-decoration:line-through;font-family:'Inter',Arial,sans-serif;padding-right:10px;vertical-align:middle;">${f.originalPrice}</td>`:''}<td class="em-price" style="font-size:26px;font-weight:900;color:${a};font-family:'Inter',Arial,sans-serif;line-height:1;">${f.price}</td></tr></table></td></tr></table></td></tr>` +
+      `<tr><td class="em-pad" style="padding:0 40px 16px;text-align:center;"><p style="margin:0;font-size:13px;color:#6b7280;font-family:'Inter',Arial,sans-serif;">⏰ Stok tükenmeden tamamlayın!</p></td></tr>` +
+      (f.coupon ? `<tr><td class="em-pad" style="padding:0 40px 20px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:13px 20px;border:2px dashed ${a};border-radius:10px;text-align:center;background:${a}0d;"><p style="margin:0 0 3px;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:${a};font-family:'Inter',Arial,sans-serif;">Ekstra İndirim</p><p style="margin:0;font-size:20px;font-weight:900;letter-spacing:5px;color:${a};font-family:'Courier New',monospace;">${f.coupon}</p></td></tr></table></td></tr>` : '') +
       ctaHtml(f.cta, f.ctaUrl, a) +
       footerHtml(f.brandName, f.footer, f.unsubscribeUrl, a)
     )
@@ -115,29 +120,29 @@ function generateEmail(tplId: EmailTemplateId, f: EmailFields, hero: string | nu
 
   if (tplId === 'premium') {
     return emailWrapper(
-      `<tr><td style="padding:0;line-height:0;font-size:0;"><img src="${hero||'/templates/email-premium.jpeg'}" width="600" alt="${f.title}" style="display:block;width:100%;height:300px;object-fit:cover;border:0;"></td></tr>` +
-      `<tr><td class="em-pad" style="padding:30px 40px 26px;background-color:#0d0d14;"><table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:14px;"><tr><td style="border-radius:20px;padding:4px 14px;background:${a}22;border:1px solid ${a}44;"><span style="font-size:9px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:${a};font-family:'Inter',Arial,sans-serif;">EXCLUSIVE LAUNCH</span></td></tr></table><h1 class="em-title" style="margin:0 0 10px;font-size:28px;font-weight:900;color:#f5f0e8;letter-spacing:-0.02em;line-height:1.15;font-family:'Inter',Arial,sans-serif;">${f.title}</h1><p style="margin:0 0 16px;font-size:14px;color:#8b8b9e;line-height:1.6;font-family:'Inter',Arial,sans-serif;">${f.description}</p>${f.coupon?`<table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:16px;"><tr><td style="padding:9px 16px;border:1px solid ${a}55;border-radius:8px;background:${a}11;"><span style="font-size:10px;color:#8b8b9e;font-family:'Inter',Arial,sans-serif;">VIP Kodu: </span><span style="font-size:13px;font-weight:700;letter-spacing:3px;color:${a};font-family:'Courier New',monospace;">${f.coupon}</span></td></tr></table>`:''}<p style="margin:0 0 22px;font-size:32px;font-weight:900;color:${a};letter-spacing:-0.03em;font-family:'Inter',Arial,sans-serif;">${f.price}</p><table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="border-radius:10px;background-color:${a};"><a href="${f.ctaUrl||'#'}" style="display:block;padding:15px 34px;font-size:13px;font-weight:700;color:#0d0d14;text-decoration:none;letter-spacing:0.06em;font-family:'Inter',Arial,sans-serif;white-space:nowrap;">${f.cta} →</a></td></tr></table></td></tr>` +
-      `<tr><td style="padding:13px 40px 16px;text-align:center;background-color:#08080f;"><p style="margin:0 0 3px;font-size:11px;color:#3e3e54;font-family:'Inter',Arial,sans-serif;">${f.footer||`© 2025 ${f.brandName}`}</p><p style="margin:0;font-size:11px;color:#3e3e54;font-family:'Inter',Arial,sans-serif;"><a href="${f.unsubscribeUrl||'#'}" style="color:${a};text-decoration:none;">Aboneliği iptal et</a></p></td></tr>`,
+      `<tr><td style="padding:0;line-height:0;font-size:0;"><img src="${hero||'/templates/email-premium.jpeg'}" width="600" alt="${f.title}" style="display:block;width:100%;height:340px;object-fit:cover;border:0;"></td></tr>` +
+      `<tr><td class="em-pad" style="padding:34px 40px 8px;background-color:#0d0d14;"><table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:16px;"><tr><td style="border-radius:20px;padding:5px 16px;background:${a}22;border:1px solid ${a}44;"><span style="font-size:9px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:${a};font-family:'Inter',Arial,sans-serif;">EXCLUSIVE LAUNCH</span></td></tr></table><h1 class="em-title" style="margin:0 0 14px;font-size:36px;font-weight:900;color:#f5f0e8;letter-spacing:-0.03em;line-height:1.1;font-family:'Inter',Arial,sans-serif;">${f.title}</h1><p style="margin:0 0 20px;font-size:15px;color:#8b8b9e;line-height:1.65;font-family:'Inter',Arial,sans-serif;">${f.description}</p>${f.coupon?`<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;"><tr><td style="padding:12px 18px;border:1px solid ${a}44;border-radius:10px;background:${a}11;"><span style="font-size:10px;color:#8b8b9e;font-family:'Inter',Arial,sans-serif;">VIP Kodu: </span><span style="font-size:14px;font-weight:800;letter-spacing:4px;color:${a};font-family:'Courier New',monospace;">${f.coupon}</span></td></tr></table>`:''}<p class="em-price" style="margin:0 0 28px;font-size:42px;font-weight:900;color:${a};letter-spacing:-0.04em;font-family:'Inter',Arial,sans-serif;line-height:1;">${f.price}</p><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:34px;"><tr><td style="border-radius:8px;background-color:${a};text-align:center;"><a class="em-cta" href="${f.ctaUrl||'#'}" style="display:block;padding:18px 32px;font-size:16px;font-weight:800;color:#0d0d14;text-decoration:none;font-family:'Inter',Arial,sans-serif;">${f.cta} →</a></td></tr></table></td></tr>` +
+      `<tr><td style="padding:14px 40px 18px;text-align:center;background-color:#08080f;"><p style="margin:0 0 3px;font-size:11px;color:#3e3e54;font-family:'Inter',Arial,sans-serif;">${f.footer||`© 2025 ${f.brandName}`}</p><p style="margin:0;font-size:11px;color:#3e3e54;font-family:'Inter',Arial,sans-serif;"><a href="${f.unsubscribeUrl||'#'}" style="color:${a};text-decoration:none;">Aboneliği iptal et</a></p></td></tr>`,
       '#0a0a10'
     )
   }
 
   if (tplId === 'blackfriday') {
     return emailWrapper(
-      `<tr><td class="em-pad" style="padding:30px 40px 0;background-color:#000;text-align:center;"><p style="margin:0 0 2px;font-size:9px;font-weight:700;letter-spacing:4px;color:#555;font-family:'Inter',Arial,sans-serif;text-transform:uppercase;">— ${f.brandName} —</p><h1 style="margin:6px 0;font-size:46px;font-weight:900;color:#fff;letter-spacing:-0.03em;line-height:1;font-family:'Inter',Arial,sans-serif;text-transform:uppercase;">${f.title}</h1>${f.discount?`<p style="margin:0 0 2px;font-size:72px;font-weight:900;color:#fff;letter-spacing:-0.05em;line-height:1;font-family:'Inter',Arial,sans-serif;">${f.discount}</p><p style="margin:0;font-size:11px;font-weight:700;letter-spacing:3px;color:#555;font-family:'Inter',Arial,sans-serif;text-transform:uppercase;">İNDİRİM</p>`:''}</td></tr>` +
-      `<tr><td style="padding:20px 0 0;background-color:#000;line-height:0;font-size:0;"><img src="${hero||'/templates/email-blackfriday.jpeg'}" width="600" alt="${f.title}" style="display:block;width:100%;height:280px;object-fit:cover;border:0;opacity:0.85;"></td></tr>` +
-      `<tr><td class="em-pad" style="padding:22px 40px 18px;background-color:#000;"><p style="margin:0 0 8px;font-size:13px;color:#9ca3af;line-height:1.55;font-family:'Inter',Arial,sans-serif;">${f.description}</p><table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:14px;"><tr>${f.originalPrice?`<td style="font-size:15px;color:#555;text-decoration:line-through;font-family:'Inter',Arial,sans-serif;padding-right:10px;">${f.originalPrice}</td>`:''}<td style="font-size:34px;font-weight:900;color:#fff;letter-spacing:-0.04em;font-family:'Inter',Arial,sans-serif;">${f.price}</td></tr></table>${f.coupon?`<table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:18px;"><tr><td style="padding:9px 16px;border:2px dashed rgba(255,255,255,0.25);border-radius:8px;background:rgba(255,255,255,0.05);"><span style="font-size:9px;color:#666;font-family:'Inter',Arial,sans-serif;letter-spacing:1px;">KOD: </span><span style="font-size:17px;font-weight:900;letter-spacing:4px;color:#fff;font-family:'Courier New',monospace;">${f.coupon}</span></td></tr></table>`:''}</td></tr>` +
+      `<tr><td class="em-pad" style="padding:34px 40px 0;background-color:#000;text-align:center;"><p style="margin:0 0 3px;font-size:9px;font-weight:800;letter-spacing:5px;color:#444;font-family:'Inter',Arial,sans-serif;text-transform:uppercase;">— ${f.brandName} —</p><h1 class="em-title" style="margin:8px 0;font-size:48px;font-weight:900;color:#fff;letter-spacing:-0.03em;line-height:1;font-family:'Inter',Arial,sans-serif;text-transform:uppercase;">${f.title}</h1>${f.discount?`<p style="margin:4px 0 2px;font-size:80px;font-weight:900;color:#fff;letter-spacing:-0.05em;line-height:1;font-family:'Inter',Arial,sans-serif;">${f.discount}</p><p style="margin:0;font-size:11px;font-weight:800;letter-spacing:4px;color:#555;font-family:'Inter',Arial,sans-serif;text-transform:uppercase;">İNDİRİM</p>`:''}</td></tr>` +
+      `<tr><td style="padding:20px 0 0;background-color:#000;line-height:0;font-size:0;"><img src="${hero||'/templates/email-blackfriday.jpeg'}" width="600" alt="${f.title}" style="display:block;width:100%;height:300px;object-fit:cover;border:0;opacity:0.88;"></td></tr>` +
+      `<tr><td class="em-pad" style="padding:26px 40px 20px;background-color:#000;"><p style="margin:0 0 14px;font-size:14px;color:#9ca3af;line-height:1.6;font-family:'Inter',Arial,sans-serif;">${f.description}</p><table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:18px;"><tr>${f.originalPrice?`<td style="font-size:16px;color:#555;text-decoration:line-through;font-family:'Inter',Arial,sans-serif;padding-right:12px;vertical-align:middle;">${f.originalPrice}</td>`:''}<td class="em-price" style="font-size:42px;font-weight:900;color:#fff;letter-spacing:-0.04em;font-family:'Inter',Arial,sans-serif;line-height:1;">${f.price}</td></tr></table>${f.coupon?`<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;"><tr><td style="padding:12px 18px;border:2px dashed rgba(255,255,255,0.2);border-radius:10px;background:rgba(255,255,255,0.05);text-align:center;"><span style="font-size:9px;color:#555;font-family:'Inter',Arial,sans-serif;letter-spacing:1.5px;text-transform:uppercase;">Kampanya Kodu: </span><span style="font-size:20px;font-weight:900;letter-spacing:5px;color:#fff;font-family:'Courier New',monospace;">${f.coupon}</span></td></tr></table>`:''}</td></tr>` +
       ctaHtml(f.cta, f.ctaUrl, '#ffffff', '#000000') +
-      `<tr><td style="padding:12px 40px 15px;text-align:center;background-color:#0a0a0a;border-top:1px solid #1a1a1a;"><p style="margin:0 0 3px;font-size:11px;color:#444;font-family:'Inter',Arial,sans-serif;">${f.footer||`© 2025 ${f.brandName}`}</p><p style="margin:0;font-size:11px;color:#444;font-family:'Inter',Arial,sans-serif;"><a href="${f.unsubscribeUrl||'#'}" style="color:#888;text-decoration:none;">Aboneliği iptal et</a></p></td></tr>`,
+      `<tr><td style="padding:14px 40px 16px;text-align:center;background-color:#0a0a0a;border-top:1px solid #1a1a1a;"><p style="margin:0 0 3px;font-size:11px;color:#444;font-family:'Inter',Arial,sans-serif;">${f.footer||`© 2025 ${f.brandName}`}</p><p style="margin:0;font-size:11px;color:#444;font-family:'Inter',Arial,sans-serif;"><a href="${f.unsubscribeUrl||'#'}" style="color:#888;text-decoration:none;">Aboneliği iptal et</a></p></td></tr>`,
       '#0a0a0a'
     )
   }
 
-  // minimal (default)
+  // minimal
   return emailWrapper(
-    `<tr><td class="em-pad" style="padding:26px 40px 18px;border-bottom:1px solid #f3f4f6;"><p style="margin:0;font-size:13px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:${a};font-family:'Inter',Arial,sans-serif;">${f.brandName}</p></td></tr>` +
+    `<tr><td class="em-pad" style="padding:28px 40px 20px;border-bottom:2px solid ${a}18;"><p style="margin:0;font-size:13px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:${a};font-family:'Inter',Arial,sans-serif;">${f.brandName}</p></td></tr>` +
     heroHtml(hero, '/templates/email-minimal.jpeg', f.title) +
-    `<tr><td class="em-pad" style="padding:26px 40px 0;border-top:1px solid #f3f4f6;"><h1 class="em-title" style="margin:0 0 10px;font-size:20px;font-weight:700;color:#111827;letter-spacing:-0.015em;line-height:1.2;font-family:'Inter',Arial,sans-serif;">${f.title}</h1><p style="margin:0 0 16px;font-size:14px;color:#6b7280;line-height:1.6;font-family:'Inter',Arial,sans-serif;">${f.description}</p><table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:20px;"><tr>${f.originalPrice?`<td style="font-size:14px;color:#9ca3af;text-decoration:line-through;font-family:'Inter',Arial,sans-serif;padding-right:10px;">${f.originalPrice}</td>`:''}<td style="font-size:26px;font-weight:700;color:#111827;letter-spacing:-0.025em;font-family:'Inter',Arial,sans-serif;">${f.price}</td></tr></table><table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:22px;"><tr><td style="border-radius:9px;border:2px solid ${a};"><a href="${f.ctaUrl||'#'}" style="display:block;padding:13px 34px;font-size:12px;font-weight:600;color:${a};text-decoration:none;letter-spacing:0.04em;font-family:'Inter',Arial,sans-serif;white-space:nowrap;">${f.cta}</a></td></tr></table></td></tr>` +
+    `<tr><td class="em-pad" style="padding:32px 40px 0;border-top:1px solid #f3f4f6;"><h1 class="em-title" style="margin:0 0 14px;font-size:32px;font-weight:800;color:#111827;letter-spacing:-0.03em;line-height:1.1;font-family:'Inter',Arial,sans-serif;">${f.title}</h1><p style="margin:0 0 20px;font-size:15px;color:#6b7280;line-height:1.65;font-family:'Inter',Arial,sans-serif;">${f.description}</p><table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:24px;"><tr>${f.originalPrice?`<td style="font-size:16px;color:#9ca3af;text-decoration:line-through;font-family:'Inter',Arial,sans-serif;padding-right:12px;vertical-align:middle;">${f.originalPrice}</td>`:''}<td class="em-price" style="font-size:36px;font-weight:800;color:#111827;letter-spacing:-0.03em;font-family:'Inter',Arial,sans-serif;line-height:1;">${f.price}</td></tr></table><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:32px;"><tr><td style="border-radius:8px;border:2.5px solid ${a};text-align:center;"><a class="em-cta" href="${f.ctaUrl||'#'}" style="display:block;padding:17px 32px;font-size:15px;font-weight:700;color:${a};text-decoration:none;font-family:'Inter',Arial,sans-serif;">${f.cta}</a></td></tr></table></td></tr>` +
     footerHtml(f.brandName, f.footer, f.unsubscribeUrl, a)
   )
 }
@@ -200,6 +205,12 @@ export default function AIStudioPage() {
   const [sendMsg,      setSendMsg]      = useState('')
   const [copied,       setCopied]       = useState(false)
 
+  // ── Inline editor
+  const [editMode,    setEditMode]    = useState(false)
+  const [activeZone,  setActiveZone]  = useState<EditorZone>(null)
+  const [zoneRects,   setZoneRects]   = useState<ZoneRect[]>([])
+  const desktopIframeRef = useRef<HTMLIFrameElement>(null)
+
   const tplCfg   = EMAIL_TEMPLATES.find(t => t.id === tplId)!
   const styleDef = BANNER_HERO_STYLES.find(s => s.id === bannerStyle)!
   const heroImage = previewMode === 'mobile' ? (banners?.mobile ?? banners?.desktop ?? productImage) : (banners?.desktop ?? banners?.mobile ?? productImage)
@@ -228,11 +239,45 @@ export default function AIStudioPage() {
       .finally(() => setSegLoading(false))
   }, [])
 
+  // ── Measure clickable zone positions from iframe DOM
+  function measureZones() {
+    const iframe = desktopIframeRef.current
+    if (!iframe?.contentDocument) return
+    const doc = iframe.contentDocument
+    const totalH = doc.documentElement.scrollHeight || 600
+
+    function offsetTopOf(el: Element): number {
+      let top = 0
+      let cur: Element | null = el
+      while (cur && cur !== doc.documentElement) {
+        top += (cur as HTMLElement).offsetTop ?? 0
+        cur = (cur as HTMLElement).offsetParent
+      }
+      return top
+    }
+
+    const queries: [EditorZone, string, string, React.ElementType][] = [
+      ['hero',  'img[width="600"]',                                  'Görsel', Sparkles],
+      ['title', 'h1',                                                'Başlık', Type],
+      ['desc',  'td p[style*="font-size:14"], td p[style*="13px"]', 'Metin',  Pencil],
+      ['cta',   'td[bgcolor] a, a[style*="display:block"]',         'CTA',    MousePointer],
+    ]
+
+    const rects: ZoneRect[] = []
+    for (const [name, sel, label, Icon] of queries) {
+      const el = doc.querySelector(sel)
+      if (!el) continue
+      const top = offsetTopOf(el)
+      const h   = Math.max(44, (el as HTMLElement).offsetHeight)
+      rects.push({ name, label, icon: Icon, top: top / totalH * 100, height: Math.max(8, h / totalH * 100) })
+    }
+    setZoneRects(rects)
+  }
+
   // ── Product source switch
   function switchSrc(src: ProductSrc) {
-    setProductSrc(src)
-    setProductImage(null); setSelectedDb(null); setProductUrl(''); setUrlError('')
-    setBanners(null)
+    setProductSrc(src); setProductImage(null); setSelectedDb(null); setProductUrl(''); setUrlError('')
+    setBanners(null); setEditMode(false); setActiveZone(null)
     if (src === 'shopify') loadProducts()
   }
 
@@ -240,7 +285,7 @@ export default function AIStudioPage() {
   function handleFile(file: File) {
     if (!file.type.startsWith('image/')) return
     const reader = new FileReader()
-    reader.onload = e => { setProductImage(e.target?.result as string); setBanners(null) }
+    reader.onload = e => { setProductImage(e.target?.result as string); setBanners(null); setEditMode(false) }
     reader.readAsDataURL(file)
   }
 
@@ -259,26 +304,54 @@ export default function AIStudioPage() {
     const tpl = EMAIL_TEMPLATES.find(t => t.id === id)!
     setTplId(id)
     setFields(p => ({ ...p, ...tpl.defaults, brandColor: tpl.accentColor }))
+    setEditMode(false); setActiveZone(null)
   }
 
-  // ── Generate banner (Fal.ai)
-  async function generateBanner() {
-    if (!productImage) return
-    setGeneratingBanner(true); setBannerError(''); setBanners(null)
+  // ── Main generate: Grok copy + Fal banner in one call
+  async function generateAll() {
+    if (!activeProductImage) return
+    setGeneratingBanner(true); setBannerError(''); setBanners(null); setEditMode(false); setActiveZone(null)
     try {
-      const r = await fetch('/api/ai/banner-hero', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productImageUrl: productImage, backgroundStyle: bannerStyle, productName, brandName: fields.brandName }),
+      const r = await fetch('/api/ai/studio-generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          productImageUrl: activeProductImage,
+          bannerStyle,
+          productName,
+          templateId: tplId,
+          brandName: fields.brandName,
+        }),
       })
-      const d = await r.json()
-      if (!r.ok) throw new Error(d.error)
+      const d = await r.json().catch(() => ({ error: 'Sunucu yanıtı okunamadı.' }))
+      if (!r.ok) {
+        // Vercel can return { error: { code, message } } — extract string safely
+        const errMsg = typeof d?.error === 'string'
+          ? d.error
+          : (d?.error?.message ?? d?.message ?? JSON.stringify(d))
+        throw new Error(errMsg)
+      }
+
       setBanners({ desktop: d.desktop ?? null, mobile: d.mobile ?? null })
       setPreviewMode('desktop')
-    } catch (e) { setBannerError((e as Error).message)
-    } finally { setGeneratingBanner(false) }
+      setFields(p => ({
+        ...p,
+        title:       typeof d.headline    === 'string' ? d.headline    : p.title,
+        description: typeof d.description === 'string' ? d.description : p.description,
+        cta:         typeof d.cta         === 'string' ? d.cta         : p.cta,
+        subject:     typeof d.subject     === 'string' ? d.subject     : p.subject,
+        previewText: typeof d.previewText === 'string' ? d.previewText : p.previewText,
+        brandColor:  typeof d.brandColor  === 'string' ? d.brandColor  : p.brandColor,
+      }))
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      setBannerError(msg || 'Bir hata oluştu. Lütfen tekrar deneyin.')
+    } finally {
+      setGeneratingBanner(false)
+    }
   }
 
-  // ── HTML copy
+  // ── HTML copy — always exports the live edited state
   function copyHTML() {
     navigator.clipboard.writeText(emailHtml).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) })
   }
@@ -303,23 +376,15 @@ export default function AIStudioPage() {
     if (!asDraft && !selectedSeg) { setSendMsg('Segment seçiniz.'); return }
     setSendStep('sending'); setSendMsg('')
     try {
-      // Create campaign
       const cr = await fetch('/api/campaigns', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name:        fields.campaignName || fields.title,
-          type:        'email',
-          status:      asDraft ? 'draft' : 'draft',
-          segment:     selectedSeg || 'all',
-          subject:     fields.subject || fields.title,
-          previewText: fields.previewText,
-          headline:    fields.title,
-          body:        fields.description,
-          cta:         fields.ctaUrl || '#',
-          ctaText:     fields.cta,
-          imageUrl:    banners?.desktop ?? null,
-          brandColor:  fields.brandColor || tplCfg.accentColor,
-          purpose:     tplId,
+          name: fields.campaignName || fields.title, type: 'email', status: 'draft',
+          segment: selectedSeg || 'all', subject: fields.subject || fields.title,
+          previewText: fields.previewText, headline: fields.title, body: fields.description,
+          cta: fields.ctaUrl || '#', ctaText: fields.cta,
+          imageUrl: banners?.desktop ?? null, brandColor: fields.brandColor || tplCfg.accentColor,
+          purpose: tplId,
         }),
       })
       const campaign = await cr.json()
@@ -327,7 +392,6 @@ export default function AIStudioPage() {
 
       if (asDraft) { setSendMsg('✅ Taslak kaydedildi!'); setSendStep('done'); return }
 
-      // Send
       const sr = await fetch(`/api/campaigns/${campaign.id}/send`, { method: 'POST' })
       const sd = await sr.json()
       if (!sr.ok) throw new Error(sd.error)
@@ -372,6 +436,15 @@ export default function AIStudioPage() {
               })}
             </div>
 
+            {banners && previewMode === 'desktop' && (
+              <button onClick={() => { setEditMode(v => !v); setActiveZone(null) }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold transition-all"
+                style={{ background: editMode ? '#f0f4ff' : '#f9fafb', color: editMode ? '#4470ff' : '#374151', border: `1px solid ${editMode ? '#c7d7ff' : '#e5e7eb'}` }}>
+                <Pencil className="w-3.5 h-3.5" />
+                {editMode ? 'Düzenlemede' : 'Düzenle'}
+              </button>
+            )}
+
             <button onClick={copyHTML}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold transition-all"
               style={{ background: copied ? '#f0fdf4' : '#f9fafb', color: copied ? '#16a34a' : '#374151', border: `1px solid ${copied ? '#bbf7d0' : '#e5e7eb'}` }}>
@@ -393,17 +466,16 @@ export default function AIStudioPage() {
           </div>
         </div>
 
-        <div className="flex flex-1 overflow-hidden">
+        <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
 
           {/* ── Left panel ── */}
-          <div className="w-[310px] shrink-0 flex flex-col overflow-y-auto"
-            style={{ background: '#fff', borderRight: '1px solid rgba(0,0,0,0.07)' }}>
+          <div className="w-full lg:w-[310px] shrink-0 flex flex-col overflow-y-auto lg:max-h-full"
+            style={{ background: '#fff', borderRight: '1px solid rgba(0,0,0,0.07)', borderBottom: '1px solid rgba(0,0,0,0.07)' }}>
 
-            {/* ── 1. Ürün Görseli ── */}
+            {/* 1. Ürün Görseli */}
             <section className="p-4 border-b" style={{ borderColor: 'rgba(0,0,0,0.07)' }}>
               <p className="text-[10px] font-bold uppercase tracking-wider mb-3" style={{ color: '#9ca3af' }}>Ürün Görseli</p>
 
-              {/* Source tabs */}
               <div className="flex gap-1 p-0.5 rounded-xl mb-3" style={{ background: '#f3f4f6' }}>
                 {([['upload', Upload, 'Yükle'], ['shopify', ShoppingBag, 'Shopify'], ['url', Link2, 'URL']] as [ProductSrc, React.ElementType, string][])
                   .map(([src, Icon, label]) => (
@@ -418,12 +490,11 @@ export default function AIStudioPage() {
               <input ref={fileRef} type="file" accept="image/*" className="hidden"
                 onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} />
 
-              {/* Upload */}
               {productSrc === 'upload' && (
                 activeProductImage ? (
                   <div className="relative rounded-xl overflow-hidden" style={{ border: '1.5px solid #e5e7eb' }}>
                     <img src={activeProductImage} alt="Ürün" className="w-full h-32 object-contain" style={{ background: '#f9fafb' }} />
-                    <button onClick={() => { setProductImage(null); setBanners(null); if (fileRef.current) fileRef.current.value = '' }}
+                    <button onClick={() => { setProductImage(null); setBanners(null); setEditMode(false); if (fileRef.current) fileRef.current.value = '' }}
                       className="absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.6)' }}>
                       <X className="w-3 h-3 text-white" />
                     </button>
@@ -440,7 +511,6 @@ export default function AIStudioPage() {
                 )
               )}
 
-              {/* Shopify */}
               {productSrc === 'shopify' && (
                 <div className="space-y-2">
                   <div className="relative">
@@ -474,7 +544,6 @@ export default function AIStudioPage() {
                 </div>
               )}
 
-              {/* URL */}
               {productSrc === 'url' && (
                 <div className="space-y-2">
                   <FI v={productUrl} o={v => { setProductUrl(v); loadUrl(v) }} ph="https://cdn.ornek.com/urun.jpg" />
@@ -487,14 +556,13 @@ export default function AIStudioPage() {
                 </div>
               )}
 
-              {/* Product name */}
               <div className="mt-3">
                 <FL c="Ürün Adı (kategori tespiti için)" />
                 <FI v={productName} o={setProductName} ph="Nike Air Max, Chanel No.5..." />
               </div>
             </section>
 
-            {/* ── 2. Banner Stili ── */}
+            {/* 2. Banner Stili */}
             <section className="p-4 border-b" style={{ borderColor: 'rgba(0,0,0,0.07)' }}>
               <p className="text-[10px] font-bold uppercase tracking-wider mb-3" style={{ color: '#9ca3af' }}>
                 Mail Banner Stili
@@ -537,7 +605,7 @@ export default function AIStudioPage() {
                 })}
               </div>
 
-              <button onClick={generateBanner} disabled={!activeProductImage || generatingBanner}
+              <button onClick={generateAll} disabled={!activeProductImage || generatingBanner}
                 className="w-full py-2.5 rounded-2xl text-[13px] font-bold flex items-center justify-center gap-2 transition-all"
                 style={{
                   background: !activeProductImage ? '#e5e7eb'
@@ -548,7 +616,7 @@ export default function AIStudioPage() {
                   cursor: !activeProductImage ? 'not-allowed' : 'pointer',
                 }}>
                 {generatingBanner
-                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Oluşturuluyor...</>
+                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Hazırlanıyor...</>
                   : banners
                     ? <><RefreshCw className="w-4 h-4" /> Yeniden Oluştur</>
                     : <><Sparkles className="w-4 h-4" /> Banner Oluştur</>}
@@ -559,8 +627,18 @@ export default function AIStudioPage() {
                   <AlertCircle className="w-3 h-3" /> Önce ürün görseli ekleyin
                 </p>
               )}
-              {bannerError && <p className="text-[11px] mt-2 text-center" style={{ color: '#dc2626' }}>{bannerError}</p>}
-              {banners && (
+              {bannerError && (
+                <div className="mt-2 rounded-xl p-2.5 flex items-start gap-2" style={{ background: '#fef2f2', border: '1px solid #fecaca' }}>
+                  <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" style={{ color: '#dc2626' }} />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[11px]" style={{ color: '#dc2626' }}>{bannerError}</p>
+                    <button onClick={generateAll} className="text-[11px] font-semibold mt-1" style={{ color: '#dc2626', textDecoration: 'underline' }}>
+                      Tekrar dene
+                    </button>
+                  </div>
+                </div>
+              )}
+              {banners && !bannerError && (
                 <div className="mt-2.5 rounded-xl p-2 flex items-center gap-2"
                   style={{ background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
                   <Check className="w-4 h-4 shrink-0" style={{ color: '#16a34a' }} />
@@ -571,7 +649,7 @@ export default function AIStudioPage() {
               )}
             </section>
 
-            {/* ── 3. Mail Şablonu ── */}
+            {/* 3. Mail Şablonu */}
             <section className="p-4 border-b" style={{ borderColor: 'rgba(0,0,0,0.07)' }}>
               <p className="text-[10px] font-bold uppercase tracking-wider mb-3" style={{ color: '#9ca3af' }}>Mail Şablonu</p>
               <div className="grid grid-cols-2 gap-2">
@@ -596,7 +674,7 @@ export default function AIStudioPage() {
               </div>
             </section>
 
-            {/* ── 4. İçerik Düzenle ── */}
+            {/* 4. İçerik Düzenle */}
             <section className="p-4 border-b space-y-3" style={{ borderColor: 'rgba(0,0,0,0.07)' }}>
               <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: '#9ca3af' }}>İçerik Düzenle</p>
               <div><FL c="Marka Adı" /><FI v={fields.brandName} o={setF('brandName')} ph="Marksio" /></div>
@@ -625,7 +703,7 @@ export default function AIStudioPage() {
               </div>
             </section>
 
-            {/* ── 5. Kampanya Bilgileri ── */}
+            {/* 5. Kampanya Bilgileri */}
             <section className="p-4 space-y-3">
               <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: '#9ca3af' }}>Kampanya Bilgileri</p>
               <div><FL c="Kampanya Adı" /><FI v={fields.campaignName} o={setF('campaignName')} ph="Yaz İndirimi 2025" /></div>
@@ -635,88 +713,257 @@ export default function AIStudioPage() {
           </div>
 
           {/* ── Right panel — preview ── */}
-          <div className="flex-1 flex items-start justify-center overflow-auto p-6"
-            style={{ background: '#eef0f5', position: 'relative' }}>
+          <div className="flex-1 flex flex-col overflow-hidden" style={{ background: '#eef0f5' }}
+            onClick={() => { if (editMode) { setActiveZone(null) } }}>
 
-            {/* Generating overlay */}
-            {generatingBanner && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 z-10"
-                style={{ background: 'rgba(238,240,245,0.92)', backdropFilter: 'blur(4px)' }}>
-                <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
-                  style={{ background: `linear-gradient(135deg,${styleDef.accentColor === '#ffffff' ? '#6b7280' : styleDef.accentColor},${styleDef.accentColor === '#ffffff' ? '#374151' : styleDef.accentColor}99)`, boxShadow: '0 8px 32px rgba(0,0,0,0.2)' }}>
-                  <Sparkles className="w-7 h-7 text-white animate-pulse" />
-                </div>
-                <div className="text-center">
-                  <p className="text-[15px] font-bold" style={{ color: '#111827' }}>
-                    {styleDef.icon} {styleDef.name} Banner Oluşturuluyor
-                  </p>
-                  <p className="text-[12px] mt-1" style={{ color: '#6b7280' }}>
-                    Ürün, seçilen stil referansının sahnesine entegre ediliyor...
-                  </p>
-                  <p className="text-[11px] mt-1" style={{ color: '#9ca3af' }}>
-                    Desktop 16:9 · Mobil 3:4 — Fal.ai flux-kontext
-                  </p>
-                </div>
-                <Loader2 className="w-5 h-5 animate-spin" style={{ color: styleDef.accentColor === '#ffffff' ? '#6b7280' : styleDef.accentColor }} />
+            {/* Editor toolbar — shown when edit mode is on and a zone is selected */}
+            {editMode && (
+              <div className="shrink-0 border-b px-4 py-2.5 flex items-center gap-3 flex-wrap"
+                style={{ background: '#fff', borderColor: 'rgba(0,0,0,0.07)', minHeight: 52 }}
+                onClick={e => e.stopPropagation()}>
+
+                {!activeZone && (
+                  <div className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#4470ff' }} />
+                    <p className="text-[11px] font-semibold" style={{ color: '#6b7280' }}>
+                      Düzenleme modu aktif — önizlemede bir öğeye tıklayın
+                    </p>
+                    {zoneRects.map(z => {
+                      const Icon = z.icon
+                      return (
+                        <button key={z.name} onClick={() => setActiveZone(z.name)}
+                          className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold transition-all"
+                          style={{ background: '#f3f4f6', color: '#374151', border: '1px solid #e5e7eb' }}>
+                          <Icon className="w-3 h-3" /> {z.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+
+                {activeZone === 'title' && (
+                  <div className="flex items-center gap-2 flex-1">
+                    <Type className="w-3.5 h-3.5 shrink-0" style={{ color: '#4470ff' }} />
+                    <span className="text-[11px] font-bold shrink-0" style={{ color: '#374151' }}>Başlık</span>
+                    <input value={fields.title} onChange={e => setF('title')(e.target.value)}
+                      className="flex-1 min-w-0 text-[12px] font-semibold outline-none rounded-lg px-2.5 py-1.5"
+                      style={{ background: '#f9fafb', border: '1.5px solid #4470ff', color: '#111827' }} />
+                    <input type="color" value={fields.brandColor} onChange={e => setF('brandColor')(e.target.value)}
+                      className="w-7 h-7 rounded-lg cursor-pointer border-0 shrink-0" title="Renk" />
+                    <button onClick={() => setActiveZone(null)} className="shrink-0"><X className="w-3.5 h-3.5" style={{ color: '#9ca3af' }} /></button>
+                  </div>
+                )}
+
+                {activeZone === 'desc' && (
+                  <div className="flex items-center gap-2 flex-1">
+                    <Pencil className="w-3.5 h-3.5 shrink-0" style={{ color: '#4470ff' }} />
+                    <span className="text-[11px] font-bold shrink-0" style={{ color: '#374151' }}>Açıklama</span>
+                    <input value={fields.description} onChange={e => setF('description')(e.target.value)}
+                      className="flex-1 min-w-0 text-[12px] outline-none rounded-lg px-2.5 py-1.5"
+                      style={{ background: '#f9fafb', border: '1.5px solid #4470ff', color: '#111827' }} />
+                    <button onClick={() => setActiveZone(null)} className="shrink-0"><X className="w-3.5 h-3.5" style={{ color: '#9ca3af' }} /></button>
+                  </div>
+                )}
+
+                {activeZone === 'cta' && (
+                  <div className="flex items-center gap-2 flex-1">
+                    <MousePointer className="w-3.5 h-3.5 shrink-0" style={{ color: '#4470ff' }} />
+                    <span className="text-[11px] font-bold shrink-0" style={{ color: '#374151' }}>CTA</span>
+                    <input value={fields.cta} onChange={e => setF('cta')(e.target.value)} placeholder="Buton metni"
+                      className="w-44 text-[12px] font-semibold outline-none rounded-lg px-2.5 py-1.5"
+                      style={{ background: '#f9fafb', border: '1.5px solid #4470ff', color: '#111827' }} />
+                    <input value={fields.ctaUrl} onChange={e => setF('ctaUrl')(e.target.value)} placeholder="https://..."
+                      className="flex-1 min-w-0 text-[12px] outline-none rounded-lg px-2.5 py-1.5"
+                      style={{ background: '#f9fafb', border: '1.5px solid #e5e7eb', color: '#111827' }} />
+                    <div className="flex items-center gap-1 shrink-0">
+                      <span className="text-[10px]" style={{ color: '#9ca3af' }}>Renk</span>
+                      <input type="color" value={fields.brandColor} onChange={e => setF('brandColor')(e.target.value)}
+                        className="w-7 h-7 rounded-lg cursor-pointer border-0" />
+                    </div>
+                    <button onClick={() => setActiveZone(null)} className="shrink-0"><X className="w-3.5 h-3.5" style={{ color: '#9ca3af' }} /></button>
+                  </div>
+                )}
+
+                {activeZone === 'hero' && (
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-3.5 h-3.5 shrink-0" style={{ color: '#4470ff' }} />
+                    <span className="text-[11px] font-bold" style={{ color: '#374151' }}>Görsel</span>
+                    <button onClick={() => fileRef.current?.click()}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold"
+                      style={{ background: '#f3f4f6', color: '#374151', border: '1px solid #e5e7eb' }}>
+                      <Upload className="w-3 h-3" /> Görsel Değiştir
+                    </button>
+                    <button onClick={generateAll}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold"
+                      style={{ background: '#f0f4ff', color: '#4470ff', border: '1px solid #c7d7ff' }}>
+                      <RefreshCw className="w-3 h-3" /> Yeniden Oluştur
+                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px]" style={{ color: '#9ca3af' }}>Stil:</span>
+                      {BANNER_HERO_STYLES.map(s => (
+                        <button key={s.id} onClick={() => setBannerStyle(s.id)}
+                          className="text-[10px] px-2 py-1 rounded-lg font-semibold transition-all"
+                          style={{ background: bannerStyle === s.id ? `${s.accentColor}15` : '#f3f4f6', color: bannerStyle === s.id ? s.accentColor : '#6b7280', border: bannerStyle === s.id ? `1px solid ${s.accentColor}44` : '1px solid transparent' }}>
+                          {s.icon} {s.name}
+                        </button>
+                      ))}
+                    </div>
+                    <button onClick={() => setActiveZone(null)} className="ml-auto shrink-0"><X className="w-3.5 h-3.5" style={{ color: '#9ca3af' }} /></button>
+                  </div>
+                )}
               </div>
             )}
 
-            {previewMode === 'desktop' ? (
-              <div className="w-full" style={{ maxWidth: 660 }}>
-                <div className="flex items-center justify-between mb-2.5 px-1">
-                  <span className="text-[11px] font-semibold" style={{ color: '#9ca3af' }}>
-                    Desktop — 600px
-                    {banners?.desktop && <span className="ml-2 px-1.5 py-0.5 rounded-full text-[9px] font-bold" style={{ background: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0' }}>AI Banner ✓</span>}
-                  </span>
-                  <span className="text-[11px]" style={{ color: '#9ca3af' }}>{tplCfg.name}</span>
-                </div>
-                <div className="rounded-t-xl overflow-hidden" style={{ background: '#e5e7eb', padding: '8px 10px 0' }}>
-                  <div className="flex items-center gap-1.5 mb-2">
-                    {['#ff5f57','#febc2e','#28c840'].map(c => <div key={c} className="w-2.5 h-2.5 rounded-full" style={{ background: c }} />)}
-                    <div className="flex-1 mx-3 h-4 rounded-full" style={{ background: '#fff', border: '1px solid #d1d5db' }} />
+            {/* Preview area */}
+            <div className="flex-1 flex items-start justify-center overflow-auto p-6 relative">
+
+              {/* Generating overlay */}
+              {generatingBanner && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 z-10"
+                  style={{ background: 'rgba(238,240,245,0.94)', backdropFilter: 'blur(6px)' }}>
+                  <div className="relative">
+                    <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
+                      style={{ background: 'linear-gradient(135deg,#4470ff,#9f7afa)', boxShadow: '0 12px 40px rgba(68,112,255,0.4)' }}>
+                      <Sparkles className="w-8 h-8 text-white animate-pulse" />
+                    </div>
+                    <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center"
+                      style={{ background: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.12)' }}>
+                      <Loader2 className="w-3 h-3 animate-spin" style={{ color: '#4470ff' }} />
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-[16px] font-bold" style={{ color: '#111827' }}>Kampanyanız hazırlanıyor...</p>
+                    <p className="text-[12px] mt-1.5" style={{ color: '#6b7280' }}>
+                      İçerik ve görsel aynı anda oluşturuluyor
+                    </p>
                   </div>
                 </div>
-                <div style={{ borderRadius: '0 0 12px 12px', overflow: 'hidden', boxShadow: '0 8px 40px rgba(0,0,0,0.12)' }}>
-                  <iframe srcDoc={emailHtml} title="Email preview" sandbox="allow-same-origin"
-                    style={{ display: 'block', width: '100%', minHeight: 480, border: 'none' }}
-                    onLoad={e => { const d = e.currentTarget.contentDocument; if (d) e.currentTarget.style.height = d.documentElement.scrollHeight + 'px' }} />
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center">
-                <div className="mb-2.5">
-                  <span className="text-[11px] font-semibold" style={{ color: '#9ca3af' }}>
-                    Mobile — 375px
-                    {banners?.mobile && <span className="ml-2 px-1.5 py-0.5 rounded-full text-[9px] font-bold" style={{ background: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0' }}>AI Banner ✓</span>}
-                  </span>
-                </div>
-                <div style={{ width: 380, background: '#1c1c1e', borderRadius: 46, padding: '12px 9px', boxShadow: '0 30px 80px rgba(0,0,0,0.4),inset 0 0 0 2px rgba(255,255,255,0.12)' }}>
-                  <div className="flex justify-center mb-2">
-                    <div style={{ width: 90, height: 26, background: '#000', borderRadius: 20 }} />
+              )}
+
+              {previewMode === 'desktop' ? (
+                <div className="w-full" style={{ maxWidth: 660 }}>
+                  <div className="flex items-center justify-between mb-2.5 px-1">
+                    <span className="text-[11px] font-semibold" style={{ color: '#9ca3af' }}>
+                      Desktop — 600px
+                      {banners?.desktop && <span className="ml-2 px-1.5 py-0.5 rounded-full text-[9px] font-bold" style={{ background: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0' }}>AI Banner ✓</span>}
+                    </span>
+                    <span className="text-[11px]" style={{ color: '#9ca3af' }}>{tplCfg.name}</span>
                   </div>
-                  <div style={{ borderRadius: 34, overflow: 'hidden', background: '#f4f4f4' }}>
-                    <div style={{ background: '#fff', padding: '9px 12px', borderBottom: '1px solid #f0f0f0' }}>
-                      <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0" style={{ background: fields.brandColor }}>
-                          {(fields.brandName||'M')[0]?.toUpperCase()}
-                        </div>
-                        <div>
-                          <p className="text-[10px] font-bold" style={{ color: '#111' }}>{fields.brandName||'Marka'}</p>
-                          <p className="text-[9px]" style={{ color: '#9ca3af' }}>info@marka.com</p>
+                  <div className="rounded-t-xl overflow-hidden" style={{ background: '#e5e7eb', padding: '8px 10px 0' }}>
+                    <div className="flex items-center gap-1.5 mb-2">
+                      {['#ff5f57','#febc2e','#28c840'].map(c => <div key={c} className="w-2.5 h-2.5 rounded-full" style={{ background: c }} />)}
+                      <div className="flex-1 mx-3 h-4 rounded-full" style={{ background: '#fff', border: '1px solid #d1d5db' }} />
+                    </div>
+                  </div>
+                  {/* Iframe + editor overlay wrapper */}
+                  <div style={{ borderRadius: '0 0 12px 12px', overflow: 'hidden', boxShadow: '0 8px 40px rgba(0,0,0,0.12)', position: 'relative' }}>
+                    <iframe
+                      ref={desktopIframeRef}
+                      srcDoc={emailHtml}
+                      title="Email preview"
+                      sandbox="allow-same-origin"
+                      style={{ display: 'block', width: '100%', minHeight: 480, border: 'none' }}
+                      onLoad={e => {
+                        const d = e.currentTarget.contentDocument
+                        if (d) e.currentTarget.style.height = d.documentElement.scrollHeight + 'px'
+                        e.currentTarget.contentWindow?.scrollTo(0, 0)
+                        measureZones()
+                      }}
+                    />
+
+                    {/* Clickable zone overlay — only in edit mode */}
+                    {editMode && (
+                      <div className="absolute inset-0" style={{ pointerEvents: 'none' }}>
+                        {zoneRects.map(zone => (
+                          <div
+                            key={zone.name}
+                            className="absolute transition-all cursor-pointer"
+                            style={{
+                              top: `${zone.top}%`,
+                              height: `${zone.height}%`,
+                              left: 0, right: 0,
+                              pointerEvents: 'all',
+                              border: activeZone === zone.name
+                                ? '2px solid #4470ff'
+                                : '2px solid transparent',
+                              background: activeZone === zone.name
+                                ? 'rgba(68,112,255,0.06)'
+                                : 'transparent',
+                            }}
+                            onMouseEnter={e => {
+                              if (activeZone !== zone.name) {
+                                e.currentTarget.style.borderColor = 'rgba(68,112,255,0.35)'
+                                e.currentTarget.style.background  = 'rgba(68,112,255,0.03)'
+                              }
+                            }}
+                            onMouseLeave={e => {
+                              if (activeZone !== zone.name) {
+                                e.currentTarget.style.borderColor = 'transparent'
+                                e.currentTarget.style.background  = 'transparent'
+                              }
+                            }}
+                            onClick={e => { e.stopPropagation(); setActiveZone(zone.name) }}
+                          >
+                            <div className="absolute top-1 left-1 flex items-center gap-1 px-1.5 py-0.5 rounded-md"
+                              style={{
+                                background: activeZone === zone.name ? '#4470ff' : 'rgba(68,112,255,0.75)',
+                                opacity: activeZone === zone.name ? 1 : 0,
+                                transition: 'opacity 0.15s',
+                              }}>
+                              <zone.icon className="w-2.5 h-2.5 text-white" />
+                              <span className="text-[9px] font-bold text-white">{zone.label}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* "Edit mode" hint shown once when banners are ready but edit mode is off */}
+                    {!editMode && banners && (
+                      <div
+                        className="absolute bottom-3 right-3 flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[10px] font-semibold opacity-0 hover:opacity-100 transition-opacity"
+                        style={{ background: 'rgba(255,255,255,0.95)', color: '#4470ff', boxShadow: '0 2px 12px rgba(0,0,0,0.12)', border: '1px solid #c7d7ff', pointerEvents: 'none' }}>
+                        <Pencil className="w-3 h-3" /> Düzenlemek için üstteki Düzenle butonuna tıklayın
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center">
+                  <div className="mb-2.5">
+                    <span className="text-[11px] font-semibold" style={{ color: '#9ca3af' }}>
+                      Mobile — 375px
+                      {banners?.mobile && <span className="ml-2 px-1.5 py-0.5 rounded-full text-[9px] font-bold" style={{ background: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0' }}>AI Banner ✓</span>}
+                    </span>
+                  </div>
+                  <div style={{ width: 380, background: '#1c1c1e', borderRadius: 46, padding: '12px 9px', boxShadow: '0 30px 80px rgba(0,0,0,0.4),inset 0 0 0 2px rgba(255,255,255,0.12)' }}>
+                    <div className="flex justify-center mb-2">
+                      <div style={{ width: 90, height: 26, background: '#000', borderRadius: 20 }} />
+                    </div>
+                    <div style={{ borderRadius: 34, overflow: 'hidden', background: '#f4f4f4' }}>
+                      <div style={{ background: '#fff', padding: '9px 12px', borderBottom: '1px solid #f0f0f0' }}>
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0" style={{ background: fields.brandColor }}>
+                            {(fields.brandName||'M')[0]?.toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-bold" style={{ color: '#111' }}>{fields.brandName||'Marka'}</p>
+                            <p className="text-[9px]" style={{ color: '#9ca3af' }}>info@marka.com</p>
+                          </div>
                         </div>
                       </div>
+                      <div style={{ background: '#f4f4f4', padding: 7, maxHeight: 540, overflow: 'hidden' }}>
+                        <iframe srcDoc={emailHtml} title="Mobile preview" sandbox="allow-same-origin"
+                          style={{ display: 'block', width: '100%', height: 520, border: 'none', borderRadius: 6, background: '#fff' }} />
+                      </div>
                     </div>
-                    <div style={{ background: '#f4f4f4', padding: 7, maxHeight: 540, overflow: 'hidden' }}>
-                      <iframe srcDoc={emailHtml} title="Mobile preview" sandbox="allow-same-origin"
-                        style={{ display: 'block', width: '100%', height: 520, border: 'none', borderRadius: 6, background: '#fff' }} />
+                    <div className="flex justify-center mt-2">
+                      <div style={{ width: 90, height: 3.5, background: 'rgba(255,255,255,0.3)', borderRadius: 2 }} />
                     </div>
-                  </div>
-                  <div className="flex justify-center mt-2">
-                    <div style={{ width: 90, height: 3.5, background: 'rgba(255,255,255,0.3)', borderRadius: 2 }} />
                   </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -729,13 +976,10 @@ export default function AIStudioPage() {
               <p className="text-[14px] font-bold" style={{ color: '#111827' }}>Test Mail Gönder</p>
               <button onClick={() => { setSendStep('idle'); setSendMsg('') }}><X className="w-4 h-4" style={{ color: '#9ca3af' }} /></button>
             </div>
-
-            {/* Preview */}
             <div className="mx-4 mt-4 rounded-xl overflow-hidden" style={{ border: '1px solid #e5e7eb', height: 200 }}>
               <iframe srcDoc={emailHtml} title="test-preview" sandbox="allow-same-origin"
                 style={{ display: 'block', width: '100%', height: 200, border: 'none' }} />
             </div>
-
             <div className="p-5 space-y-4">
               {sendStep === 'done' && sendMsg.startsWith('✅') ? (
                 <div className="text-center py-2">
@@ -777,7 +1021,6 @@ export default function AIStudioPage() {
               </div>
               <button onClick={() => { setSendStep('idle'); setSendMsg(''); setSelectedSeg('') }}><X className="w-4 h-4" style={{ color: '#9ca3af' }} /></button>
             </div>
-
             <div className="p-5 space-y-5">
               {sendStep === 'done' ? (
                 <div className="text-center py-6">
@@ -789,7 +1032,6 @@ export default function AIStudioPage() {
                 </div>
               ) : (
                 <>
-                  {/* Segment selection */}
                   <div>
                     <p className="text-[11px] font-bold mb-2.5" style={{ color: '#374151' }}>
                       <Users className="w-3.5 h-3.5 inline mr-1" />
@@ -811,11 +1053,10 @@ export default function AIStudioPage() {
                     </div>
                   </div>
 
-                  {/* Campaign summary */}
                   <div className="rounded-xl p-3.5 space-y-2" style={{ background: '#f9fafb', border: '1px solid #f3f4f6' }}>
                     <p className="text-[11px] font-bold" style={{ color: '#374151' }}>Kampanya Özeti</p>
                     {[
-                      ['Konu', fields.subject || fields.title],
+                      ['Konu',   fields.subject || fields.title],
                       ['Başlık', fields.title],
                       ['Banner', banners?.desktop ? '✅ AI Banner hazır' : '⚠️ Banner yok (ürün görseli kullanılacak)'],
                     ].map(([k, v]) => (

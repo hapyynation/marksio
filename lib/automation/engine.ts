@@ -324,6 +324,40 @@ export async function retryRun(runId: string): Promise<{ newRunId: string }> {
 }
 
 /* ─────────────────────────────────────────────────────────────
+   TARGETED: fire automations for a single CustomerEvent
+   Used by webhook handlers for immediate, low-latency triggering.
+───────────────────────────────────────────────────────────── */
+
+export async function triggerAutomationsForEvent(event: {
+  id: string
+  userId: string
+  customerId: string
+  type: string
+  data: string
+}): Promise<number> {
+  const automations = await prisma.automation.findMany({
+    where: { userId: event.userId, status: 'active', trigger: event.type },
+  })
+
+  let count = 0
+  for (const automation of automations) {
+    try {
+      const result = await startRun(automation.id, event.customerId, safeParseJson(event.data, {}))
+      if (!result.skipped) count++
+    } catch (err) {
+      console.error(`[Engine] triggerAutomationsForEvent [${automation.id}]:`, err)
+    }
+  }
+
+  await prisma.customerEvent.update({
+    where: { id: event.id },
+    data: { processedAt: new Date() },
+  })
+
+  return count
+}
+
+/* ─────────────────────────────────────────────────────────────
    BATCH: unprocessed CustomerEvents → start matching runs
 ───────────────────────────────────────────────────────────── */
 

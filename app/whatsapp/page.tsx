@@ -223,7 +223,7 @@ export default function WhatsAppPage() {
       )}
 
       {/* Top bar */}
-      <div className="flex items-center justify-between px-6 h-14 shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(9,9,15,0.95)', backdropFilter: 'blur(24px)' }}>
+      <div className="flex items-center justify-between px-4 md:px-6 h-14 shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(9,9,15,0.95)', backdropFilter: 'blur(24px)' }}>
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'rgba(34,201,122,0.15)', border: '1px solid rgba(34,201,122,0.25)' }}>
             <MessageSquare size={15} style={{ color: '#22c97a' }} />
@@ -324,7 +324,7 @@ function OverviewTab({ stats, settings, onGoConnection }: { stats: WaStats; sett
   return (
     <div className="p-6 space-y-5 max-w-6xl">
       {/* KPI grid */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         {kpis.map(k => {
           const Icon = k.icon
           return (

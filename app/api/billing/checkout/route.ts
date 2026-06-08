@@ -21,8 +21,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Bilinmeyen plan: ${planId}` }, { status: 400 })
   }
 
-  if (!process.env.LEMONSQUEEZY_API_KEY || !process.env.LEMONSQUEEZY_STORE_ID) {
-    console.error('[Billing] LS env vars eksik')
+  if (!process.env.LEMONSQUEEZY_API_KEY) {
+    console.error('[Billing] LEMONSQUEEZY_API_KEY eksik')
     return NextResponse.json({ error: 'Ödeme sistemi yapılandırılmamış' }, { status: 503 })
   }
 
