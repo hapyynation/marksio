@@ -4,36 +4,12 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Store, Link2, Zap, ArrowRight, ArrowLeft, Check,
-  ShoppingBag, LayoutGrid, Users, Loader2,
+  ShoppingBag, LayoutGrid, Users, Loader2, AlertCircle, Eye, EyeOff,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const INDUSTRIES = [
   'Moda', 'Elektronik', 'Ev & Yaşam', 'Kozmetik', 'Spor', 'Gıda', 'Diğer',
-]
-
-const PLATFORMS = [
-  {
-    id: 'shopify',
-    name: 'Shopify',
-    logo: '🛍️',
-    desc: 'Shopify mağazanı bağla',
-    connectUrl: '/api/integrations/shopify/auth',
-  },
-  {
-    id: 'ikas',
-    name: 'İkas',
-    logo: '🏪',
-    desc: 'İkas mağazanı bağla',
-    connectUrl: '#',
-  },
-  {
-    id: 'woocommerce',
-    name: 'WooCommerce',
-    logo: '🛒',
-    desc: 'WooCommerce mağazanı bağla',
-    connectUrl: '#',
-  },
 ]
 
 const QUICK_STARTS = [
@@ -66,6 +42,16 @@ const QUICK_STARTS = [
   },
 ]
 
+const INPUT_STYLE = {
+  background: '#0a0a14',
+  border: '1px solid rgba(255,255,255,0.1)',
+  color: '#e5e2e1',
+} as const
+
+function inputCls() {
+  return 'w-full px-3 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/30'
+}
+
 export default function OnboardingPage() {
   const router = useRouter()
   const [step, setStep]           = useState(1)
@@ -74,6 +60,27 @@ export default function OnboardingPage() {
   const [industry, setIndustry]   = useState('')
   const [saving, setSaving]       = useState(false)
   const [checking, setChecking]   = useState(true)
+
+  // Platform connection state
+  const [expanded, setExpanded]         = useState<string | null>(null)
+  const [connected, setConnected]       = useState<string[]>([])
+  const [connecting, setConnecting]     = useState(false)
+  const [connectError, setConnectError] = useState('')
+
+  // Shopify
+  const [shopDomain, setShopDomain] = useState('')
+
+  // İkas
+  const [ikasStore, setIkasStore]   = useState('')
+  const [ikasToken, setIkasToken]   = useState('')
+  const [showIkasToken, setShowIkasToken] = useState(false)
+
+  // WooCommerce
+  const [wooUrl, setWooUrl]         = useState('')
+  const [wooKey, setWooKey]         = useState('')
+  const [wooSecret, setWooSecret]   = useState('')
+  const [showWooKey, setShowWooKey]     = useState(false)
+  const [showWooSecret, setShowWooSecret] = useState(false)
 
   useEffect(() => {
     fetch('/api/auth/me')
@@ -95,6 +102,54 @@ export default function OnboardingPage() {
       })
     } catch { /* ignore */ }
     router.push(destination)
+  }
+
+  function togglePlatform(id: string) {
+    setConnectError('')
+    setExpanded(prev => prev === id ? null : id)
+  }
+
+  function handleShopifyConnect() {
+    if (!shopDomain.trim()) return
+    const clean = shopDomain.trim().replace(/^https?:\/\//, '').replace(/\/$/, '')
+    const domain = clean.includes('.') ? clean : `${clean}.myshopify.com`
+    window.location.href = `/api/integrations/shopify/auth?shop=${encodeURIComponent(domain)}`
+  }
+
+  async function handleIkasConnect() {
+    if (!ikasStore.trim() || !ikasToken.trim()) return
+    setConnecting(true); setConnectError('')
+    try {
+      const res  = await fetch('/api/integrations/ikas/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ storeName: ikasStore.trim(), accessToken: ikasToken.trim() }),
+      })
+      const data = await res.json() as { error?: string }
+      if (!res.ok) throw new Error(data.error ?? 'Bağlantı hatası')
+      setConnected(p => [...p, 'ikas'])
+      setExpanded(null)
+    } catch (e) {
+      setConnectError(e instanceof Error ? e.message : 'Bağlantı hatası')
+    } finally { setConnecting(false) }
+  }
+
+  async function handleWooConnect() {
+    if (!wooUrl.trim() || !wooKey.trim() || !wooSecret.trim()) return
+    setConnecting(true); setConnectError('')
+    try {
+      const res  = await fetch('/api/integrations/woocommerce/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ storeUrl: wooUrl.trim(), consumerKey: wooKey.trim(), consumerSecret: wooSecret.trim() }),
+      })
+      const data = await res.json() as { error?: string }
+      if (!res.ok) throw new Error(data.error ?? 'Bağlantı hatası')
+      setConnected(p => [...p, 'woocommerce'])
+      setExpanded(null)
+    } catch (e) {
+      setConnectError(e instanceof Error ? e.message : 'Bağlantı hatası')
+    } finally { setConnecting(false) }
   }
 
   if (checking) {
@@ -165,12 +220,8 @@ export default function OnboardingPage() {
                     value={storeName}
                     onChange={e => setStoreName(e.target.value)}
                     placeholder="Örn: Moda Markam"
-                    className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm outline-none"
-                    style={{
-                      background: '#0f0f1a',
-                      border: '1px solid rgba(255,255,255,0.08)',
-                      color: '#e5e2e1',
-                    }}
+                    className={cn('pl-9 pr-4', inputCls())}
+                    style={INPUT_STYLE}
                   />
                 </div>
               </div>
@@ -185,12 +236,8 @@ export default function OnboardingPage() {
                     value={storeUrl}
                     onChange={e => setStoreUrl(e.target.value)}
                     placeholder="https://magazam.com"
-                    className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm outline-none"
-                    style={{
-                      background: '#0f0f1a',
-                      border: '1px solid rgba(255,255,255,0.08)',
-                      color: '#e5e2e1',
-                    }}
+                    className={cn('pl-9 pr-4', inputCls())}
+                    style={INPUT_STYLE}
                   />
                 </div>
               </div>
@@ -236,23 +283,222 @@ export default function OnboardingPage() {
             </div>
 
             <div className="space-y-3">
-              {PLATFORMS.map(p => (
-                <a key={p.id} href={p.connectUrl}
-                  className="flex items-center justify-between p-4 rounded-xl transition-all group"
-                  style={{ background: '#0f0f1a', border: '1px solid rgba(255,255,255,0.07)' }}>
+
+              {/* ── Shopify ── */}
+              <div className="rounded-xl overflow-hidden" style={{
+                background: '#0f0f1a',
+                border: connected.includes('shopify') ? '1px solid rgba(34,201,122,0.3)' : '1px solid rgba(255,255,255,0.07)',
+              }}>
+                <button
+                  onClick={() => !connected.includes('shopify') && togglePlatform('shopify')}
+                  className="w-full flex items-center justify-between p-4 text-left"
+                >
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl">{p.logo}</span>
+                    <span className="text-2xl">🛍️</span>
                     <div>
-                      <p className="text-sm font-bold" style={{ color: '#e5e2e1' }}>{p.name}</p>
-                      <p className="text-xs" style={{ color: '#424656' }}>{p.desc}</p>
+                      <p className="text-sm font-bold" style={{ color: '#e5e2e1' }}>Shopify</p>
+                      <p className="text-xs" style={{ color: '#424656' }}>Shopify mağazanı bağla</p>
                     </div>
                   </div>
-                  <span className="text-xs font-bold px-3 py-1.5 rounded-lg"
-                    style={{ background: 'rgba(68,112,255,0.1)', border: '1px solid rgba(68,112,255,0.2)', color: '#6b9fff' }}>
-                    Bağla
-                  </span>
-                </a>
-              ))}
+                  {connected.includes('shopify') ? (
+                    <span className="text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5"
+                      style={{ background: 'rgba(34,201,122,0.1)', border: '1px solid rgba(34,201,122,0.25)', color: '#22c97a' }}>
+                      <Check className="w-3.5 h-3.5" /> Bağlandı
+                    </span>
+                  ) : (
+                    <span className="text-xs font-bold px-3 py-1.5 rounded-lg"
+                      style={{ background: 'rgba(68,112,255,0.1)', border: '1px solid rgba(68,112,255,0.2)', color: '#6b9fff' }}>
+                      {expanded === 'shopify' ? 'Kapat' : 'Bağla'}
+                    </span>
+                  )}
+                </button>
+
+                {expanded === 'shopify' && (
+                  <div className="px-4 pb-4 space-y-3" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                    <p className="text-xs pt-3" style={{ color: '#8c90a1' }}>
+                      Mağaza adresinizi girin. OAuth sayfasına yönlendirileceksiniz.
+                    </p>
+                    <div className="flex gap-2">
+                      <input
+                        value={shopDomain}
+                        onChange={e => setShopDomain(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && handleShopifyConnect()}
+                        placeholder="magazaniz.myshopify.com"
+                        className={inputCls()}
+                        style={INPUT_STYLE}
+                      />
+                      <button
+                        onClick={handleShopifyConnect}
+                        disabled={!shopDomain.trim()}
+                        className="shrink-0 px-4 py-2.5 rounded-xl text-sm font-bold disabled:opacity-40 transition-all"
+                        style={{ background: '#96bf48', color: '#fff' }}>
+                        <ShoppingBag className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* ── İkas ── */}
+              <div className="rounded-xl overflow-hidden" style={{
+                background: '#0f0f1a',
+                border: connected.includes('ikas') ? '1px solid rgba(34,201,122,0.3)' : '1px solid rgba(255,255,255,0.07)',
+              }}>
+                <button
+                  onClick={() => !connected.includes('ikas') && togglePlatform('ikas')}
+                  className="w-full flex items-center justify-between p-4 text-left"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">🏪</span>
+                    <div>
+                      <p className="text-sm font-bold" style={{ color: '#e5e2e1' }}>İkas</p>
+                      <p className="text-xs" style={{ color: '#424656' }}>İkas mağazanı bağla</p>
+                    </div>
+                  </div>
+                  {connected.includes('ikas') ? (
+                    <span className="text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5"
+                      style={{ background: 'rgba(34,201,122,0.1)', border: '1px solid rgba(34,201,122,0.25)', color: '#22c97a' }}>
+                      <Check className="w-3.5 h-3.5" /> Bağlandı
+                    </span>
+                  ) : (
+                    <span className="text-xs font-bold px-3 py-1.5 rounded-lg"
+                      style={{ background: 'rgba(68,112,255,0.1)', border: '1px solid rgba(68,112,255,0.2)', color: '#6b9fff' }}>
+                      {expanded === 'ikas' ? 'Kapat' : 'Bağla'}
+                    </span>
+                  )}
+                </button>
+
+                {expanded === 'ikas' && (
+                  <div className="px-4 pb-4 space-y-3" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                    <p className="text-xs pt-3" style={{ color: '#8c90a1' }}>
+                      İkas Admin → API → Token oluştur
+                    </p>
+                    <input
+                      value={ikasStore}
+                      onChange={e => setIkasStore(e.target.value)}
+                      placeholder="Mağaza adı (örn: magazaniz)"
+                      className={inputCls()}
+                      style={INPUT_STYLE}
+                    />
+                    <div className="relative">
+                      <input
+                        type={showIkasToken ? 'text' : 'password'}
+                        value={ikasToken}
+                        onChange={e => setIkasToken(e.target.value)}
+                        placeholder="API Token"
+                        className={cn('pr-10', inputCls())}
+                        style={INPUT_STYLE}
+                      />
+                      <button type="button" onClick={() => setShowIkasToken(v => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: '#424656' }}>
+                        {showIkasToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    {connectError && expanded === 'ikas' && (
+                      <div className="flex items-center gap-2 text-xs px-3 py-2 rounded-xl"
+                        style={{ background: 'rgba(232,69,69,0.08)', border: '1px solid rgba(232,69,69,0.2)', color: '#e84545' }}>
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {connectError}
+                      </div>
+                    )}
+                    <button
+                      onClick={handleIkasConnect}
+                      disabled={connecting || !ikasStore.trim() || !ikasToken.trim()}
+                      className="w-full py-2.5 rounded-xl text-sm font-bold disabled:opacity-40 flex items-center justify-center gap-2"
+                      style={{ background: 'linear-gradient(135deg,#0066ff,#00f1fe)', color: '#fff' }}>
+                      {connecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
+                      {connecting ? 'Bağlanıyor...' : 'Bağla'}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* ── WooCommerce ── */}
+              <div className="rounded-xl overflow-hidden" style={{
+                background: '#0f0f1a',
+                border: connected.includes('woocommerce') ? '1px solid rgba(34,201,122,0.3)' : '1px solid rgba(255,255,255,0.07)',
+              }}>
+                <button
+                  onClick={() => !connected.includes('woocommerce') && togglePlatform('woocommerce')}
+                  className="w-full flex items-center justify-between p-4 text-left"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">🛒</span>
+                    <div>
+                      <p className="text-sm font-bold" style={{ color: '#e5e2e1' }}>WooCommerce</p>
+                      <p className="text-xs" style={{ color: '#424656' }}>WooCommerce mağazanı bağla</p>
+                    </div>
+                  </div>
+                  {connected.includes('woocommerce') ? (
+                    <span className="text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5"
+                      style={{ background: 'rgba(34,201,122,0.1)', border: '1px solid rgba(34,201,122,0.25)', color: '#22c97a' }}>
+                      <Check className="w-3.5 h-3.5" /> Bağlandı
+                    </span>
+                  ) : (
+                    <span className="text-xs font-bold px-3 py-1.5 rounded-lg"
+                      style={{ background: 'rgba(68,112,255,0.1)', border: '1px solid rgba(68,112,255,0.2)', color: '#6b9fff' }}>
+                      {expanded === 'woocommerce' ? 'Kapat' : 'Bağla'}
+                    </span>
+                  )}
+                </button>
+
+                {expanded === 'woocommerce' && (
+                  <div className="px-4 pb-4 space-y-3" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                    <p className="text-xs pt-3" style={{ color: '#8c90a1' }}>
+                      WooCommerce → Ayarlar → Gelişmiş → REST API
+                    </p>
+                    <input
+                      value={wooUrl}
+                      onChange={e => setWooUrl(e.target.value)}
+                      placeholder="https://magazaniz.com"
+                      className={inputCls()}
+                      style={INPUT_STYLE}
+                    />
+                    <div className="relative">
+                      <input
+                        type={showWooKey ? 'text' : 'password'}
+                        value={wooKey}
+                        onChange={e => setWooKey(e.target.value)}
+                        placeholder="Consumer Key (ck_...)"
+                        className={cn('pr-10', inputCls())}
+                        style={INPUT_STYLE}
+                      />
+                      <button type="button" onClick={() => setShowWooKey(v => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: '#424656' }}>
+                        {showWooKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    <div className="relative">
+                      <input
+                        type={showWooSecret ? 'text' : 'password'}
+                        value={wooSecret}
+                        onChange={e => setWooSecret(e.target.value)}
+                        placeholder="Consumer Secret (cs_...)"
+                        className={cn('pr-10', inputCls())}
+                        style={INPUT_STYLE}
+                      />
+                      <button type="button" onClick={() => setShowWooSecret(v => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: '#424656' }}>
+                        {showWooSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    {connectError && expanded === 'woocommerce' && (
+                      <div className="flex items-center gap-2 text-xs px-3 py-2 rounded-xl"
+                        style={{ background: 'rgba(232,69,69,0.08)', border: '1px solid rgba(232,69,69,0.2)', color: '#e84545' }}>
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {connectError}
+                      </div>
+                    )}
+                    <button
+                      onClick={handleWooConnect}
+                      disabled={connecting || !wooUrl.trim() || !wooKey.trim() || !wooSecret.trim()}
+                      className="w-full py-2.5 rounded-xl text-sm font-bold disabled:opacity-40 flex items-center justify-center gap-2"
+                      style={{ background: 'linear-gradient(135deg,#0066ff,#00f1fe)', color: '#fff' }}>
+                      {connecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
+                      {connecting ? 'Bağlanıyor...' : 'Bağla'}
+                    </button>
+                  </div>
+                )}
+              </div>
+
             </div>
 
             <div className="flex items-center gap-3">
@@ -264,7 +510,7 @@ export default function OnboardingPage() {
               <button onClick={() => setStep(3)}
                 className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-70"
                 style={{ color: '#424656' }}>
-                Şimdilik Atla →
+                {connected.length > 0 ? 'Devam Et →' : 'Şimdilik Atla →'}
               </button>
             </div>
           </div>
