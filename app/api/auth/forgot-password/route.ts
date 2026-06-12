@@ -48,7 +48,8 @@ export async function POST(req: NextRequest) {
 
     const resetUrl = `${BASE_URL}/reset-password?token=${token}`
 
-    await resend.emails.send({
+    console.log('[forgot-password] Sending reset email to:', email)
+    const { error: emailError } = await resend.emails.send({
       from: getSystemFromAddress(),
       to: email,
       subject: 'Şifre Sıfırlama — Marksio',
@@ -101,6 +102,10 @@ export async function POST(req: NextRequest) {
 </html>
       `,
     })
+
+    if (emailError) {
+      console.error('[forgot-password] Resend error:', JSON.stringify(emailError))
+    }
 
     return NextResponse.json({ success: true })
   } catch (err) {

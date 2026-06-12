@@ -39,7 +39,8 @@ export async function POST(req: NextRequest) {
 
     const verifyUrl = `${BASE_URL}/api/auth/verify-email?token=${token}`
 
-    await resend.emails.send({
+    console.log('[resend-verification] Sending email to:', email)
+    const { error: emailError } = await resend.emails.send({
       from: getSystemFromAddress(),
       to: email,
       subject: 'E-postanızı doğrulayın — Marksio',
@@ -87,6 +88,10 @@ export async function POST(req: NextRequest) {
 </body>
 </html>`,
     })
+
+    if (emailError) {
+      console.error('[resend-verification] Resend error:', JSON.stringify(emailError))
+    }
 
     return NextResponse.json({ success: true })
   } catch (err) {

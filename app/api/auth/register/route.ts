@@ -55,7 +55,8 @@ export async function POST(req: NextRequest) {
 
     const verifyUrl = `${BASE_URL}/api/auth/verify-email?token=${token}`
 
-    await resend.emails.send({
+    console.log('[register] Sending verification email to:', email, 'from:', getSystemFromAddress())
+    const { error: emailError } = await resend.emails.send({
       from: getSystemFromAddress(),
       to: email,
       subject: 'E-postanızı doğrulayın — Marksio',
@@ -105,8 +106,15 @@ export async function POST(req: NextRequest) {
 </html>`,
     })
 
+    if (emailError) {
+      console.error('[register] Resend error:', JSON.stringify(emailError))
+    } else {
+      console.log('[register] Verification email sent successfully to:', email)
+    }
+
     return NextResponse.json({ success: true, userId: user.id })
   } catch (err) {
+    console.error('[register] Unexpected error:', err)
     const message = err instanceof Error ? err.message : 'Kayıt hatası'
     return NextResponse.json({ error: message }, { status: 500 })
   }
