@@ -34,9 +34,7 @@ const NAV_CORE: NavItem[] = [
 ]
 
 const NAV_AI: NavItem[] = [
-  { href: '/whatsapp',         label: 'WhatsApp AI',   icon: 'smart_toy' },
-  { href: '/ai-studio',        label: 'AI Stüdyo',     icon: 'auto_awesome' },
-  { href: '/ai-studio/assets', label: 'AI Assets',     icon: 'perm_media' },
+  { href: '/whatsapp', label: 'WhatsApp AI', icon: 'smart_toy' },
 ]
 
 const NAV_BOTTOM: NavItem[] = [

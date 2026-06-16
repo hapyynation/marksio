@@ -13,7 +13,7 @@ import { cn, formatNumber } from '@/lib/utils'
 
 /* ─── Types ──────────────────────────────────────────────────────────────────── */
 
-type WaTab = 'overview' | 'quick-replies' | 'bot-settings' | 'test' | 'connection' | 'conversations'
+type WaTab = 'overview' | 'campaigns' | 'conversations' | 'quick-replies' | 'bot-settings' | 'test' | 'connection'
 
 interface WaSettings {
   botName: string
@@ -203,12 +203,13 @@ export default function WhatsAppPage() {
   useEffect(() => { loadSettings() }, [loadSettings])
 
   const TABS: Array<{ key: WaTab; label: string; icon: React.ElementType }> = [
-    { key: 'overview',      label: 'Genel Bakış',   icon: Activity },
-    { key: 'quick-replies', label: 'Hızlı Yanıtlar', icon: Zap },
-    { key: 'bot-settings',  label: 'Bot Ayarları',   icon: Settings },
-    { key: 'test',          label: 'Test',            icon: MessageCircle },
-    { key: 'connection',    label: 'Bağlantı',        icon: Link2 },
+    { key: 'overview',      label: 'Genel Bakış',    icon: Activity },
+    { key: 'campaigns',     label: 'Kampanyalar',     icon: Send },
     { key: 'conversations', label: 'Konuşmalar',      icon: Users },
+    { key: 'quick-replies', label: 'Hızlı Yanıtlar',  icon: Zap },
+    { key: 'bot-settings',  label: 'Bot Ayarları',    icon: Settings },
+    { key: 'test',          label: 'Test',             icon: MessageCircle },
+    { key: 'connection',    label: 'Bağlantı',         icon: Link2 },
   ]
 
   return (
@@ -263,11 +264,12 @@ export default function WhatsAppPage() {
         ) : (
           <>
             {tab === 'overview'      && <OverviewTab stats={stats} settings={settings} onGoConnection={() => setTab('connection')} />}
+            {tab === 'campaigns'     && <WaCampaignsTab showToast={showToast} />}
+            {tab === 'conversations' && <ConversationsTab />}
             {tab === 'quick-replies' && <QuickRepliesTab showToast={showToast} />}
             {tab === 'bot-settings'  && <BotSettingsTab settings={settings} onSave={loadSettings} showToast={showToast} />}
             {tab === 'test'          && <TestTab />}
             {tab === 'connection'    && <ConnectionTab settings={settings} onSave={loadSettings} showToast={showToast} />}
-            {tab === 'conversations' && <ConversationsTab />}
           </>
         )}
       </div>
@@ -1051,4 +1053,534 @@ function ConvStatusBadge({ status, resolvedBy }: { status: string; resolvedBy?: 
   if (status === 'open')   return <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(34,201,122,0.1)', color: '#22c97a' }}>Açık</span>
   if (status === 'closed') return <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(255,255,255,0.05)', color: '#8080a0' }}>Çözüldü</span>
   return <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(255,255,255,0.04)', color: '#44445a' }}>{status}</span>
+}
+
+/* ─── WhatsApp Campaigns Tab ─────────────────────────────────────────────────── */
+
+interface WaCampaign {
+  id: string
+  name: string
+  status: string
+  messagesSent: number
+  scheduledAt?: string | null
+  createdAt: string
+}
+
+interface Segment {
+  id: string
+  name: string
+  customerCount: number
+  type: string
+}
+
+type WaWizardData = {
+  name: string
+  type: 'broadcast' | 'scheduled'
+  description: string
+  messageType: 'free' | 'template'
+  messageContent: string
+  segmentIds: string[]
+  scheduledAt: string
+  scheduledTime: string
+}
+
+const WA_WIZARD_INITIAL: WaWizardData = {
+  name: '',
+  type: 'broadcast',
+  description: '',
+  messageType: 'free',
+  messageContent: '',
+  segmentIds: [],
+  scheduledAt: '',
+  scheduledTime: '10:00',
+}
+
+const WA_VARS = ['{{isim}}', '{{email}}', '{{sipariş_no}}', '{{telefon}}']
+
+function PhonePreview({ content }: { content: string }) {
+  const sample = content
+    .replace(/\{\{isim\}\}/g, 'Ali')
+    .replace(/\{\{email\}\}/g, 'ali@example.com')
+    .replace(/\{\{sipariş_no\}\}/g, '#12345')
+    .replace(/\{\{telefon\}\}/g, '+90 555 000 0000')
+
+  return (
+    <div className="flex flex-col items-center shrink-0">
+      <div className="rounded-[24px] overflow-hidden" style={{ width: 190, background: '#111', border: '2px solid rgba(255,255,255,0.1)' }}>
+        {/* WA status bar */}
+        <div className="px-3 py-2 flex items-center gap-2" style={{ background: '#075e54' }}>
+          <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.2)' }}>
+            <MessageSquare size={11} className="text-white" />
+          </div>
+          <span className="text-white text-[11px] font-semibold">Mağaza</span>
+          <span className="ml-auto text-[9px] text-white/60">14:32</span>
+        </div>
+        {/* Chat area */}
+        <div className="px-2 py-3 min-h-[140px]" style={{ background: '#0a0a0a' }}>
+          {sample ? (
+            <div className="rounded-[4px_12px_12px_12px] px-3 py-2.5 text-[11px] leading-relaxed max-w-[85%]" style={{ background: '#1f2c1f', color: '#e0e0e0', border: '1px solid rgba(34,201,122,0.15)' }}>
+              {sample.split('\n').map((line, i) => (
+                <span key={i}>{line}{i < sample.split('\n').length - 1 && <br />}</span>
+              ))}
+              <div className="flex justify-end mt-1.5">
+                <span style={{ color: '#22c97a', fontSize: 9 }}>✓✓ 14:32</span>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-20">
+              <p style={{ color: '#33334a', fontSize: 11 }}>Önizleme burada görünür</p>
+            </div>
+          )}
+        </div>
+      </div>
+      <p className="text-[10px] mt-2" style={{ color: '#44445a' }}>Canlı önizleme</p>
+    </div>
+  )
+}
+
+function WaCampaignsTab({ showToast }: { showToast: (m: string, t?: 'success' | 'error') => void }) {
+  const [campaigns, setCampaigns] = useState<WaCampaign[]>([])
+  const [listLoading, setListLoading] = useState(true)
+  const [showWizard, setShowWizard] = useState(false)
+  const [step, setStep] = useState(1)
+  const [data, setData] = useState<WaWizardData>(WA_WIZARD_INITIAL)
+  const [segments, setSegments] = useState<Segment[]>([])
+  const [segLoading, setSegLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
+
+  const load = useCallback(async () => {
+    setListLoading(true)
+    try {
+      const res = await fetch('/api/whatsapp/campaigns')
+      const d = await res.json()
+      setCampaigns(d.campaigns ?? [])
+    } catch { /* */ }
+    finally { setListLoading(false) }
+  }, [])
+
+  useEffect(() => { load() }, [load])
+
+  useEffect(() => {
+    if (step === 3 && segments.length === 0) {
+      setSegLoading(true)
+      fetch('/api/segments').then(r => r.json()).then(d => {
+        if (Array.isArray(d)) setSegments(d)
+        else if (d.segments) setSegments(d.segments)
+      }).catch(() => {}).finally(() => setSegLoading(false))
+    }
+  }, [step, segments.length])
+
+  const recipientCount = segments
+    .filter(s => data.segmentIds.includes(s.id))
+    .reduce((sum, s) => sum + (s.customerCount ?? 0), 0)
+
+  const toggleSegment = (id: string) => {
+    setData(p => ({
+      ...p,
+      segmentIds: p.segmentIds.includes(id) ? p.segmentIds.filter(x => x !== id) : [...p.segmentIds, id],
+    }))
+  }
+
+  const insertVar = (v: string) => {
+    setData(p => ({ ...p, messageContent: p.messageContent + v }))
+  }
+
+  const submit = async () => {
+    setSaving(true)
+    try {
+      const scheduledAt = data.type === 'scheduled' && data.scheduledAt
+        ? new Date(`${data.scheduledAt}T${data.scheduledTime}`).toISOString()
+        : null
+      const res = await fetch('/api/whatsapp/campaigns', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: data.name,
+          type: data.type,
+          description: data.description,
+          messageContent: data.messageContent,
+          segmentIds: data.segmentIds,
+          scheduledAt,
+        }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error ?? 'Kampanya oluşturulamadı')
+      }
+      showToast('WhatsApp kampanyası oluşturuldu!')
+      setShowWizard(false)
+      setStep(1)
+      setData(WA_WIZARD_INITIAL)
+      load()
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Hata oluştu', 'error')
+    } finally { setSaving(false) }
+  }
+
+  const STEPS = ['Bilgiler', 'Mesaj', 'Alıcılar', 'Gönder']
+
+  const estSeconds = Math.ceil(recipientCount * 2)
+
+  if (showWizard) {
+    return (
+      <div className="flex h-full min-h-0 overflow-hidden">
+        {/* Left sidebar */}
+        <div className="w-52 shrink-0 flex flex-col p-5 gap-2" style={{ borderRight: '1px solid rgba(255,255,255,0.06)', background: 'rgba(0,0,0,0.15)' }}>
+          <button onClick={() => { setShowWizard(false); setStep(1); setData(WA_WIZARD_INITIAL) }}
+            className="flex items-center gap-1.5 text-[11px] mb-4 transition-colors hover:text-white"
+            style={{ color: '#44445a', background: 'none', border: 'none', cursor: 'pointer' }}>
+            <ArrowLeft size={13} /> Geri dön
+          </button>
+          {STEPS.map((label, i) => {
+            const idx = i + 1
+            const active = step === idx
+            const done = step > idx
+            return (
+              <div key={label} className="flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all"
+                style={{ background: active ? 'rgba(34,201,122,0.1)' : 'transparent', border: active ? '1px solid rgba(34,201,122,0.2)' : '1px solid transparent' }}>
+                <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-[10px] font-bold"
+                  style={{ background: done ? '#22c97a' : active ? 'rgba(34,201,122,0.2)' : 'rgba(255,255,255,0.06)', color: done ? '#050505' : active ? '#22c97a' : '#44445a' }}>
+                  {done ? <Check size={10} /> : idx}
+                </div>
+                <span className="text-[12px] font-semibold" style={{ color: active ? '#22c97a' : done ? '#8080a0' : '#44445a' }}>{label}</span>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Wizard content */}
+        <div className="flex-1 overflow-auto p-6 max-w-3xl">
+          {/* Progress bar */}
+          <div className="w-full h-1 rounded-full mb-6" style={{ background: 'rgba(255,255,255,0.06)' }}>
+            <div className="h-1 rounded-full transition-all duration-500"
+              style={{ width: `${(step / STEPS.length) * 100}%`, background: 'linear-gradient(90deg, #22c97a, #4470ff)' }} />
+          </div>
+
+          {/* Step 1: Campaign info */}
+          {step === 1 && (
+            <div className="space-y-5">
+              <div>
+                <h2 className="text-[16px] font-bold text-white mb-1">Kampanya Bilgileri</h2>
+                <p className="text-[12px]" style={{ color: '#44445a' }}>Kampanyanıza bir isim verin ve türünü seçin.</p>
+              </div>
+              <Field label="Kampanya Adı">
+                <input value={data.name} onChange={e => setData(p => ({ ...p, name: e.target.value }))}
+                  placeholder="Ramazan Özel Kampanyası" className={inpCls} style={inpStyle} />
+              </Field>
+              <div>
+                <label className="block text-[11px] font-semibold mb-3" style={{ color: '#8080a0' }}>Kampanya Türü</label>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { key: 'broadcast', label: 'Tek Seferlik', desc: 'Hemen veya bir kerede gönder' },
+                    { key: 'scheduled', label: 'Zamanlanmış', desc: 'İleri tarihte otomatik gönder' },
+                  ].map(opt => (
+                    <button key={opt.key} onClick={() => setData(p => ({ ...p, type: opt.key as 'broadcast' | 'scheduled' }))}
+                      className="text-left p-4 rounded-xl transition-all"
+                      style={{ background: data.type === opt.key ? 'rgba(34,201,122,0.1)' : 'rgba(255,255,255,0.03)', border: `1px solid ${data.type === opt.key ? 'rgba(34,201,122,0.3)' : 'rgba(255,255,255,0.07)'}` }}>
+                      <p className="text-[13px] font-semibold mb-1" style={{ color: data.type === opt.key ? '#22c97a' : '#eeeef4' }}>{opt.label}</p>
+                      <p className="text-[11px]" style={{ color: '#44445a' }}>{opt.desc}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <Field label="Açıklama (isteğe bağlı)">
+                <textarea value={data.description} onChange={e => setData(p => ({ ...p, description: e.target.value }))}
+                  rows={2} placeholder="Kampanya hakkında kısa not..." className={cn(inpCls, 'resize-none')} style={inpStyle} />
+              </Field>
+              <button onClick={() => setStep(2)} disabled={!data.name.trim()}
+                className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-[13px] font-bold disabled:opacity-40 transition-all"
+                style={{ background: '#22c97a', color: '#050505' }}>
+                İleri <ChevronRight size={14} />
+              </button>
+            </div>
+          )}
+
+          {/* Step 2: Message */}
+          {step === 2 && (
+            <div className="space-y-5">
+              <div>
+                <h2 className="text-[16px] font-bold text-white mb-1">Mesaj İçeriği</h2>
+                <p className="text-[12px]" style={{ color: '#44445a' }}>Alıcılara gönderilecek mesajı yazın.</p>
+              </div>
+
+              {/* Message type */}
+              <div className="flex items-center gap-2 p-0.5 rounded-xl w-fit" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                {[{ key: 'free', label: 'Serbest Mesaj' }, { key: 'template', label: 'Onaylı Şablon' }].map(opt => (
+                  <button key={opt.key} onClick={() => setData(p => ({ ...p, messageType: opt.key as 'free' | 'template' }))}
+                    className="px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all"
+                    style={data.messageType === opt.key ? { background: 'rgba(255,255,255,0.08)', color: '#eeeef4' } : { color: '#44445a' }}>
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+
+              {data.messageType === 'free' && (
+                <div className="text-[11px] px-3 py-2 rounded-xl" style={{ background: 'rgba(240,160,32,0.06)', border: '1px solid rgba(240,160,32,0.15)', color: '#f0a020' }}>
+                  ⚠️ Serbest mesaj yalnızca son 24 saatte mesajlaşılan kişilere gönderilebilir
+                </div>
+              )}
+
+              <div className="flex gap-4">
+                <div className="flex-1 space-y-3">
+                  <Field label="Mesaj İçeriği">
+                    <textarea
+                      value={data.messageContent}
+                      onChange={e => setData(p => ({ ...p, messageContent: e.target.value }))}
+                      rows={7}
+                      placeholder={'Merhaba {{isim}},\n\nÖzel teklifimizi kaçırmayın! 🎉\n%30 indirim için tıklayın:\n{{link}}'}
+                      className={cn(inpCls, 'resize-none font-mono text-[12px]')}
+                      style={inpStyle}
+                    />
+                  </Field>
+                  {/* Variables */}
+                  <div>
+                    <p className="text-[10px] font-semibold mb-2" style={{ color: '#44445a' }}>Değişken ekle:</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {WA_VARS.map(v => (
+                        <button key={v} onClick={() => insertVar(v)}
+                          className="px-2 py-1 rounded-lg text-[10px] font-semibold transition-all"
+                          style={{ background: 'rgba(34,201,122,0.08)', color: '#22c97a', border: '1px solid rgba(34,201,122,0.15)' }}
+                          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(34,201,122,0.15)')}
+                          onMouseLeave={e => (e.currentTarget.style.background = 'rgba(34,201,122,0.08)')}>
+                          {v}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <p className="text-[10px]" style={{ color: '#33334a' }}>{data.messageContent.length}/1024 karakter</p>
+                </div>
+
+                {/* Phone preview */}
+                <PhonePreview content={data.messageContent} />
+              </div>
+
+              <div className="flex items-center gap-3">
+                <button onClick={() => setStep(1)}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-semibold"
+                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#8080a0' }}>
+                  <ArrowLeft size={13} /> Geri
+                </button>
+                <button onClick={() => setStep(3)} disabled={!data.messageContent.trim()}
+                  className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-[13px] font-bold disabled:opacity-40"
+                  style={{ background: '#22c97a', color: '#050505' }}>
+                  İleri <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 3: Recipients */}
+          {step === 3 && (
+            <div className="space-y-5">
+              <div>
+                <h2 className="text-[16px] font-bold text-white mb-1">Alıcıları Seç</h2>
+                <p className="text-[12px]" style={{ color: '#44445a' }}>Mesajın gönderileceği segmentleri seçin.</p>
+              </div>
+
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  {segLoading ? (
+                    <div className="flex items-center justify-center py-10"><Loader2 size={18} className="animate-spin" style={{ color: '#22c97a' }} /></div>
+                  ) : (
+                    <div className="space-y-2">
+                      {segments.map(seg => {
+                        const sel = data.segmentIds.includes(seg.id)
+                        return (
+                          <button key={seg.id} onClick={() => toggleSegment(seg.id)}
+                            className="w-full flex items-center justify-between p-3.5 rounded-xl text-left transition-all"
+                            style={{ background: sel ? 'rgba(34,201,122,0.08)' : 'rgba(255,255,255,0.03)', border: `1px solid ${sel ? 'rgba(34,201,122,0.25)' : 'rgba(255,255,255,0.07)'}` }}>
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-5 h-5 rounded-md flex items-center justify-center"
+                                style={{ background: sel ? '#22c97a' : 'rgba(255,255,255,0.06)', border: sel ? 'none' : '1px solid rgba(255,255,255,0.1)' }}>
+                                {sel && <Check size={11} className="text-black" />}
+                              </div>
+                              <span className="text-[13px] font-medium" style={{ color: sel ? '#22c97a' : '#eeeef4' }}>{seg.name}</span>
+                            </div>
+                            <span className="text-[11px]" style={{ color: '#44445a' }}>{seg.customerCount ?? 0} kişi</span>
+                          </button>
+                        )
+                      })}
+                      {segments.length === 0 && (
+                        <p className="text-[12px] py-6 text-center" style={{ color: '#44445a' }}>Henüz segment oluşturulmadı</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Summary box */}
+                <div className="w-48 shrink-0 p-4 rounded-xl space-y-2.5" style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                  <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: '#44445a' }}>Tahmini Erişim</p>
+                  <div className="space-y-2">
+                    <p className="text-[12px]" style={{ color: '#eeeef4' }}>👥 {recipientCount} müşteri</p>
+                    <p className="text-[12px]" style={{ color: '#22c97a' }}>📱 {recipientCount} WA numarası</p>
+                    <p className="text-[12px]" style={{ color: '#44445a' }}>🚫 0 abonelikten çıkmış</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <button onClick={() => setStep(2)}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-semibold"
+                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#8080a0' }}>
+                  <ArrowLeft size={13} /> Geri
+                </button>
+                <button onClick={() => setStep(4)} disabled={data.segmentIds.length === 0}
+                  className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-[13px] font-bold disabled:opacity-40"
+                  style={{ background: '#22c97a', color: '#050505' }}>
+                  İleri <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 4: Timing & Send */}
+          {step === 4 && (
+            <div className="space-y-5">
+              <div>
+                <h2 className="text-[16px] font-bold text-white mb-1">Zamanlama & Gönder</h2>
+                <p className="text-[12px]" style={{ color: '#44445a' }}>Gönderim zamanını seçin ve kampanyayı başlatın.</p>
+              </div>
+
+              {/* Timing */}
+              <div className="space-y-3">
+                {[
+                  { key: 'broadcast', label: 'Hemen Gönder', desc: "Kaydet'e bastığında gönderilir" },
+                  { key: 'scheduled', label: 'Zamanla', desc: 'Belirlediğin tarih ve saatte gönderilir' },
+                ].map(opt => (
+                  <button key={opt.key} onClick={() => setData(p => ({ ...p, type: opt.key as 'broadcast' | 'scheduled' }))}
+                    className="w-full flex items-center gap-3 p-4 rounded-xl text-left transition-all"
+                    style={{ background: data.type === opt.key ? 'rgba(34,201,122,0.08)' : 'rgba(255,255,255,0.03)', border: `1px solid ${data.type === opt.key ? 'rgba(34,201,122,0.25)' : 'rgba(255,255,255,0.07)'}` }}>
+                    <div className="w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0"
+                      style={{ borderColor: data.type === opt.key ? '#22c97a' : 'rgba(255,255,255,0.2)' }}>
+                      {data.type === opt.key && <div className="w-2 h-2 rounded-full" style={{ background: '#22c97a' }} />}
+                    </div>
+                    <div>
+                      <p className="text-[13px] font-semibold" style={{ color: data.type === opt.key ? '#22c97a' : '#eeeef4' }}>{opt.label}</p>
+                      <p className="text-[11px]" style={{ color: '#44445a' }}>{opt.desc}</p>
+                    </div>
+                  </button>
+                ))}
+
+                {data.type === 'scheduled' && (
+                  <div className="grid grid-cols-2 gap-3 pl-7">
+                    <Field label="Tarih">
+                      <input type="date" value={data.scheduledAt} onChange={e => setData(p => ({ ...p, scheduledAt: e.target.value }))}
+                        className={inpCls} style={inpStyle} />
+                    </Field>
+                    <Field label="Saat">
+                      <input type="time" value={data.scheduledTime} onChange={e => setData(p => ({ ...p, scheduledTime: e.target.value }))}
+                        className={inpCls} style={inpStyle} />
+                    </Field>
+                  </div>
+                )}
+              </div>
+
+              {/* WA send rate warning */}
+              {recipientCount > 0 && (
+                <div className="p-3.5 rounded-xl text-[11px] leading-relaxed"
+                  style={{ background: 'rgba(240,160,32,0.06)', border: '1px solid rgba(240,160,32,0.15)', color: '#f0a020' }}>
+                  ⚠️ <strong>WhatsApp Gönderim Hızı:</strong> Spam engellemek için mesajlar arasında 1–3 saniye beklenir.
+                  <br />{recipientCount} mesaj ≈ ~{estSeconds} saniye
+                </div>
+              )}
+
+              {/* Summary */}
+              <div className="p-4 rounded-xl space-y-2" style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                <p className="text-[11px] font-bold uppercase tracking-wider mb-3" style={{ color: '#44445a' }}>Özet</p>
+                <div className="space-y-1.5 text-[12px]">
+                  <p><span style={{ color: '#44445a' }}>Kampanya:</span> <span style={{ color: '#eeeef4' }}>{data.name}</span></p>
+                  <p><span style={{ color: '#44445a' }}>Tür:</span> <span style={{ color: '#eeeef4' }}>{data.type === 'broadcast' ? 'Hemen Gönder' : 'Zamanlanmış'}</span></p>
+                  <p><span style={{ color: '#44445a' }}>Alıcı:</span> <span style={{ color: '#22c97a' }}>{recipientCount} kişi</span></p>
+                  {data.type === 'scheduled' && data.scheduledAt && (
+                    <p><span style={{ color: '#44445a' }}>Zaman:</span> <span style={{ color: '#f0a020' }}>{data.scheduledAt} {data.scheduledTime}</span></p>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <button onClick={() => setStep(3)}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-semibold"
+                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#8080a0' }}>
+                  <ArrowLeft size={13} /> Geri
+                </button>
+                <button onClick={submit} disabled={saving || (data.type === 'scheduled' && !data.scheduledAt)}
+                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-[13px] font-bold disabled:opacity-40 transition-all"
+                  style={{ background: '#22c97a', color: '#050505' }}>
+                  {saving ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                  {saving ? 'Oluşturuluyor…' : '🚀 Kampanyayı Başlat'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  /* ── Campaign list ── */
+  const waCampaignStatus: Record<string, { label: string; color: string; bg: string }> = {
+    completed: { label: 'Gönderildi', color: '#22c97a', bg: 'rgba(34,201,122,0.1)' },
+    scheduled: { label: 'Zamanlandı', color: '#f0a020', bg: 'rgba(240,160,32,0.1)' },
+    draft:     { label: 'Taslak',     color: '#8080a0', bg: 'rgba(255,255,255,0.04)' },
+    sending:   { label: 'Gönderiliyor', color: '#4470ff', bg: 'rgba(68,112,255,0.1)' },
+    failed:    { label: 'Başarısız',  color: '#e84545', bg: 'rgba(232,69,69,0.1)'  },
+  }
+
+  return (
+    <div className="p-6 max-w-3xl">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-[15px] font-bold text-white">WhatsApp Kampanyaları</h2>
+          <p className="text-[12px] mt-0.5" style={{ color: '#44445a' }}>Toplu WhatsApp mesajları oluşturun ve gönderin</p>
+        </div>
+        <button onClick={() => { setShowWizard(true); setStep(1); setData(WA_WIZARD_INITIAL) }}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-bold transition-all"
+          style={{ background: '#22c97a', color: '#050505' }}>
+          <Plus size={14} /> Yeni Kampanya
+        </button>
+      </div>
+
+      {listLoading ? (
+        <div className="flex items-center justify-center py-20"><Loader2 size={20} className="animate-spin" style={{ color: '#22c97a' }} /></div>
+      ) : campaigns.length === 0 ? (
+        <EmptyState icon={Send} title="Henüz WhatsApp kampanyası yok" desc="Müşterilerinize toplu WhatsApp mesajı gönderin"
+          action="İlk Kampanyayı Oluştur" onAction={() => setShowWizard(true)} />
+      ) : (
+        <div className="space-y-2">
+          {campaigns.map(c => {
+            const sc = waCampaignStatus[c.status] ?? waCampaignStatus.draft
+            const dateStr = c.scheduledAt
+              ? new Date(c.scheduledAt).toLocaleString('tr-TR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+              : new Date(c.createdAt).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric' })
+            return (
+              <div key={c.id} className="p-4 rounded-2xl"
+                style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                      style={{ background: 'rgba(34,201,122,0.1)', border: '1px solid rgba(34,201,122,0.15)' }}>
+                      <MessageSquare size={16} style={{ color: '#22c97a' }} />
+                    </div>
+                    <div>
+                      <p className="text-[13px] font-semibold" style={{ color: '#eeeef4' }}>{c.name}</p>
+                      <p className="text-[11px]" style={{ color: '#44445a' }}>{dateStr}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    {c.messagesSent > 0 && (
+                      <p className="text-[11px]" style={{ color: '#44445a' }}>📱 {c.messagesSent} gönderildi</p>
+                    )}
+                    <span className="px-2.5 py-1 rounded-full text-[10px] font-bold"
+                      style={{ background: sc.bg, color: sc.color }}>
+                      {sc.label}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
 }
