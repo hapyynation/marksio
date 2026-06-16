@@ -7,7 +7,7 @@ import {
   ArrowLeft, Mail, Phone, MessageSquare, ShoppingCart,
   TrendingUp, Calendar, Tag, Star, Clock, Package,
   Sparkles, Send, Loader2, AlertCircle, ShoppingBag,
-  CheckCircle, XCircle, Truck, RotateCcw, CreditCard,
+  CheckCircle, XCircle, Truck, RotateCcw, CreditCard, X, Plus,
 } from 'lucide-react'
 import AppShell from '@/components/layout/AppShell'
 import Header from '@/components/layout/Header'
@@ -90,6 +90,9 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
   const [customer, setCustomer] = useState<CustomerDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [tags, setTags] = useState<string[]>([])
+  const [tagInput, setTagInput] = useState('')
+  const [tagSaving, setTagSaving] = useState(false)
 
   useEffect(() => {
     fetch(`/api/customers/${id}`)
@@ -98,7 +101,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
         if (!r.ok) throw new Error()
         return r.json()
       })
-      .then(d => { if (d) setCustomer(d) })
+      .then(d => { if (d) { setCustomer(d); setTags(d.tags ?? []) } })
       .catch(() => setError('Müşteri yüklenirken bir hata oluştu.'))
       .finally(() => setLoading(false))
   }, [id])
@@ -128,6 +131,32 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
         </div>
       </AppShell>
     )
+  }
+
+  async function saveTags(next: string[]) {
+    setTagSaving(true)
+    try {
+      await fetch(`/api/customers/${id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tags: next }),
+      })
+    } catch { /* silent */ }
+    setTagSaving(false)
+  }
+
+  function removeTag(tag: string) {
+    const next = tags.filter(t => t !== tag)
+    setTags(next)
+    saveTags(next)
+  }
+
+  function addTag() {
+    const t = tagInput.trim().toLowerCase().replace(/\s+/g, '_')
+    if (!t || tags.includes(t)) { setTagInput(''); return }
+    const next = [...tags, t]
+    setTags(next)
+    setTagInput('')
+    saveTags(next)
   }
 
   const seg = segmentConfig[customer.segment] ?? segmentConfig.new
@@ -196,21 +225,41 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                 </div>
               </div>
 
-              {customer.tags.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-[#1e1e1e]">
-                  <div className="flex items-center gap-1.5 mb-2">
+              <div className="mt-4 pt-4 border-t border-[#1e1e1e]">
+                <div className="flex items-center justify-between gap-1.5 mb-2">
+                  <div className="flex items-center gap-1.5">
                     <Tag className="w-3.5 h-3.5 text-gray-600" />
                     <span className="text-xs font-medium text-gray-500">Etiketler</span>
                   </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {customer.tags.map((tag) => (
-                      <span key={tag} className="text-[11px] bg-[#1a1a1a] text-gray-400 px-2 py-0.5 rounded-full border border-[#2a2a2a]">
-                        {tag.replace(/_/g, ' ')}
-                      </span>
-                    ))}
-                  </div>
+                  {tagSaving && <Loader2 className="w-3 h-3 animate-spin text-gray-600" />}
                 </div>
-              )}
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {tags.map(tag => (
+                    <span key={tag} className="inline-flex items-center gap-1 text-[11px] bg-[#1a1a1a] text-gray-400 pl-2 pr-1 py-0.5 rounded-full border border-[#2a2a2a]">
+                      {tag.replace(/_/g, ' ')}
+                      <button onClick={() => removeTag(tag)}
+                        className="w-3.5 h-3.5 rounded-full flex items-center justify-center transition-colors hover:bg-red-500/20 hover:text-red-400">
+                        <X className="w-2.5 h-2.5" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    value={tagInput}
+                    onChange={e => setTagInput(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && addTag()}
+                    placeholder="Etiket ekle..."
+                    className="flex-1 px-2.5 py-1.5 text-[11px] rounded-xl outline-none"
+                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#eeeef4' }}
+                  />
+                  <button onClick={addTag}
+                    className="p-1.5 rounded-xl transition-colors"
+                    style={{ background: 'rgba(68,112,255,0.12)', color: '#99b4ff' }}>
+                    <Plus className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
             </div>
 
             {/* Hızlı iletişim */}

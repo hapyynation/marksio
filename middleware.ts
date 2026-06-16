@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { getToken } from 'next-auth/jwt'
 
 const PUBLIC_PATHS = [
   '/login',
@@ -22,7 +23,6 @@ function isPublicPath(pathname: string): boolean {
 }
 
 function isOnboardingRequired(pathname: string): boolean {
-  // Paths that are accessible even without completing onboarding
   const exempt = ['/onboarding', '/verify-email', '/api/']
   return !exempt.some(p => pathname === p || pathname.startsWith(p))
 }
@@ -30,52 +30,63 @@ function isOnboardingRequired(pathname: string): boolean {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Pass through all API routes — they handle auth themselves
+  // API routes handle auth themselves
   if (pathname.startsWith('/api/')) {
     return NextResponse.next()
   }
 
+  // Check NextAuth session first (email+password login)
+  const nextToken = await getToken({
+    req: request,
+    secret: process.env.NEXTAUTH_SECRET,
+  })
+
   let supabaseResponse = NextResponse.next({ request })
+  let supabaseUser: { email?: string } | null = null
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() { return request.cookies.getAll() },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
-          supabaseResponse = NextResponse.next({ request })
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          )
+  // Only hit Supabase if no NextAuth session (avoids double latency)
+  if (!nextToken) {
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() { return request.cookies.getAll() },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
+            supabaseResponse = NextResponse.next({ request })
+            cookiesToSet.forEach(({ name, value, options }) =>
+              supabaseResponse.cookies.set(name, value, options)
+            )
+          },
         },
-      },
-    }
-  )
+      }
+    )
+    const { data: { user } } = await supabase.auth.getUser()
+    supabaseUser = user
+  }
 
-  const { data: { user } } = await supabase.auth.getUser()
+  const isAuthenticated = !!(nextToken || supabaseUser)
 
   // Root redirect
   if (pathname === '/') {
-    const target = user ? '/dashboard' : '/login'
-    return NextResponse.redirect(new URL(target, request.url))
+    return NextResponse.redirect(new URL(isAuthenticated ? '/dashboard' : '/login', request.url))
   }
 
-  // Logged-in user visiting auth pages → send to dashboard
-  if (user && (pathname === '/login' || pathname === '/register')) {
+  // Authenticated user visiting auth pages → dashboard
+  if (isAuthenticated && (pathname === '/login' || pathname === '/register')) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
-  // Unauthenticated user visiting protected pages → send to login, preserving destination
-  if (!user && !isPublicPath(pathname)) {
+  // Unauthenticated visiting protected route → login
+  if (!isAuthenticated && !isPublicPath(pathname)) {
     const loginUrl = new URL('/login', request.url)
     loginUrl.searchParams.set('next', pathname)
     return NextResponse.redirect(loginUrl)
   }
 
-  // Onboarding gate — redirect authenticated users who haven't completed onboarding
-  if (user && isOnboardingRequired(pathname)) {
+  // Onboarding gate
+  if (isAuthenticated && isOnboardingRequired(pathname)) {
     const onboardedCookie = request.cookies.get('marksio_onboarded')?.value
     if (!onboardedCookie) {
       return NextResponse.redirect(new URL('/onboarding', request.url))

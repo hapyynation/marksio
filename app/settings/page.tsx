@@ -9,6 +9,7 @@ import {
   Globe2, CheckCircle2, Clock, Plus, ShoppingCart, Key, Download, Pause,
   Send, Lock, Phone, Store, Bot, Upload, Webhook,
 } from 'lucide-react'
+import Link from 'next/link'
 import AppShell from '@/components/layout/AppShell'
 import { useSettingsDrawer } from '@/lib/settings-drawer-context'
 import { cn } from '@/lib/utils'
@@ -51,7 +52,8 @@ interface EmailDomain {
 interface DnsRecord {
   type: string; name: string; value: string; status?: string; priority?: number
 }
-interface ModalField { key: string; label: string; placeholder: string; secret?: boolean; hint?: string }
+interface ModalField { key: string; label: string; placeholder: string; secret?: boolean; hint?: string; hintLink?: { text: string; url: string } }
+interface IntegrationStatus { status: 'active' | 'disconnected'; lastSyncAt: string | null; contactCount: number; orderCount: number }
 
 function parseMeta(raw?: string): IntegrationMeta {
   try { return raw ? JSON.parse(raw) as IntegrationMeta : {} } catch { return {} }
@@ -84,6 +86,16 @@ function StatusBadge({ status }: { status: string }) {
       <Clock className="w-3 h-3" /> Bekliyor
     </span>
   )
+}
+
+function relativeTime(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'Az önce'
+  if (mins < 60) return `${mins} dakika önce`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours} saat önce`
+  return `${Math.floor(hours / 24)} gün önce`
 }
 
 function CopyButton({ value }: { value: string }) {
@@ -206,7 +218,18 @@ function IntegrationModal({
                   </button>
                 )}
               </div>
-              {f.hint && <p className="text-[11px] mt-1" style={{ color: 'var(--text-3)' }}>{f.hint}</p>}
+              {(f.hint ?? f.hintLink) && (
+                <p className="text-[11px] mt-1" style={{ color: 'var(--text-3)' }}>
+                  {f.hint}
+                  {f.hint && f.hintLink && ' '}
+                  {f.hintLink && (
+                    <a href={f.hintLink.url} target="_blank" rel="noopener noreferrer"
+                      className="underline">
+                      {f.hintLink.text}
+                    </a>
+                  )}
+                </p>
+              )}
             </div>
           ))}
           {error && <div className="ds-alert ds-alert-error"><AlertCircle className="w-3.5 h-3.5 shrink-0" />{error}</div>}
@@ -237,15 +260,27 @@ function IntegrationModal({
 
 function IntegrationCard({
   icon: Icon, name, desc, iconBg, iconColor, badge, integration,
-  modalFields, connectUrl, syncUrl, disconnectUrl, onConnected, comingSoon,
+  modalFields, connectUrl, syncUrl, disconnectUrl, onConnected, comingSoon, platform,
 }: {
   icon: React.ElementType; name: string; desc: string; iconBg: string; iconColor?: string; badge?: string
   integration?: Integration; modalFields: ModalField[]
   connectUrl: string; syncUrl?: string; disconnectUrl: string
-  onConnected: () => void; comingSoon?: boolean
+  onConnected: () => void; comingSoon?: boolean; platform?: string
 }) {
   const [showModal, setShowModal] = useState(false)
+  const [statusData, setStatusData] = useState<IntegrationStatus | null>(null)
+  const [statusLoading, setStatusLoading] = useState(false)
   const isConnected = integration?.status === 'active'
+
+  useEffect(() => {
+    if (!isConnected || !platform) return
+    setStatusLoading(true)
+    fetch(`/api/integrations/${platform}/status`)
+      .then(r => r.json())
+      .then((d: IntegrationStatus) => setStatusData(d))
+      .catch(() => {})
+      .finally(() => setStatusLoading(false))
+  }, [isConnected, platform])
 
   if (comingSoon) {
     return (
@@ -283,6 +318,19 @@ function IntegrationCard({
           <p className="text-xs truncate" style={{ color: 'var(--text-3)' }}>
             {isConnected && integration?.shopDomain ? integration.shopDomain : desc}
           </p>
+          {isConnected && platform && (
+            statusLoading ? (
+              <div className="h-3 w-40 rounded mt-1 animate-pulse" style={{ background: 'var(--surface-3)' }} />
+            ) : statusData ? (
+              <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-3)' }}>
+                {[
+                  statusData.lastSyncAt ? `Son sync: ${relativeTime(statusData.lastSyncAt)}` : null,
+                  statusData.contactCount > 0 ? `${statusData.contactCount.toLocaleString('tr-TR')} müşteri` : null,
+                  statusData.orderCount > 0 ? `${statusData.orderCount.toLocaleString('tr-TR')} sipariş` : null,
+                ].filter((s): s is string => s !== null).join('  ·  ')}
+              </p>
+            ) : null
+          )}
         </div>
         <button onClick={() => setShowModal(true)} className="btn-ghost p-2 rounded-lg">
           <Settings className="w-4 h-4" />
@@ -461,8 +509,11 @@ function ShopifySettingsButton({ integration, onConnected }: { integration?: Int
 
 // ─── Mail Domain Section ──────────────────────────────────────────────────────
 
+const CUSTOM_DOMAIN_PLANS = new Set(['growth', 'pro', 'scale', 'agency'])
+
 function MailDomainSection() {
   const [domains, setDomains]     = useState<EmailDomain[]>([])
+  const [plan, setPlan]           = useState<string>('starter')
   const [newDomain, setNewDomain] = useState('')
   const [creating, setCreating]   = useState(false)
   const [verifying, setVerifying] = useState<string | null>(null)
@@ -471,7 +522,12 @@ function MailDomainSection() {
   const [showAdd, setShowAdd]     = useState(false)
 
   const loadDomains = useCallback(async () => {
-    try { const res = await fetch('/api/email/domain'); const d = await res.json() as { domains?: EmailDomain[] }; setDomains(d.domains ?? []) } catch {}
+    try {
+      const res = await fetch('/api/email/domain')
+      const d = await res.json() as { domains?: EmailDomain[]; plan?: string }
+      setDomains(d.domains ?? [])
+      if (d.plan) setPlan(d.plan)
+    } catch {}
   }, [])
 
   useEffect(() => { loadDomains() }, [loadDomains])
@@ -507,32 +563,54 @@ function MailDomainSection() {
     finally { setDeleting(null) }
   }
 
+  const canAddDomain = CUSTOM_DOMAIN_PLANS.has(plan)
+
   return (
     <div className="space-y-3">
-      {/* Coming-soon notice */}
-      <div className="flex items-start gap-3 px-4 py-3.5 rounded-xl"
-        style={{ background: 'rgba(240,160,32,0.06)', border: '1px solid rgba(240,160,32,0.18)' }}>
-        <Lock className="w-4 h-4 mt-0.5 shrink-0" style={{ color: 'var(--amber)' }} />
-        <div>
-          <p className="text-xs font-semibold" style={{ color: 'var(--amber)' }}>Özel Domain — Manuel Kurulum Gerekli</p>
-          <p className="text-[11px] mt-0.5 leading-relaxed" style={{ color: 'var(--text-3)' }}>
-            Tüm gönderimler şu an <span className="font-mono" style={{ color: 'var(--text-2)' }}>noreply@mg.marksio.com</span> üzerinden yapılmaktadır.
-            Kendi domaininizi kullanmak için <a href="mailto:destek@marksio.com" className="underline" style={{ color: 'var(--text-2)' }}>destek@marksio.com</a> ile iletişime geçin.
+      {/* Plan-based notice */}
+      {!canAddDomain ? (
+        <div className="flex items-start gap-3 px-4 py-3.5 rounded-xl"
+          style={{ background: 'rgba(240,160,32,0.06)', border: '1px solid rgba(240,160,32,0.18)' }}>
+          <Lock className="w-4 h-4 mt-0.5 shrink-0" style={{ color: 'var(--amber)' }} />
+          <div>
+            <p className="text-xs font-semibold" style={{ color: 'var(--amber)' }}>Growth planı gerekli</p>
+            <p className="text-[11px] mt-0.5 leading-relaxed" style={{ color: 'var(--text-3)' }}>
+              Özel domain özelliği Growth planı ve üzerinde kullanılabilir. Şu an tüm gönderimler{' '}
+              <span className="font-mono" style={{ color: 'var(--text-2)' }}>noreply@mg.marksio.com</span>{' '}
+              üzerinden yapılmaktadır.
+            </p>
+            <Link href="/plans" className="inline-flex items-center gap-1 text-[11px] font-bold mt-2" style={{ color: 'var(--blue)' }}>
+              Planları Gör →
+            </Link>
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-start gap-3 px-4 py-3.5 rounded-xl"
+          style={{ background: 'rgba(34,201,122,0.05)', border: '1px solid rgba(34,201,122,0.15)' }}>
+          <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" style={{ color: '#22c97a' }} />
+          <p className="text-[11px] leading-relaxed" style={{ color: 'var(--text-3)' }}>
+            Kendi domaininizi ekleyerek marka adresinizden kampanya gönderebilirsiniz. DNS doğrulaması yaklaşık 5–60 dakika sürer.
           </p>
         </div>
-      </div>
+      )}
 
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-semibold" style={{ color: 'var(--text-1)' }}>Bağlı Domainler</p>
           <p className="text-xs mt-0.5" style={{ color: 'var(--text-3)' }}>SPF, DKIM, DMARC kayıtlarıyla kendi domaininizden gönderin</p>
         </div>
-        <button disabled className="btn-secondary text-xs gap-1.5 px-3 py-2 opacity-40 cursor-not-allowed">
-          <Plus className="w-3.5 h-3.5" /> Domain Ekle <span className="chip chip-muted ml-1">Yakında</span>
-        </button>
+        {canAddDomain ? (
+          <button onClick={() => { setShowAdd(s => !s); setError('') }} className="btn-secondary text-xs gap-1.5 px-3 py-2">
+            <Plus className="w-3.5 h-3.5" /> Domain Ekle
+          </button>
+        ) : (
+          <Link href="/plans" className="btn-secondary text-xs gap-1.5 px-3 py-2" style={{ opacity: 0.7 }}>
+            <Lock className="w-3.5 h-3.5" /> Yükselt
+          </Link>
+        )}
       </div>
 
-      {showAdd && (
+      {showAdd && canAddDomain && (
         <div className="rounded-xl p-4 space-y-3" style={{ background: 'var(--surface-2)', border: '1px solid rgba(68,112,255,0.2)' }}>
           <p className="text-xs font-semibold" style={{ color: 'var(--text-1)' }}>Yeni Domain Ekle</p>
           <div className="flex gap-2">
@@ -546,16 +624,6 @@ function MailDomainSection() {
           {error && <div className="ds-alert ds-alert-error"><AlertCircle className="w-3.5 h-3.5 shrink-0" />{error}</div>}
         </div>
       )}
-
-      <div className="flex items-start gap-3 px-4 py-3.5 rounded-xl"
-        style={{ background: 'rgba(34,201,122,0.05)', border: '1px solid rgba(34,201,122,0.15)' }}>
-        <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" style={{ color: '#22c97a' }} />
-        <p className="text-[11px] leading-relaxed" style={{ color: 'var(--text-3)' }}>
-          Tüm e-postalar Marksio&apos;nun doğrulanmış domain&apos;i{' '}
-          <span className="font-mono" style={{ color: 'var(--text-2)' }}>mg.marksio.com</span>{' '}
-          üzerinden gönderilmektedir. Özel domain desteği yakında eklenecektir.
-        </p>
-      </div>
 
       {domains.map(d => {
         let records: DnsRecord[] = []
@@ -833,7 +901,6 @@ function EntegrasyonlarSection({ integrations, onRefresh, oauthSuccess }: {
   const ikas      = integrations.find(i => i.platform === 'ikas')
   const woo       = integrations.find(i => i.platform === 'woocommerce')
   const whatsapp  = integrations.find(i => i.platform === 'whatsapp')
-  const resend    = integrations.find(i => i.platform === 'resend')
 
   return (
     <div className="space-y-6">
@@ -871,21 +938,21 @@ function EntegrasyonlarSection({ integrations, onRefresh, oauthSuccess }: {
 
         <IntegrationCard
           icon={Store} name="İkas" desc="Sipariş ve müşteri verilerini çek" iconBg="bg-purple-900" iconColor="#c084fc"
-          integration={ikas} onConnected={onRefresh}
+          integration={ikas} onConnected={onRefresh} platform="ikas"
           connectUrl="/api/integrations/ikas/connect" syncUrl="/api/integrations/ikas/sync" disconnectUrl="/api/integrations/ikas/disconnect"
           modalFields={[
             { key: 'storeName',   label: 'Mağaza Adı',  placeholder: 'magazaniz',  hint: 'İkas panelindeki mağaza adı' },
-            { key: 'accessToken', label: 'API Token',    placeholder: 'ey...',      secret: true, hint: 'İkas Admin → API → Token oluştur' },
+            { key: 'accessToken', label: 'API Token',    placeholder: 'ey...',      secret: true, hint: 'İkas Admin → API → Token oluştur', hintLink: { text: 'Nasıl alırım? →', url: 'https://docs.ikas.com' } },
           ]}
         />
 
         <IntegrationCard
           icon={Globe} name="WooCommerce" desc="WordPress/WooCommerce sipariş ve müşteri verilerini çek" iconBg="bg-blue-900" iconColor="#60a5fa"
-          integration={woo} onConnected={onRefresh}
+          integration={woo} onConnected={onRefresh} platform="woocommerce"
           connectUrl="/api/integrations/woocommerce/connect" syncUrl="/api/integrations/woocommerce/sync" disconnectUrl="/api/integrations/woocommerce/disconnect"
           modalFields={[
             { key: 'storeUrl',       label: 'Mağaza URL',      placeholder: 'https://magazaniz.com' },
-            { key: 'consumerKey',    label: 'Consumer Key',    placeholder: 'ck_...', secret: true },
+            { key: 'consumerKey',    label: 'Consumer Key',    placeholder: 'ck_...', secret: true, hint: 'WooCommerce → Ayarlar → Gelişmiş → REST API → Anahtar Ekle → Okuma/Yazma izni ver', hintLink: { text: 'Detaylı rehber →', url: 'https://woocommerce.com/document/woocommerce-rest-api/' } },
             { key: 'consumerSecret', label: 'Consumer Secret', placeholder: 'cs_...', secret: true },
           ]}
         />
@@ -908,14 +975,6 @@ function EntegrasyonlarSection({ integrations, onRefresh, oauthSuccess }: {
           ]}
         />
 
-        <IntegrationCard
-          icon={Mail} name="Resend" desc="Kustom e-posta gönderimi için Resend API anahtarı" iconBg="bg-zinc-800" iconColor="#eeeef4"
-          integration={resend} onConnected={onRefresh}
-          connectUrl="/api/integrations/resend/connect" disconnectUrl="/api/integrations/resend/disconnect"
-          modalFields={[
-            { key: 'apiKey', label: 'API Anahtarı', placeholder: 're_...', secret: true, hint: 'resend.com → API Keys → Create API Key' },
-          ]}
-        />
       </div>
 
       {/* Webhooks */}
@@ -925,6 +984,8 @@ function EntegrasyonlarSection({ integrations, onRefresh, oauthSuccess }: {
           {[
             { label: 'Shopify Webhook', path: '/api/webhooks/shopify' },
             { label: 'WhatsApp Webhook', path: '/api/whatsapp/webhook' },
+            { label: 'İkas Webhook', path: '/api/webhooks/ikas' },
+            { label: 'WooCommerce Webhook', path: '/api/webhooks/woocommerce' },
           ].map(w => (
             <div key={w.label}>
               <p className="text-xs font-medium mb-1.5" style={{ color: 'var(--text-2)' }}>{w.label}</p>
@@ -1442,16 +1503,11 @@ function BildirimlerSection() {
 function TakimSection() {
   const [inviteEmail, setInviteEmail] = useState('')
 
-  const mockMembers = [
-    { name: 'Yunus Emre', email: 'yunus@marksio.com', role: 'Sahip',    avatar: 'YE' },
-    { name: 'Ayşe Kaya',  email: 'ayse@marksio.com',  role: 'Yönetici', avatar: 'AK' },
-  ]
-
   return (
     <div className="space-y-4">
       <SectionHeader title="Takım Yönetimi" desc="Üyeleri davet edin ve yetkilerini yönetin" />
 
-      {/* Invite */}
+      {/* Coming soon notice */}
       <div className="bento-card p-5">
         <p className="text-sm font-semibold mb-1" style={{ color: 'var(--text-1)' }}>Üye Davet Et</p>
         <p className="text-xs mb-4" style={{ color: 'var(--text-3)' }}>E-posta adresiyle takımınıza yeni üye ekleyin</p>
@@ -1471,23 +1527,15 @@ function TakimSection() {
         </div>
       </div>
 
-      {/* Members */}
+      {/* Members — empty until team feature ships */}
       <div className="bento-card overflow-hidden">
         <div className="px-5 py-3.5" style={{ borderBottom: '1px solid var(--border)' }}>
           <p className="text-sm font-semibold" style={{ color: 'var(--text-1)' }}>Mevcut Üyeler</p>
         </div>
-        {mockMembers.map((m, i) => (
-          <div key={m.email} className="flex items-center gap-4 px-5 py-4"
-            style={i < mockMembers.length - 1 ? { borderBottom: '1px solid var(--border)' } : {}}>
-            <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
-              style={{ background: 'var(--blue-soft)', color: 'var(--blue)' }}>{m.avatar}</div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium" style={{ color: 'var(--text-1)' }}>{m.name}</p>
-              <p className="text-xs" style={{ color: 'var(--text-3)' }}>{m.email}</p>
-            </div>
-            <span className={cn('chip', m.role === 'Sahip' ? 'chip-blue' : 'chip-muted')}>{m.role}</span>
-          </div>
-        ))}
+        <div className="flex flex-col items-center justify-center py-10 gap-2">
+          <p className="text-sm" style={{ color: 'var(--text-3)' }}>Henüz takım üyesi yok</p>
+          <p className="text-xs" style={{ color: 'var(--text-3)' }}>Çoklu kullanıcı desteği yakında aktif olacak.</p>
+        </div>
       </div>
 
       {/* Roles info */}
@@ -1519,8 +1567,6 @@ function GuvenlikSection() {
   const [saving,   setSaving]   = useState(false)
   const [result,   setResult]   = useState<{ ok?: boolean; error?: string } | null>(null)
 
-  const [apiKeyCopied, setApiKeyCopied] = useState(false)
-  const mockApiKey = 'mks_live_7f3k9x2p1q8r4t6y0n5w'
 
   async function handleChangePass() {
     if (newPass !== confirm) { setResult({ error: 'Şifreler eşleşmiyor' }); return }
@@ -1604,17 +1650,9 @@ function GuvenlikSection() {
             <p className="text-sm font-semibold" style={{ color: 'var(--text-1)' }}>API Anahtarları</p>
             <p className="text-xs mt-0.5" style={{ color: 'var(--text-3)' }}>Marksio API&apos;sine programatik erişim için</p>
           </div>
-          <button className="btn-secondary text-xs gap-1.5 px-3 py-2">
-            <Key className="w-3.5 h-3.5" /> Yeni Anahtar
-          </button>
         </div>
-        <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl" style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
-          <Key className="w-3.5 h-3.5 shrink-0" style={{ color: 'var(--text-3)' }} />
-          <code className="text-xs font-mono flex-1" style={{ color: 'var(--text-2)' }}>{mockApiKey}</code>
-          <button onClick={() => { navigator.clipboard.writeText(mockApiKey); setApiKeyCopied(true); setTimeout(() => setApiKeyCopied(false), 1500) }}
-            className="shrink-0 p-1.5 rounded-lg btn-ghost">
-            {apiKeyCopied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-          </button>
+        <div className="p-3 rounded-xl text-xs" style={{ background: 'var(--blue-soft)', border: '1px solid rgba(68,112,255,0.15)' }}>
+          <p style={{ color: 'var(--blue)' }}>API erişimi yakında aktif olacak. Pro plan kullanıcıları için öncelikli olarak açılacaktır.</p>
         </div>
       </div>
     </div>

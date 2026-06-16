@@ -5,6 +5,7 @@ import { buildEmailHtml, personalize, type LayoutStyle, type Product } from '@/l
 import { getSystemFromAddress } from '@/lib/mail-from'
 import { matchesRules, type SegmentRule } from '@/lib/segment-engine'
 import { getLimits, getUpgradePlan } from '@/lib/plan-limits'
+import { renderEmail, interpolateVars, type EmailTemplate } from '@/lib/email-renderer'
 
 const resend  = new Resend(process.env.RESEND_API_KEY)
 const BASE_URL = process.env.NEXTAUTH_URL || 'http://localhost:3000'
@@ -202,7 +203,7 @@ export async function executeCampaignSend(
     },
   })
 
-  const customers = useRuleFilter
+  let customers = useRuleFilter
     ? rawCustomers.filter(c => matchesRules(c, segRules, segMatchType))
     : rawCustomers
 
@@ -213,6 +214,29 @@ export async function executeCampaignSend(
   let sent   = 0
   let failed = 0
   const errors: string[] = []
+
+  /* CampaignRecipient: kayıtlı alıcıları kontrol et, tekrar gönderimi önle */
+  if (campaign.type === 'email') {
+    const existingRecipients = await prisma.campaignRecipient.findMany({
+      where: { campaignId: campaign.id, status: 'sent' },
+      select: { customerId: true },
+    })
+    const alreadySent = new Set(existingRecipients.map(r => r.customerId))
+    customers = customers.filter(c => !alreadySent.has(c.id))
+
+    /* Pending kayıt oluştur (upsert — tekrar çalışırsa üzerine yaz) */
+    if (customers.length > 0) {
+      await prisma.campaignRecipient.createMany({
+        data: customers.map(c => ({
+          campaignId: campaign.id,
+          customerId: c.id,
+          email:      c.email ?? '',
+          status:     'pending',
+        })),
+        skipDuplicates: true,
+      })
+    }
+  }
 
   await prisma.campaign.update({ where: { id: campaign.id }, data: { status: 'sending' } })
 
@@ -242,21 +266,63 @@ export async function executeCampaignSend(
             const body     = personalize(campaign.body, vars)
             const ctaText  = personalize(campaign.ctaText ?? campaign.cta ?? 'Alışverişe Başla', vars)
 
-            const html = buildEmailHtml({
-              storeName:       domainAny?.senderName ?? storeName,
-              previewText:     campaign.previewText ?? '',
-              headline, body, ctaText, ctaUrl,
-              imageUrl:        campaign.imageUrl ?? undefined,
-              discountRate:    undefined,
-              unsubscribeUrl,
-              trackingPixelUrl,
-              layoutStyle:     (campaign.layoutStyle as LayoutStyle) ?? 'default',
-              brandColor:      campaign.brandColor ?? undefined,
-              products:        campaignProducts,
-            })
+            const campaignAny = campaign as Record<string, unknown>
+            let html: string
+            let emailText = body
+
+            if (campaignAny.templateType && campaignAny.templateType !== 'custom') {
+              const rendered = await renderEmail(
+                campaignAny.templateType as EmailTemplate,
+                {
+                  brandName:          domainAny?.senderName ?? storeName,
+                  brandColor:         (campaignAny.brandColor as string) ?? '#4470ff',
+                  customerName:       firstName || 'Değerli Müşterimiz',
+                  ctaText:            interpolateVars(ctaText, vars),
+                  ctaUrl:             (campaignAny.ctaUrl as string) ?? ctaUrl,
+                  bodyText:           body,
+                  subject,
+                  heroText:           headline,
+                  discountCode:       (campaignAny.discountCode as string) ?? undefined,
+                  discountAmount:     undefined,
+                  productImageUrl:    campaign.imageUrl ?? undefined,
+                  specialOfferText:   body,
+                  daysSinceLastOrder: 30,
+                  unsubscribeUrl,
+                  cartItems:          campaignProducts.map((p: Product) => ({
+                    name:     p.productName,
+                    price:    `${p.price ?? 0} ₺`,
+                    imageUrl: p.productImage ?? undefined,
+                    quantity: 1,
+                  })),
+                  cartTotal:       '—',
+                  orderNumber:     '—',
+                  orderDate:       new Date().toLocaleDateString('tr-TR'),
+                  orderItems:      [],
+                  subtotal:        '—',
+                  shipping:        '—',
+                  total:           '—',
+                  shippingAddress: '',
+                },
+              )
+              html      = rendered.html
+              emailText = rendered.text
+            } else {
+              html = buildEmailHtml({
+                storeName:       domainAny?.senderName ?? storeName,
+                previewText:     campaign.previewText ?? '',
+                headline, body, ctaText, ctaUrl,
+                imageUrl:        campaign.imageUrl ?? undefined,
+                discountRate:    undefined,
+                unsubscribeUrl,
+                trackingPixelUrl,
+                layoutStyle:     (campaign.layoutStyle as LayoutStyle) ?? 'default',
+                brandColor:      campaign.brandColor ?? undefined,
+                products:        campaignProducts,
+              })
+            }
 
             const { data: resendData, error } = await resend.emails.send({
-              from: fromEmail, to: customer.email, subject, html, text: body,
+              from: fromEmail, to: customer.email, subject, html, text: emailText,
               headers: {
                 'List-Unsubscribe':      `<${unsubscribeUrl}>`,
                 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
@@ -299,6 +365,22 @@ export async function executeCampaignSend(
 
         if (eventRecords.length > 0) {
           await prisma.emailEvent.createMany({ data: eventRecords })
+        }
+
+        /* CampaignRecipient status güncelle */
+        for (const result of batchResults) {
+          if (result.status === 'fulfilled') {
+            const { customer, error } = result.value
+            if (customer?.id) {
+              await prisma.campaignRecipient.updateMany({
+                where: { campaignId: campaign.id, customerId: customer.id },
+                data: {
+                  status: error ? 'failed' : 'sent',
+                  sentAt: error ? null : new Date(),
+                },
+              }).catch(() => null)
+            }
+          }
         }
 
         if (i + BATCH_SIZE < customers.length) await sleep(BATCH_DELAY_MS)

@@ -424,7 +424,7 @@ export default function AnalyticsPage() {
             </div>
 
             {/* Campaign Performance */}
-            <div className="rounded-2xl overflow-hidden"
+            <div className="rounded-2xl"
               style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)' }}>
               <div className="px-5 pt-4 pb-3 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                 <h3 className="text-[13px] font-semibold" style={{ color: '#eeeef4' }}>Kampanya Performansı</h3>
@@ -432,7 +432,7 @@ export default function AnalyticsPage() {
                   Tüm Kampanyaları Gör →
                 </Link>
               </div>
-              <div className="overflow-hidden">
+              <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
@@ -532,7 +532,7 @@ export default function AnalyticsPage() {
           </div>
 
           {/* ── Top Products ── */}
-          <div className="rounded-2xl overflow-hidden"
+          <div className="rounded-2xl"
             style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)' }}>
             <div className="px-5 pt-4 pb-3 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
               <h3 className="text-[13px] font-semibold" style={{ color: '#eeeef4' }}>Top 10 Ürün Performansı</h3>
@@ -541,6 +541,7 @@ export default function AnalyticsPage() {
                 Gelire Göre ↓
               </button>
             </div>
+            <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
@@ -575,6 +576,7 @@ export default function AnalyticsPage() {
                 </tbody>
               )}
             </table>
+            </div>
             {(data.topProducts?.length ?? 0) === 0 && (
               <div className="py-8 text-center">
                 <p className="text-[12px]" style={{ color: '#44445a' }}>Sipariş verisi bulunmuyor</p>

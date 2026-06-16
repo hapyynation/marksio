@@ -120,7 +120,24 @@ const DEFAULT_SEGMENTS = [
   { value: 'cart_abandoned', label: 'Sepeti Terk Edenler' },
 ]
 
-const STEPS = ['Amaç', 'Ürünler', 'Detaylar', 'İçerik', 'Görsel', 'Önizleme', 'Gönder']
+const STEPS = ['Şablon', 'Amaç', 'Ürünler', 'Detaylar', 'İçerik', 'Görsel', 'Önizleme', 'Gönder']
+
+type TemplateOption = {
+  id: string
+  label: string
+  desc: string
+  icon: string
+  color: string
+}
+
+const TEMPLATE_OPTIONS: TemplateOption[] = [
+  { id: 'welcome',           label: 'Hoş Geldin',     desc: 'Yeni kayıtları karşıla',              icon: '🎉', color: 'from-emerald-500/15 border-emerald-500/25 hover:border-emerald-400/50' },
+  { id: 'promotion',         label: 'Promosyon',       desc: 'İndirim ve kampanya duyurusu',         icon: '🏷️', color: 'from-blue-500/15 border-blue-500/25 hover:border-blue-400/50' },
+  { id: 'cart_abandonment',  label: 'Sepet Terk',      desc: 'Sepeti bırakanları geri kazan',        icon: '🛒', color: 'from-orange-500/15 border-orange-500/25 hover:border-orange-400/50' },
+  { id: 'order_confirmation',label: 'Sipariş Onay',   desc: 'Sipariş detaylarını bildir',           icon: '📦', color: 'from-violet-500/15 border-violet-500/25 hover:border-violet-400/50' },
+  { id: 'win_back',          label: 'Geri Kazan',      desc: 'Pasif müşterilere özel teklif',        icon: '💔', color: 'from-rose-500/15 border-rose-500/25 hover:border-rose-400/50' },
+  { id: 'custom',            label: 'Özel (Grape)',    desc: 'Sürükle-bırak editörle tasarla',       icon: '✏️', color: 'from-white/5 border-white/15 hover:border-white/30' },
+]
 
 const AI_LOADING_PHASES = [
   'Mağaza profili analiz ediliyor…',
@@ -140,6 +157,7 @@ export default function NewCampaignPage() {
   const notifIdRef = useRef(0)
 
   const [step,            setStep]           = useState(1)
+  const [templateType,    setTemplateType]   = useState('')
   const [purpose,         setPurpose]        = useState('')
   const [products,        setProducts]       = useState<Product[]>([])
   const [productForm,     setProductForm]    = useState<Omit<Product, 'id'>>(EMPTY_PRODUCT)
@@ -223,7 +241,7 @@ export default function NewCampaignPage() {
   /* ── Recipient count on step 7 ────────────────────────────────────── */
 
   useEffect(() => {
-    if (step === 7) {
+    if (step === 8) {
       setRecipientCount(null)
       fetch(`/api/campaigns/recipients?segment=${form.segment}`)
         .then(r => r.json())
@@ -232,16 +250,16 @@ export default function NewCampaignPage() {
     }
   }, [step, form.segment])
 
-  /* ── Auto-generate on step 4 ─────────────────────────────────────── */
+  /* ── Auto-generate on step 5 ─────────────────────────────────────── */
 
   useEffect(() => {
-    if (step === 4 && !ai.subject) generateContent()
+    if (step === 5 && !ai.subject) generateContent()
   }, [step]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* ── Auto-use product image on step 5 ───────────────────────────── */
+  /* ── Auto-use product image on step 6 ───────────────────────────── */
 
   useEffect(() => {
-    if (step === 5 && !imageUrl && products.length > 0 && products[0].productImage) {
+    if (step === 6 && !imageUrl && products.length > 0 && products[0].productImage) {
       setImageUrl(products[0].productImage)
     }
   }, [step]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -363,6 +381,7 @@ export default function NewCampaignPage() {
           imagePrompt: ai.imagePrompt || null,
           layoutStyle: form.layoutStyle || null,
           brandColor: form.brandColor || null,
+          templateType: templateType !== 'custom' ? templateType : null,
           products,
           scheduledAt: form.sendNow ? null : form.sendDate,
         }),
@@ -428,13 +447,21 @@ export default function NewCampaignPage() {
   /* ── Navigation ───────────────────────────────────────────────────── */
 
   const canNext = () => {
-    if (step === 1) return !!purpose
-    if (step === 3) return !!form.name.trim()
-    if (step === 4) return !genContent && !!ai.subject
+    if (step === 1) return !!templateType
+    if (step === 2) return !!purpose
+    if (step === 4) return !!form.name.trim()
+    if (step === 5) return !genContent && !!ai.subject
     return true
   }
 
-  const next = () => { if (canNext()) setStep(s => Math.min(s + 1, 7)) }
+  const next = () => {
+    if (!canNext()) return
+    if (step === 1 && templateType === 'custom') {
+      router.push('/campaigns/editor')
+      return
+    }
+    setStep(s => Math.min(s + 1, 8))
+  }
   const prev = () => setStep(s => Math.max(s - 1, 1))
 
   /* ── Render ───────────────────────────────────────────────────────── */
@@ -645,10 +672,41 @@ export default function NewCampaignPage() {
         <div className="max-w-4xl mx-auto px-6 py-10">
           <AnimatePresence mode="wait">
 
-            {/* ── STEP 1: Purpose ────────────────────────────── */}
+            {/* ── STEP 1: Template Selection ─────────────────── */}
             {step === 1 && (
               <motion.div key="s1" {...slide}>
-                <StepHeader step={1} title="Kampanya amacını seç" sub="Marksio AI kampanya amacına göre içerik ve tasarım stratejisi oluşturur" />
+                <StepHeader step={1} title="E-posta şablonu seç" sub="React Email şablonları tüm email client'larında tutarlı görünür. Özel tasarım için Grape editörünü seç." />
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {TEMPLATE_OPTIONS.map(t => {
+                    const sel = templateType === t.id
+                    const [from, border, hov] = t.color.split(' ')
+                    return (
+                      <button key={t.id} onClick={() => setTemplateType(t.id)}
+                        className={`relative text-left p-4 rounded-2xl border transition-all duration-200 group ${
+                          sel ? `bg-gradient-to-br ${from} to-transparent ${border.replace('/25', '/60')} scale-[1.02]`
+                              : `bg-[#111] ${border} ${hov} border hover:scale-[1.01]`
+                        }`}>
+                        {sel && <div className="absolute top-2.5 right-2.5 w-4 h-4 rounded-full bg-[#b3c5ff] flex items-center justify-center"><Check size={9} className="text-[#050505]" /></div>}
+                        <span className="text-2xl mb-2.5 block">{t.icon}</span>
+                        <div className="font-semibold text-xs text-white mb-1 leading-snug">{t.label}</div>
+                        <div className="text-[11px] text-white/35 leading-relaxed">{t.desc}</div>
+                      </button>
+                    )
+                  })}
+                </div>
+                {templateType && templateType !== 'custom' && (
+                  <div className="mt-4 flex items-center gap-2 p-3 rounded-xl bg-[#b3c5ff]/5 border border-[#b3c5ff]/12">
+                    <Sparkles size={13} className="text-[#b3c5ff] shrink-0" />
+                    <p className="text-xs text-white/50">Seçilen şablon tüm email client'larında (Outlook, Gmail, Apple Mail) tutarlı görünür.</p>
+                  </div>
+                )}
+              </motion.div>
+            )}
+
+            {/* ── STEP 2: Purpose ────────────────────────────── */}
+            {step === 2 && (
+              <motion.div key="s2" {...slide}>
+                <StepHeader step={2} title="Kampanya amacını seç" sub="Marksio AI kampanya amacına göre içerik ve tasarım stratejisi oluşturur" />
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   {PURPOSES.map(p => {
                     const sel = purpose === p.id
@@ -669,10 +727,10 @@ export default function NewCampaignPage() {
               </motion.div>
             )}
 
-            {/* ── STEP 2: Products ───────────────────────────── */}
-            {step === 2 && (
-              <motion.div key="s2" {...slide}>
-                <StepHeader step={2} title="Ürünlerini ekle" sub="Marksio AI ürün bilgilerinle premium kampanya tasarlayacak — ürün ekleme zorunlu değil" />
+            {/* ── STEP 3: Products ───────────────────────────── */}
+            {step === 3 && (
+              <motion.div key="s3p" {...slide}>
+                <StepHeader step={3} title="Ürünlerini ekle" sub="Marksio AI ürün bilgilerinle premium kampanya tasarlayacak — ürün ekleme zorunlu değil" />
 
                 {/* Shopify placeholder */}
                 <div className="mb-5 p-3.5 rounded-xl bg-[#0e1117] border border-white/6 flex items-center justify-between gap-3">
@@ -740,10 +798,10 @@ export default function NewCampaignPage() {
               </motion.div>
             )}
 
-            {/* ── STEP 3: Details ────────────────────────────── */}
-            {step === 3 && (
-              <motion.div key="s3" {...slide}>
-                <StepHeader step={3} title="Kampanya detayları" sub="Bu bilgilerle AI sana özel strateji ve içerik üretecek" />
+            {/* ── STEP 4: Details ────────────────────────────── */}
+            {step === 4 && (
+              <motion.div key="s4d" {...slide}>
+                <StepHeader step={4} title="Kampanya detayları" sub="Bu bilgilerle AI sana özel strateji ve içerik üretecek" />
                 <div className="max-w-2xl space-y-5">
                   <Field label="Kampanya Adı *">
                     <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
@@ -830,11 +888,11 @@ export default function NewCampaignPage() {
               </motion.div>
             )}
 
-            {/* ── STEP 4: AI Content ─────────────────────────── */}
-            {step === 4 && (
-              <motion.div key="s4" {...slide}>
+            {/* ── STEP 5: AI Content ─────────────────────────── */}
+            {step === 5 && (
+              <motion.div key="s5c" {...slide}>
                 <div className="mb-8 flex items-start justify-between">
-                  <StepHeader step={4} title="Kampanya İçeriği" sub="Marksio AI kampanya amacına ve ürünlerine özel içerik oluşturdu — düzenleyebilirsin" />
+                  <StepHeader step={5} title="Kampanya İçeriği" sub="Marksio AI kampanya amacına ve ürünlerine özel içerik oluşturdu — düzenleyebilirsin" />
                   {!genContent && ai.subject && (
                     <button onClick={generateContent}
                       className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#111] border border-white/8 hover:border-white/18 text-xs text-white/50 transition-all mt-1 shrink-0">
@@ -919,11 +977,11 @@ export default function NewCampaignPage() {
               </motion.div>
             )}
 
-            {/* ── STEP 5: Visual ─────────────────────────────── */}
-            {step === 5 && (
-              <motion.div key="s5" {...slide}>
+            {/* ── STEP 6: Visual ─────────────────────────────── */}
+            {step === 6 && (
+              <motion.div key="s6v" {...slide}>
                 <div className="mb-8 flex items-start justify-between">
-                  <StepHeader step={5} title="Kampanya Görseli" sub="Ürün görseli varsa otomatik kullanıldı — ya da AI ile premium görsel üret" />
+                  <StepHeader step={6} title="Kampanya Görseli" sub="Ürün görseli varsa otomatik kullanıldı — ya da AI ile premium görsel üret" />
                   {imageUrl && (
                     <button onClick={generateImage} disabled={genImage}
                       className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#111] border border-white/8 hover:border-white/18 text-xs text-white/50 transition-all mt-1 disabled:opacity-50 shrink-0">
@@ -994,11 +1052,11 @@ export default function NewCampaignPage() {
               </motion.div>
             )}
 
-            {/* ── STEP 6: Preview ────────────────────────────── */}
-            {step === 6 && (
-              <motion.div key="s6" {...slide}>
+            {/* ── STEP 7: Preview ────────────────────────────── */}
+            {step === 7 && (
+              <motion.div key="s7pr" {...slide}>
                 <div className="mb-6 flex items-start justify-between flex-wrap gap-3">
-                  <StepHeader step={6} title="E-posta Önizleme" sub="Müşterilerine ulaşacak e-postanın gerçek görünümü" />
+                  <StepHeader step={7} title="E-posta Önizleme" sub="Müşterilerine ulaşacak e-postanın gerçek görünümü" />
                   <div className="flex items-center gap-2 flex-wrap">
                     {/* Desktop/mobile toggle */}
                     <div className="flex items-center bg-[#111] border border-white/8 rounded-xl p-1 gap-1">
@@ -1088,10 +1146,10 @@ export default function NewCampaignPage() {
               </motion.div>
             )}
 
-            {/* ── STEP 7: Send ───────────────────────────────── */}
-            {step === 7 && (
-              <motion.div key="s7" {...slide}>
-                <StepHeader step={7} title="Kampanyayı Gönder" sub="Her şey hazır. Son onayını ver." />
+            {/* ── STEP 8: Send ───────────────────────────────── */}
+            {step === 8 && (
+              <motion.div key="s8" {...slide}>
+                <StepHeader step={8} title="Kampanyayı Gönder" sub="Her şey hazır. Son onayını ver." />
 
                 <div className="max-w-md space-y-4">
                   {/* Summary */}
@@ -1168,10 +1226,10 @@ export default function NewCampaignPage() {
               className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium border border-white/8 bg-[#0f0f0f] hover:border-white/18 text-white/55 transition-all ${step === 1 ? 'invisible' : ''}`}>
               <ChevronLeft size={15} /> Geri
             </button>
-            {step < 7 && (
+            {step < 8 && (
               <button onClick={next} disabled={!canNext()}
                 className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold bg-[#b3c5ff] text-[#050505] hover:bg-[#c5d3ff] active:scale-[0.98] transition-all disabled:opacity-35 disabled:cursor-not-allowed">
-                {step === 6 ? 'Gönderiye Geç' : 'Devam Et'} <ChevronRight size={15} />
+                {step === 1 && templateType === 'custom' ? 'Editöre Git' : step === 7 ? 'Gönderiye Geç' : 'Devam Et'} <ChevronRight size={15} />
               </button>
             )}
           </div>

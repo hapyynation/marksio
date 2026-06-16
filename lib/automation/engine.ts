@@ -20,6 +20,8 @@ import {
   execAddTag, execRemoveTag, execMoveSegment, execWebhook,
   safeParseJson, type RunCtx, type NodeResult,
 } from './node-executors'
+import { matchesRules, type SegmentRule } from '@/lib/segment-engine'
+import { scheduleAutomationResume, cancelScheduledResume } from '@/lib/qstash'
 
 /* ─────────────────────────────────────────────────────────────
    FLOW TYPES (ReactFlow format)
@@ -54,6 +56,33 @@ export async function startRun(
   const automation = await prisma.automation.findUnique({ where: { id: automationId } })
   if (!automation) throw new Error(`Automation not found: ${automationId}`)
 
+  /* Segment filtresi: otomasyon belirli bir segmente özelleşmişse kontrol et */
+  if (automation.segment) {
+    const segment = await prisma.segment.findFirst({
+      where: {
+        userId: automation.userId,
+        OR: [
+          { id: automation.segment },
+          { name: { equals: automation.segment, mode: 'insensitive' } },
+        ],
+      },
+    })
+    if (segment) {
+      const customer = await prisma.customer.findUnique({
+        where: { id: customerId },
+        select: { totalSpent: true, totalOrders: true, avgOrder: true, lastOrder: true, tags: true, source: true, segment: true, score: true },
+      })
+      if (customer) {
+        let rules: SegmentRule[] = []
+        try { rules = JSON.parse(segment.rules) } catch { /* */ }
+        const matchType = (segment.matchType ?? 'all') as 'all' | 'any'
+        if (!matchesRules(customer, rules, matchType)) {
+          return { runId: '', skipped: true }
+        }
+      }
+    }
+  }
+
   const flow = parseFlow(automation.flowData)
   if (!flow) throw new Error('Invalid flowData in automation')
 
@@ -85,6 +114,27 @@ export async function startRun(
 
   await executeRun(run.id)
   return { runId: run.id }
+}
+
+/**
+ * Tek bir waiting run'ı ilerlet. QStash tarafından çağrılır.
+ */
+export async function resumeRun(runId: string): Promise<boolean> {
+  const run = await prisma.automationRun.findUnique({ where: { id: runId } })
+  if (!run || run.status !== 'waiting' || !run.resumeAt || run.resumeAt > new Date()) {
+    return false
+  }
+  try {
+    await prisma.automationRun.update({
+      where: { id: run.id },
+      data:  { status: 'running', resumeAt: null },
+    })
+    await executeRun(run.id)
+    return true
+  } catch (err) {
+    await failRun(run.id, run.automationId, run.userId, run.customerId, String(err))
+    return false
+  }
 }
 
 /**
@@ -159,7 +209,7 @@ async function executeRun(runId: string, depth = 0): Promise<void> {
   /* ── Execute node ────────────────────────────────────────── */
   let result: NodeResult
   try {
-    result = await dispatchNode(node, run.customerId, run.userId, run.automationId, ctx)
+    result = await dispatchNode(node, run.customerId, run.userId, run.automationId, ctx, runId)
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     await prisma.automationRunStep.update({
@@ -198,9 +248,19 @@ async function executeRun(runId: string, depth = 0): Promise<void> {
       data:  {
         status: 'waiting',
         resumeAt: result.resumeAt,
-        currentNodeId: resumeNextId,   // <-- key fix
+        currentNodeId: resumeNextId,
       },
     })
+
+    const messageId = await scheduleAutomationResume(runId, result.resumeAt)
+    if (messageId) {
+      const existingMeta = (run.meta as Record<string, unknown> | null) ?? {}
+      await prisma.automationRun.update({
+        where: { id: runId },
+        data:  { meta: { ...existingMeta, qstashMessageId: messageId } },
+      })
+    }
+
     await addLog(runId, run.automationId, run.userId, run.customerId, 'info',
       `Bekleniyor: ${result.pauseLabel ?? ''} — devam: ${result.resumeAt.toISOString()}`)
     return
@@ -232,8 +292,9 @@ async function dispatchNode(
   userId:       string,
   automationId: string,
   ctx:          RunCtx,
+  runId?:       string,
 ): Promise<NodeResult> {
-  const d: Record<string, unknown> = { ...node.data, automationId }
+  const d: Record<string, unknown> = { ...node.data, automationId, runId: runId ?? '' }
 
   switch (node.type) {
     case 'triggerNode':   return execTrigger()
@@ -317,6 +378,10 @@ export async function retryRun(runId: string): Promise<{ newRunId: string }> {
   const ctx = safeParseJson<RunCtx>(oldRun.context, { triggerData: {}, vars: {} })
 
   /* Remove the failed run's dedup block so startRun doesn't skip */
+  const meta = (oldRun.meta as Record<string, unknown> | null) ?? {}
+  if (meta.qstashMessageId) {
+    await cancelScheduledResume(String(meta.qstashMessageId))
+  }
   await prisma.automationRun.update({ where: { id: runId }, data: { status: 'stopped' } })
 
   const { runId: newRunId } = await startRun(oldRun.automationId, oldRun.customerId, ctx.triggerData)
@@ -445,10 +510,48 @@ export async function scanTimedTriggers(): Promise<number> {
     }
   }
 
-  /* ── birthday ──────────────────────────────────────────────
-     Requires Customer.birthdayMonth / birthdayDay fields.
-     Stored as JSON in future schema. Skipped until field added.
-  ─────────────────────────────────────────────────────────── */
+  /* ── birthday ──────────────────────────────────────────────── */
+  const birthdayAutomations = await prisma.automation.findMany({
+    where: { status: 'active', trigger: 'birthday' },
+  })
+
+  if (birthdayAutomations.length > 0) {
+    const today = new Date()
+    const month = today.getMonth() + 1
+    const day   = today.getDate()
+
+    for (const automation of birthdayAutomations) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const birthdayCustomers = await prisma.customer.findMany({
+        where: { userId: automation.userId, birthdayMonth: month, birthdayDay: day } as any,
+        take: 100,
+      })
+
+      for (const customer of birthdayCustomers) {
+        const lastRun = await prisma.automationRun.findFirst({
+          where: { automationId: automation.id, customerId: customer.id, status: 'completed' },
+          orderBy: { completedAt: 'desc' },
+        })
+        /* Skip if already run this year */
+        if (lastRun?.completedAt) {
+          const ran = new Date(lastRun.completedAt)
+          if (ran.getFullYear() === today.getFullYear()) continue
+        }
+
+        const active = await prisma.automationRun.findFirst({
+          where: { automationId: automation.id, customerId: customer.id, status: { in: ['running', 'waiting'] } },
+        })
+        if (active) continue
+
+        try {
+          await startRun(automation.id, customer.id, { birthdayMonth: month, birthdayDay: day })
+          count++
+        } catch (err) {
+          console.error(`scanTimedTriggers [birthday]:`, err)
+        }
+      }
+    }
+  }
 
   return count
 }

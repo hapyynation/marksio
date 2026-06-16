@@ -9,9 +9,9 @@ function env(key: string): string {
 
 // plan id → Lemon Squeezy variant ID
 export const VARIANT_IDS: Record<string, string> = {
-  starter: env('LS_VARIANT_STARTER') || '1741638',
-  growth:  env('LS_VARIANT_GROWTH')  || '1741701',
-  agency:  env('LS_VARIANT_AGENCY')  || '1741713',
+  starter: env('LS_VARIANT_STARTER'),
+  growth:  env('LS_VARIANT_GROWTH'),
+  agency:  env('LS_VARIANT_AGENCY'),
 }
 
 // Lemon Squeezy variant ID → internal plan name

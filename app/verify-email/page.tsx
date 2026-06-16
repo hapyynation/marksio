@@ -1,32 +1,35 @@
 'use client'
 
 import { useEffect, useState, Suspense } from 'react'
-import { useSearchParams, useRouter } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { Mail, CheckCircle, AlertCircle, Loader2, RefreshCw } from 'lucide-react'
 
 function VerifyEmailContent() {
   const searchParams = useSearchParams()
-  const router = useRouter()
 
-  const verified  = searchParams.get('verified')
-  const error     = searchParams.get('error')
-  const email     = searchParams.get('email') ?? ''
+  const verified = searchParams.get('verified')
+  const error    = searchParams.get('error')
+  const email    = searchParams.get('email') ?? ''
+  const token    = searchParams.get('token')
 
-  const [resending,    setResending]    = useState(false)
-  const [resendDone,   setResendDone]   = useState(false)
-  const [resendError,  setResendError]  = useState('')
-  const [countdown,    setCountdown]    = useState(3)
+  const [resending,   setResending]   = useState(false)
+  const [resendDone,  setResendDone]  = useState(false)
+  const [resendError, setResendError] = useState('')
 
-  // Auto-redirect after successful verification
+  // FIX: token in URL → immediately redirect to the API handler (DB-based, cross-device)
+  useEffect(() => {
+    if (!token) return
+    window.location.href = `/api/auth/verify-email?token=${encodeURIComponent(token)}`
+  }, [token])
+
+  // FIX: ?verified=1 → reliable redirect using window.location after 2s
   useEffect(() => {
     if (!verified) return
-    const t = setInterval(() => setCountdown(c => c - 1), 1000)
-    return () => clearInterval(t)
+    const t = setTimeout(() => {
+      window.location.href = '/login?verified=1'
+    }, 2000)
+    return () => clearTimeout(t)
   }, [verified])
-
-  useEffect(() => {
-    if (verified && countdown <= 0) router.push('/dashboard')
-  }, [verified, countdown, router])
 
   async function handleResend() {
     if (!email) return
@@ -51,15 +54,26 @@ function VerifyEmailContent() {
   }
 
   const errorMessages: Record<string, string> = {
-    missing:  'Doğrulama linki eksik.',
-    invalid:  'Geçersiz veya hatalı doğrulama linki.',
-    used:     'Bu link daha önce kullanıldı.',
-    expired:  'Linkin süresi dolmuş. Lütfen yeni bir link isteyin.',
+    missing: 'Doğrulama linki eksik.',
+    invalid: 'Geçersiz veya hatalı doğrulama linki.',
+    used:    'Bu link daha önce kullanıldı.',
+    expired: 'Linkin süresi dolmuş. Lütfen yeni bir link isteyin.',
+  }
+
+  // Loading state when token is being processed
+  if (token) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4" style={{ background: '#08080f' }}>
+        <div className="text-center space-y-4">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto" style={{ color: '#4470ff' }} />
+          <p style={{ fontSize: 14, color: '#8c90a1' }}>E-posta doğrulanıyor…</p>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4"
-      style={{ background: '#08080f' }}>
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: '#08080f' }}>
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="flex items-center gap-3 justify-center mb-10">
@@ -80,12 +94,23 @@ function VerifyEmailContent() {
               </div>
               <h1 className="text-xl font-black mb-2" style={{ color: '#e5e2e1' }}>E-posta doğrulandı!</h1>
               <p className="text-sm mb-6" style={{ color: '#8c90a1' }}>
-                Hesabınız aktifleştirildi. {countdown} saniye içinde yönlendiriliyorsunuz…
+                Hesabınız aktifleştirildi. Giriş sayfasına yönlendiriliyorsunuz…
               </p>
+              {/* Animated progress bar — 2s duration matches the setTimeout */}
               <div className="w-full h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
-                <div className="h-full rounded-full transition-all duration-1000"
-                  style={{ background: 'linear-gradient(90deg,#0066ff,#00f1fe)', width: `${((3 - countdown) / 3) * 100}%` }} />
+                <div className="h-full rounded-full"
+                  style={{
+                    background: 'linear-gradient(90deg,#0066ff,#00f1fe)',
+                    width: '100%',
+                    animation: 'growBar 2s linear forwards',
+                  }} />
               </div>
+              <style>{`
+                @keyframes growBar {
+                  from { width: 0% }
+                  to   { width: 100% }
+                }
+              `}</style>
             </>
           )}
 
@@ -131,7 +156,6 @@ function VerifyEmailContent() {
               <p className="text-xs mb-6" style={{ color: '#424656' }}>
                 Spam klasörünü de kontrol etmeyi unutmayın.
               </p>
-
               {email && (
                 <div className="space-y-2">
                   <button onClick={handleResend} disabled={resending || resendDone}
@@ -145,9 +169,7 @@ function VerifyEmailContent() {
                       ? <><CheckCircle className="w-4 h-4" /> Gönderildi!</>
                       : <><RefreshCw className="w-4 h-4" /> Tekrar gönder</>}
                   </button>
-                  {resendError && (
-                    <p className="text-xs" style={{ color: '#e84545' }}>{resendError}</p>
-                  )}
+                  {resendError && <p className="text-xs" style={{ color: '#e84545' }}>{resendError}</p>}
                 </div>
               )}
             </>

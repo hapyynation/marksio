@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { attributeRevenue } from '@/lib/attribution'
+import { attributeAutomationRevenue } from '@/lib/automation-attribution'
 import {
   verifyWebhookHmac,
   classifySegment,
@@ -160,6 +161,10 @@ async function handleOrder(userId: string, integrationId: string, o: Record<stri
 
     attributeRevenue(userId, customer.id, order.id, orderData.total, order.placedAt)
       .catch(err => console.error('[Attribution]', err))
+
+    /* Automation conversion attribution: son 7 gündeki tamamlanmış run'lara revenue yaz */
+    attributeAutomationRevenue(customer.id, orderData.total)
+      .catch(err => console.error('[AutomationAttribution]', err))
 
     await updateCustomerStats(userId, customer.id)
     return event

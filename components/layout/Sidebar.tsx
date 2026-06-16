@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils'
 import { useSidebar } from '@/lib/sidebar-context'
 import { useSession } from '@/lib/hooks/use-session'
 import { createClient } from '@/lib/supabase/client'
+import { signOut as nextAuthSignOut } from 'next-auth/react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useState } from 'react'
 import { useSettingsDrawer } from '@/lib/settings-drawer-context'
@@ -158,8 +159,12 @@ export default function Sidebar() {
   const isExpanded = !collapsed || hovered
 
   const handleSignOut = async () => {
+    // Kill both session types: NextAuth JWT and legacy Supabase OTP sessions
     const supabase = createClient()
-    await supabase.auth.signOut()
+    await Promise.all([
+      supabase.auth.signOut(),
+      nextAuthSignOut({ redirect: false }),
+    ])
     router.push('/login')
   }
 

@@ -4,8 +4,8 @@ import { useState, useEffect, useCallback } from 'react'
 import AppShell from '@/components/layout/AppShell'
 import {
   Users, Plus, X, Check, Loader2, MoreHorizontal,
-  Sparkles, Trash2, Search, RefreshCw, ChevronDown,
-  AlertCircle, Filter,
+  Sparkles, Trash2, Search, RefreshCw,
+  AlertCircle, Filter, Pencil,
 } from 'lucide-react'
 import Link from 'next/link'
 import { cn, formatNumber } from '@/lib/utils'
@@ -168,6 +168,8 @@ export default function SegmentsPage() {
   const [aiLoading, setAiLoading]       = useState(false)
   const [saveError, setSaveError]       = useState('')
   const [saving, setSaving]             = useState(false)
+  const [previewCount, setPreviewCount] = useState<number | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
 
   const [form, setForm] = useState({
     name: '', description: '', matchType: 'all' as 'all' | 'any',
@@ -203,6 +205,23 @@ export default function SegmentsPage() {
     fetchSegments()
     fetchSuggestions()
   }, [fetchSegments, fetchSuggestions])
+
+  // Debounced preview count
+  useEffect(() => {
+    if (!showCreate || form.rules.length === 0) { setPreviewCount(null); return }
+    setPreviewLoading(true)
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch('/api/segments/preview', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rules: form.rules, matchType: form.matchType }),
+        })
+        if (res.ok) { const d = await res.json() as { count: number }; setPreviewCount(d.count) }
+      } catch { /* silent */ }
+      setPreviewLoading(false)
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [showCreate, form.rules, form.matchType])
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -297,8 +316,6 @@ export default function SegmentsPage() {
   const activeCount = segments.filter(s => s.active).length
   const biggest     = segments.length > 0 ? segments.reduce((a, b) => b.count > a.count ? b : a) : null
 
-  const previewCount = 0 // would need a real API call; shown as "?" until saved
-
   return (
     <AppShell>
 
@@ -331,20 +348,20 @@ export default function SegmentsPage() {
         </div>
       </div>
 
-      <div className="flex flex-1 min-h-0 overflow-hidden">
+      <div className="flex flex-col lg:flex-row flex-1 min-h-0 lg:overflow-hidden">
 
         {/* ── Main ── */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="w-full lg:flex-1 flex flex-col lg:overflow-hidden min-h-0">
 
           {/* KPI cards */}
-          <div className="px-6 py-4 grid grid-cols-2 xl:grid-cols-4 gap-3 shrink-0">
+          <div className="px-4 md:px-6 py-4 grid grid-cols-2 lg:grid-cols-4 gap-3 shrink-0">
             {[
               { label: 'Toplam Segment',     value: String(segments.length), sub: `${activeCount} aktif`, color: '#99b4ff', icon: '📊' },
               { label: 'Toplam Müşteri',      value: formatNumber(totalCount), sub: 'tüm segmentlerde',  color: '#4470ff',  icon: '👥' },
               { label: 'En Büyük Segment',    value: biggest?.name ?? '—', sub: biggest ? formatNumber(biggest.count) + ' müşteri' : '—', color: '#f0a020', icon: '👑', small: true },
               { label: 'Aktif Segment',       value: String(activeCount), sub: `${segments.length - activeCount} pasif`, color: '#22c97a', icon: '✅' },
             ].map(kpi => (
-              <div key={kpi.label} className="rounded-2xl p-4 relative overflow-hidden"
+              <div key={kpi.label} className="rounded-2xl p-4 relative overflow-hidden min-w-0"
                 style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)' }}>
                 <div className="absolute top-0 left-4 right-4 h-px"
                   style={{ background: `linear-gradient(90deg,transparent,${kpi.color}44,transparent)` }} />
@@ -414,7 +431,7 @@ export default function SegmentsPage() {
                           {resolveIcon(seg.icon)}
                         </div>
                         <div>
-                          <p className="text-[12px] font-semibold" style={{ color: '#eeeef4' }}>{seg.name}</p>
+                          <p className="text-[12px] font-semibold truncate max-w-[160px]" style={{ color: '#eeeef4' }}>{seg.name}</p>
                           {seg.description && (
                             <p className="text-[10px]" style={{ color: '#44445a' }}>
                               {seg.description.length > 50 ? seg.description.slice(0, 49) + '…' : seg.description}
@@ -476,6 +493,13 @@ export default function SegmentsPage() {
                     {/* Actions */}
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-1">
+                        {seg.type !== 'builtin' && (
+                          <Link href={`/segments/${seg.id}/edit`}
+                            className="px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-all flex items-center gap-1"
+                            style={{ background: 'rgba(255,255,255,0.04)', color: '#8080a0', border: '1px solid rgba(255,255,255,0.08)' }}>
+                            <Pencil className="w-2.5 h-2.5" /> Düzenle
+                          </Link>
+                        )}
                         <Link href={`/ai-studio`}
                           className="px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-all"
                           style={{ background: 'rgba(68,112,255,0.08)', color: '#99b4ff', border: '1px solid rgba(68,112,255,0.15)' }}>
@@ -539,8 +563,8 @@ export default function SegmentsPage() {
         {showCreate ? (
 
           /* ── Segment builder ── */
-          <div className="w-80 shrink-0 flex flex-col overflow-y-auto"
-            style={{ borderLeft: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.01)' }}>
+          <div className="w-full lg:w-80 shrink-0 flex flex-col overflow-y-auto"
+            style={{ borderTop: '1px solid rgba(255,255,255,0.08)', borderLeft: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.01)' }}>
 
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 shrink-0"
@@ -657,7 +681,18 @@ export default function SegmentsPage() {
                     <p className="text-[10px]" style={{ color: '#44445a' }}>{form.rules.length} koşul · {form.matchType === 'all' ? 'tümü' : 'herhangi biri'}</p>
                   </div>
                 </div>
-                <p className="text-[10px]" style={{ color: '#44445a' }}>Kayıt sonrası müşteri sayısı hesaplanır.</p>
+                {form.rules.length === 0 ? (
+                  <p className="text-[10px]" style={{ color: '#44445a' }}>Koşul ekleyince önizleme görünür.</p>
+                ) : previewLoading ? (
+                  <div className="flex items-center gap-1.5">
+                    <Loader2 className="w-3 h-3 animate-spin" style={{ color: '#44445a' }} />
+                    <p className="text-[10px]" style={{ color: '#44445a' }}>Hesaplanıyor…</p>
+                  </div>
+                ) : previewCount !== null ? (
+                  <p className="text-[11px] font-bold" style={{ color: form.color }}>
+                    👥 {formatNumber(previewCount)} müşteri bu segmente giriyor
+                  </p>
+                ) : null}
               </div>
 
               {saveError && (
@@ -688,8 +723,8 @@ export default function SegmentsPage() {
         ) : (
 
           /* ── AI Öneriler panel ── */
-          <div className="w-[290px] shrink-0 flex flex-col overflow-hidden"
-            style={{ borderLeft: '1px solid rgba(255,255,255,0.06)', background: '#0d0d1a' }}>
+          <div className="w-full lg:w-[290px] shrink-0 flex flex-col overflow-hidden"
+            style={{ borderTop: '1px solid rgba(255,255,255,0.06)', borderLeft: '1px solid rgba(255,255,255,0.06)', background: '#0d0d1a' }}>
 
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3.5 shrink-0"

@@ -480,12 +480,12 @@ export default function DashboardPage() {
               </button>
             ))}
           </div>
-          <button className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[12px] font-semibold transition-all"
+          <button className="hidden md:flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[12px] font-semibold transition-all"
             style={{ background:'rgba(255,255,255,0.04)', color:'#8080a0', border:'1px solid rgba(255,255,255,0.08)' }}>
             <Download className="w-3.5 h-3.5"/> Raporu İndir
           </button>
           <Link href="/ai-studio"
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[12px] font-semibold transition-all"
+            className="hidden md:flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[12px] font-semibold transition-all"
             style={{ background:'#4470ff', color:'#fff' }}>
             <Plus className="w-3.5 h-3.5"/> Kampanya Oluştur
           </Link>

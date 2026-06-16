@@ -277,6 +277,7 @@ export default function RunHistoryPage() {
   const [error,     setError]     = useState('')
   const [statusFilter, setFilter] = useState('')
   const [autoRefresh, setAutoRef] = useState(false)
+  const [nodeStats, setNodeStats] = useState<Record<string, { nodeLabel: string | null; nodeType: string; completed: number; waiting: number; failed: number; total: number }>>({})
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const load = useCallback(() => {
@@ -285,10 +286,12 @@ export default function RunHistoryPage() {
     Promise.all([
       fetch(`/api/automations/${params.id}/runs${qs}`).then(r => r.json()),
       fetch(`/api/automations/${params.id}/flow`).then(r => r.json()),
-    ]).then(([rd, fd]) => {
+      fetch(`/api/automations/${params.id}/node-stats`).then(r => r.json()),
+    ]).then(([rd, fd, ns]) => {
       if (rd.runs) { setRuns(rd.runs); setSummary({ total: rd.total, byStatus: rd.byStatus }) }
       else setError(rd.error ?? 'Hata')
       if (fd.name) setAutoName(fd.name)
+      if (ns && typeof ns === 'object' && !ns.error) setNodeStats(ns)
     }).catch(() => setError('Veriler yüklenemedi'))
       .finally(() => setLoading(false))
   }, [params.id, statusFilter])
@@ -373,6 +376,27 @@ export default function RunHistoryPage() {
             </div>
           ))}
         </div>
+
+        {/* Per-node stats */}
+        {Object.keys(nodeStats).length > 0 && (
+          <div className="bento-card p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-3)' }}>Node İstatistikleri</p>
+            <div className="space-y-2">
+              {Object.entries(nodeStats).map(([nodeId, s]) => (
+                <div key={nodeId} className="flex items-center gap-3 py-1.5 px-3 rounded-xl" style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
+                  <span className="text-[11px] font-semibold min-w-0 flex-1 truncate" style={{ color: 'var(--text-1)' }}>
+                    {s.nodeLabel ?? s.nodeType}
+                  </span>
+                  <div className="flex items-center gap-2 shrink-0 text-[10px] font-semibold font-mono">
+                    <span style={{ color: '#22c97a' }}>✅ {s.completed}</span>
+                    <span style={{ color: '#f0a020' }}>⏳ {s.waiting}</span>
+                    <span style={{ color: '#e84545' }}>❌ {s.failed}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {error && (
           <div className="ds-alert ds-alert-error">

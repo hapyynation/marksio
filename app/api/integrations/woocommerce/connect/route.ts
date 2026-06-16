@@ -1,6 +1,7 @@
 ﻿import { NextRequest, NextResponse } from 'next/server'
 import { getApiSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { registerWooCommerceWebhooks } from '@/lib/woocommerce'
 
 export async function POST(req: NextRequest) {
   const session = await getApiSession()
@@ -26,7 +27,7 @@ export async function POST(req: NextRequest) {
     const data = await testRes.json()
     const shopName = data?.settings?.blog_name ?? domain
 
-    await prisma.integration.upsert({
+    const integration = await prisma.integration.upsert({
       where: { userId_platform: { userId: session.user.id, platform: 'woocommerce' } },
       create: {
         userId: session.user.id,
@@ -45,6 +46,10 @@ export async function POST(req: NextRequest) {
         meta: JSON.stringify({ shopName }),
       },
     })
+
+    // Webhook'ları arka planda kaydet
+    registerWooCommerceWebhooks(integration.id)
+      .catch(err => console.error('[WooCommerce Connect] Webhook kayıt hatası:', err))
 
     return NextResponse.json({ success: true, shopName })
   } catch {

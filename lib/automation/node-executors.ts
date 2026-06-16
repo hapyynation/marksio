@@ -205,13 +205,23 @@ export async function execSendEmail(
     ? `${cfg.senderName ?? 'Mağaza'} <kampanya@${domain.domain}>`
     : `${cfg.senderName ?? 'Mağaza'} <kampanya@marksio.co>`
 
-  const html = buildPremiumEmail({
+  const automationId = String(data.automationId ?? '')
+  const runId        = String(data.runId ?? '')
+  const baseUrl      = process.env.NEXTAUTH_URL ?? 'https://app.marksio.com'
+  const trackPixelUrl = automationId
+    ? `${baseUrl}/api/track/open?aid=${automationId}&rid=${runId}&uid=${customer.id}`
+    : null
+
+  const emailHtml = buildPremiumEmail({
     storeName: cfg.senderName ?? 'Mağaza',
     headline:  subject,
     body:      bodyText,
     cta:       'Hemen İncele',
     ctaUrl:    '#',
   })
+  const html = trackPixelUrl
+    ? emailHtml + `<img src="${trackPixelUrl}" width="1" height="1" alt="" style="display:none;" />`
+    : emailHtml
 
   if (!process.env.RESEND_API_KEY) {
     throw new Error('RESEND_API_KEY bulunamadı — Email gönderilemedi')
@@ -227,7 +237,7 @@ export async function execSendEmail(
 
   /* Automation sent counter */
   await prisma.automation.updateMany({
-    where: { id: String(data.automationId ?? '') },
+    where: { id: automationId },
     data: { sent: { increment: 1 } },
   })
 

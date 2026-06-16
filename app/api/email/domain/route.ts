@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server'
 import { getApiSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { Resend } from 'resend'
+
+const resend = new Resend(process.env.RESEND_API_KEY)
+
+const CUSTOM_DOMAIN_PLANS = new Set(['growth', 'pro', 'scale', 'agency'])
 
 export async function GET() {
   const session = await getApiSession()
@@ -14,17 +19,50 @@ export async function GET() {
     orderBy: { createdAt: 'desc' },
   })
 
-  return NextResponse.json({ domains })
+  return NextResponse.json({ domains, plan: user.plan })
 }
 
-// Custom domain creation is not available on the current Resend plan.
-// All outbound email is sent via the pre-verified system domain.
-export async function POST() {
-  return NextResponse.json({
-    managed: true,
-    domain: 'mg.marksio.com',
-    message: 'E-postalar şu an mg.marksio.com üzerinden gönderilmektedir.',
-  })
+export async function POST(req: Request) {
+  const session = await getApiSession()
+  if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const user = await prisma.user.findUnique({ where: { email: session.user.email } })
+  if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 })
+
+  if (!CUSTOM_DOMAIN_PLANS.has(user.plan)) {
+    return NextResponse.json({
+      error: 'Custom domain özelliği Growth planı ve üzerinde kullanılabilir.',
+      requiresUpgrade: true,
+    }, { status: 403 })
+  }
+
+  const body = await req.json() as { domain?: string }
+  const domainName = body.domain?.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '')
+  if (!domainName) return NextResponse.json({ error: 'Domain gerekli' }, { status: 400 })
+
+  const existing = await prisma.emailDomain.findFirst({ where: { userId: user.id, domain: domainName } })
+  if (existing) return NextResponse.json({ error: 'Bu domain zaten eklenmiş' }, { status: 409 })
+
+  try {
+    const result = await resend.domains.create({ name: domainName })
+    if (!result.data) throw new Error('Resend domain oluşturulamadı')
+
+    const emailDomain = await prisma.emailDomain.create({
+      data: {
+        userId: user.id,
+        domain: domainName,
+        resendId: result.data.id,
+        status: 'pending',
+        dnsRecords: JSON.stringify(result.data.records ?? []),
+        fromPrefix: 'kampanya',
+      },
+    })
+
+    return NextResponse.json({ domain: emailDomain }, { status: 201 })
+  } catch (err) {
+    console.error('[Domain create]', err)
+    return NextResponse.json({ error: 'Domain oluşturulurken hata oluştu' }, { status: 500 })
+  }
 }
 
 // PATCH — update sender settings for an existing domain

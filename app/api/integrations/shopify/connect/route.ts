@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
     if (appUrl) {
       Promise.all([
         registerWebhooks(domain, accessToken, appUrl),
-        registerScriptTag(domain, accessToken, appUrl),
+        registerScriptTag(domain, accessToken, appUrl, integration.id),
       ])
         .then(() =>
           prisma.integration.update({

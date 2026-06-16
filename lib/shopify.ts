@@ -198,15 +198,20 @@ export async function registerScriptTag(
   domain: string,
   token: string,
   appBaseUrl: string,
+  integrationId?: string,
 ): Promise<void> {
-  const scriptSrc = `${appBaseUrl}/shopify-pixel.js`
+  const scriptSrc = integrationId
+    ? `${appBaseUrl}/tracker.js?store_id=${integrationId}`
+    : `${appBaseUrl}/shopify-pixel.js`
+
+  const srcFragment = integrationId ? '/tracker.js' : '/shopify-pixel.js'
 
   // Mevcut script tag'leri kontrol et
   const existing = await shopifyFetch<{ script_tags: Array<{ id: number; src: string }> }>(
     domain, token, '/script_tags.json',
   ).catch(() => ({ script_tags: [] }))
 
-  const alreadyInstalled = existing.script_tags.some(s => s.src.includes('/shopify-pixel.js'))
+  const alreadyInstalled = existing.script_tags.some(s => s.src.includes(srcFragment))
   if (alreadyInstalled) return
 
   await shopifyFetch(domain, token, '/script_tags.json', {

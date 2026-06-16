@@ -3,6 +3,19 @@ import { getApiSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { matchesRules, type SegmentRule } from '@/lib/segment-engine'
 
+export async function GET(_: NextRequest, { params }: { params: { id: string } }) {
+  const session = await getApiSession()
+  if (!session?.user) return NextResponse.json({ error: 'Yetkisiz' }, { status: 401 })
+  const userId = (session.user as { id: string }).id
+
+  const segment = await prisma.segment.findFirst({ where: { id: params.id, userId } })
+  if (!segment) return NextResponse.json({ error: 'Bulunamadı' }, { status: 404 })
+
+  let rules: SegmentRule[] = []
+  try { rules = JSON.parse(segment.rules) } catch { /* */ }
+  return NextResponse.json({ ...segment, rules })
+}
+
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getApiSession()
   if (!session?.user) return NextResponse.json({ error: 'Yetkisiz' }, { status: 401 })

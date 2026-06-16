@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
     const storeMeta = data.data?.listStore?.[0]
     const shopName = storeMeta?.name ?? domain
 
-    await prisma.integration.upsert({
+    const integration = await prisma.integration.upsert({
       where: { userId_platform: { userId: session.user.id, platform: 'ikas' } },
       create: {
         userId: session.user.id,
@@ -53,7 +53,15 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    return NextResponse.json({ success: true, shopName })
+    // Webhook'ları arka planda kaydet
+    if (process.env.NEXT_PUBLIC_APP_URL) {
+      fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/integrations/ikas/webhooks`, {
+        method: 'POST',
+        headers: { Cookie: req.headers.get('cookie') ?? '' },
+      }).catch(err => console.error('[İkas Connect] Webhook kayıt hatası:', err))
+    }
+
+    return NextResponse.json({ success: true, shopName, integrationId: integration.id })
   } catch {
     return NextResponse.json({ error: 'İkas API erişim hatası' }, { status: 500 })
   }

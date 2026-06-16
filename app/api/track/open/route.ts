@@ -4,8 +4,9 @@ import { prisma } from '@/lib/prisma'
 const PIXEL = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64')
 
 export async function GET(req: NextRequest) {
-  const campaignId = req.nextUrl.searchParams.get('c')
-  const customerId = req.nextUrl.searchParams.get('u')
+  const campaignId   = req.nextUrl.searchParams.get('c')
+  const automationId = req.nextUrl.searchParams.get('aid')
+  const customerId   = req.nextUrl.searchParams.get('u')
 
   if (campaignId) {
     const campaign = await prisma.campaign.findUnique({
@@ -29,6 +30,13 @@ export async function GET(req: NextRequest) {
           }).catch(() => null)
         : null,
     ])
+  }
+
+  if (automationId) {
+    await prisma.automation.updateMany({
+      where: { id: automationId },
+      data: { opened: { increment: 1 } },
+    }).catch(() => null)
   }
 
   return new NextResponse(PIXEL, {

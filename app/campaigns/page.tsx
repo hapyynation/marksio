@@ -83,6 +83,7 @@ export default function CampaignsPage() {
   const [sendingId, setSendingId] = useState<string | null>(null)
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [previewingId, setPreviewingId] = useState<string | null>(null)
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
   const [showNewPanel, setShowNewPanel] = useState(false)
   const [aiSuggestions, setAiSuggestions] = useState<AiSuggestion[]>([])
@@ -155,6 +156,17 @@ export default function CampaignsPage() {
       } else showToast(data.error ?? 'Gönderim başarısız.', 'error')
     } catch { showToast('Gönderim başarısız.', 'error') }
     finally { setSendingId(null) }
+  }
+
+  const handlePreview = async (id: string) => {
+    setPreviewingId(id); setOpenMenuId(null)
+    try {
+      const res = await fetch(`/api/campaigns/${id}/preview`, { method: 'POST' })
+      const data = await res.json()
+      if (data.success) showToast(`Önizleme ${data.sentTo} adresine gönderildi.`)
+      else showToast(data.error ?? 'Önizleme gönderilemedi.', 'error')
+    } catch { showToast('Bağlantı hatası', 'error') }
+    finally { setPreviewingId(null) }
   }
 
   const handleDelete = async (id: string) => {
@@ -245,7 +257,7 @@ export default function CampaignsPage() {
 
       {/* Mobile FAB */}
       <Link href="/ai-studio"
-        className="fixed bottom-20 right-4 z-30 md:hidden w-14 h-14 flex items-center justify-center rounded-full shadow-2xl"
+        className="fixed bottom-6 right-4 z-30 md:hidden w-14 h-14 flex items-center justify-center rounded-full shadow-2xl"
         style={{ background: '#4470ff', touchAction: 'manipulation' }}>
         <Plus className="w-6 h-6 text-white" />
       </Link>
@@ -305,7 +317,7 @@ export default function CampaignsPage() {
             </div>
 
             {/* Status filter */}
-            <div className="flex items-center p-0.5 gap-0.5 rounded-xl"
+            <div className="flex items-center p-0.5 gap-0.5 rounded-xl shrink-0"
               style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.06)' }}>
               {[['all', 'Tümü'], ['draft', 'Taslak'], ['active', 'Aktif'], ['scheduled', 'Planlandı'], ['completed', 'Tamamlandı']].map(([key, label]) => (
                 <button key={key} onClick={() => setStatusFilter(key)}
@@ -398,10 +410,11 @@ export default function CampaignsPage() {
                       </div>
                     </div>
                     {campaign.sent > 0 && (
-                      <div className="flex items-center gap-4 pt-2.5 border-t" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-                        <span className="text-[11px]" style={{ color: '#44445a' }}>{formatNumber(campaign.sent)} gönderildi</span>
-                        <span className="text-[11px]" style={{ color: '#44445a' }}>%{campaign.sent > 0 ? ((campaign.opened / campaign.sent) * 100).toFixed(0) : 0} açıldı</span>
-                        {campaign.revenue > 0 && <span className="text-[11px] font-bold ml-auto" style={{ color: '#22c97a' }}>{formatCurrency(campaign.revenue)}</span>}
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-2.5 border-t" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+                        <span className="text-[11px]" style={{ color: '#44445a' }}>📧 {formatNumber(campaign.sent)} gönderildi</span>
+                        <span className="text-[11px]" style={{ color: '#44445a' }}>👁 {((campaign.opened / campaign.sent) * 100).toFixed(0)}% açıldı</span>
+                        {campaign.clicked > 0 && <span className="text-[11px]" style={{ color: '#44445a' }}>🖱 {((campaign.clicked / campaign.sent) * 100).toFixed(0)}% tıklandı</span>}
+                        {campaign.revenue > 0 && <span className="text-[11px] font-bold" style={{ color: '#22c97a' }}>💰 {formatCurrency(campaign.revenue)}</span>}
                       </div>
                     )}
                   </div>
@@ -586,6 +599,13 @@ export default function CampaignsPage() {
                                   onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
                                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
                                   <BarChart2 className="w-3 h-3" /> Detay Gör
+                                </button>
+                                <button onClick={() => handlePreview(campaign.id)} disabled={previewingId === campaign.id}
+                                  className="w-full flex items-center gap-2 px-3 py-2.5 text-[11px] text-left transition-colors"
+                                  style={{ color: '#9f7afa' }}
+                                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(159,122,250,0.08)')}
+                                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                                  {previewingId === campaign.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Eye className="w-3 h-3" />} Önizleme Gönder
                                 </button>
                                 <button onClick={() => handleDelete(campaign.id)} disabled={deletingId === campaign.id}
                                   className="w-full flex items-center gap-2 px-3 py-2.5 text-[11px] text-left transition-colors"

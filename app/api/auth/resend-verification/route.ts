@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
       data: { userId: user.id, token, expiresAt },
     })
 
-    const verifyUrl = `${BASE_URL}/api/auth/verify-email?token=${token}`
+    const verifyUrl = `${BASE_URL}/verify-email?token=${token}`
 
     console.log('[resend-verification] Sending email to:', email)
     const { error: emailError } = await resend.emails.send({

@@ -23,11 +23,14 @@ model User {
   emailVerified Boolean  @default(false)
 
   // Lemon Squeezy billing
-  lsSubscriptionId String?
+  lsSubscriptionId  String?
   lsCustomerId      String?
   lsOrderId         String?
   planStatus        String   @default("active") // active | cancelled | expired | past_due
   planRenewsAt      DateTime?
+  emailQuotaUsed    Int      @default(0)
+  whatsappQuotaUsed Int      @default(0)
+  quotaResetAt      DateTime?
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -69,8 +72,10 @@ model Campaign {
   imagePrompt String?
   htmlContent String?
   ctaText     String?
+  ctaUrl      String?
   layoutStyle String?
   brandColor  String?
+  templateType String?
   sentAt      DateTime?
 
   sent        Int      @default(0)
@@ -88,6 +93,7 @@ model Campaign {
   opens       CampaignOpen[]
   emailEvents EmailEvent[]
   revenues    CampaignRevenue[]
+  recipients  CampaignRecipient[]
 }
 
 // ─── Revenue Attribution ──────────────────────────────────────────────────────
@@ -113,6 +119,24 @@ model CampaignRevenue {
   @@index([campaignId, createdAt])
   @@index([userId, createdAt])
   @@index([customerId])
+}
+
+model CampaignRecipient {
+  id         String    @id @default(cuid())
+  campaignId String
+  customerId String
+  email      String
+  status     String    @default("pending") // pending|sent|failed|bounced|unsubscribed
+  sentAt     DateTime?
+  openedAt   DateTime?
+  clickedAt  DateTime?
+  bouncedAt  DateTime?
+
+  campaign   Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  customer   Customer  @relation(fields: [customerId], references: [id])
+
+  @@unique([campaignId, customerId])
+  @@index([campaignId, status])
 }
 
 model CampaignProduct {
@@ -191,6 +215,9 @@ model Customer {
   platformId  String?   // Shopify customer ID, WooCommerce ID vb.
   source      String    @default("manual") // "shopify" | "woocommerce" | "trendyol" | "manual" | "csv"
 
+  birthdayMonth Int?
+  birthdayDay   Int?
+
   unsubscribed     Boolean   @default(false)
   unsubscribeToken String    @default(cuid())
   bounced          Boolean   @default(false)
@@ -205,6 +232,7 @@ model Customer {
   events      CustomerEvent[]
   opens       CampaignOpen[]
   emailEvents EmailEvent[]
+  campaignRecipients CampaignRecipient[]
 
   @@unique([userId, email])
 }
@@ -229,7 +257,8 @@ model Integration {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  orders      Order[]
+  orders          Order[]
+  visitorSessions VisitorSession[]
 
   @@unique([userId, platform])
 }
@@ -349,6 +378,7 @@ model AutomationRun {
   completedAt   DateTime?
   failedAt      DateTime?
   failReason    String?
+  meta          Json?
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -399,24 +429,6 @@ model AutomationLog {
   @@index([runId])
   @@index([automationId, createdAt])
   @@index([userId, createdAt])
-}
-
-model FlowExecution {
-  id           String    @id @default(cuid())
-  automationId String
-  userId       String
-  customerId   String
-  nodeId       String    @default("")
-  status       String    @default("pending")  // pending | running | waiting | completed | failed
-  context      String    @default("{}")
-  nextRunAt    DateTime?
-  completedAt  DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-
-  @@index([automationId])
-  @@index([userId, status])
-  @@index([nextRunAt])
 }
 
 model Segment {
@@ -602,6 +614,45 @@ model WhatsAppMessage {
   @@index([conversationId])
   @@index([externalId])
 }
+
+// ─── Canlı Takip ─────────────────────────────────────────────────────────────
+
+model VisitorSession {
+  id          String      @id @default(cuid())
+  storeId     String
+  store       Integration @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  sessionId   String
+  ip          String?
+  city        String?
+  country     String?
+  device      String?
+  browser     String?
+  currentPage String?
+  status      String      @default("active") // active | idle | left
+  startedAt   DateTime    @default(now())
+  lastSeenAt  DateTime    @default(now())
+
+  events      VisitorEvent[]
+
+  @@unique([storeId, sessionId])
+  @@index([storeId, lastSeenAt])
+}
+
+model VisitorEvent {
+  id        String         @id @default(cuid())
+  sessionId String
+  session   VisitorSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  storeId   String
+  eventType String         // page_view | product_view | add_to_cart | checkout_start | heartbeat | page_leave
+  pageUrl   String?
+  metadata  Json?
+  createdAt DateTime       @default(now())
+
+  @@index([storeId, createdAt])
+  @@index([sessionId])
+}
+
+// ─── WhatsApp Campaigns ───────────────────────────────────────────────────────
 
 model WhatsAppCampaign {
   id                  String    @id @default(cuid())

@@ -1,19 +1,24 @@
 'use client'
 
 import { useState, useEffect, Suspense } from 'react'
-import { Check, Zap, Star, Building2, Rocket, ArrowRight, Loader2, CheckCircle, AlertCircle } from 'lucide-react'
+import {
+  Check, Zap, Star, Building2, Rocket, ArrowRight, Loader2,
+  CheckCircle, AlertCircle, ChevronDown, ExternalLink, Receipt,
+} from 'lucide-react'
 import AppShell from '@/components/layout/AppShell'
 import Header from '@/components/layout/Header'
 import { cn } from '@/lib/utils'
 import { useSession } from '@/lib/hooks/use-session'
 import { useSearchParams, useRouter } from 'next/navigation'
 
+// ─── Plan definitions ─────────────────────────────────────────────────────────
+
 const plans = [
   {
     id: 'free',
     name: 'Free',
     icon: Rocket,
-    price: { monthly: 0, yearly: 0 },
+    price: 0,
     desc: 'Başlamak için ideal',
     accentColor: 'rgba(140,144,161,0.15)',
     accentBorder: 'rgba(140,144,161,0.2)',
@@ -32,7 +37,7 @@ const plans = [
     id: 'starter',
     name: 'Starter',
     icon: Zap,
-    price: { monthly: 29, yearly: 23 },
+    price: 29,
     desc: 'Büyüyen mağazalar için',
     accentColor: 'rgba(0,102,255,0.08)',
     accentBorder: 'rgba(0,102,255,0.2)',
@@ -53,7 +58,7 @@ const plans = [
     id: 'growth',
     name: 'Growth',
     icon: Star,
-    price: { monthly: 59, yearly: 47 },
+    price: 59,
     desc: 'En çok tercih edilen',
     popular: true,
     accentColor: 'rgba(0,241,254,0.06)',
@@ -76,7 +81,7 @@ const plans = [
     id: 'agency',
     name: 'Agency',
     icon: Building2,
-    price: { monthly: 99, yearly: 79 },
+    price: 99,
     desc: 'Ajans ve yüksek hacim',
     accentColor: 'rgba(167,139,250,0.08)',
     accentBorder: 'rgba(167,139,250,0.2)',
@@ -97,31 +102,111 @@ const plans = [
 ]
 
 const faqs = [
-  { q: 'Aylık kotayı aşarsam ne olur?', a: 'Mesaj gönderimleri durur. Ek kredi paketi satın alarak devam edebilirsiniz.' },
+  { q: 'Aylık kotayı aşarsam ne olur?',         a: 'Mesaj gönderimleri durur. Ek kredi paketi satın alarak devam edebilirsiniz.' },
   { q: 'İstediğim zaman plan değiştirebilir miyim?', a: 'Evet, her an yükseltme veya düşürme yapabilirsiniz. Fark bir sonraki dönemde yansır.' },
-  { q: 'Yıllık ödeme nasıl çalışır?', a: 'Yıllık planlar tek seferlik ödeme ile aktifleşir ve 12 ay boyunca geçerlidir.' },
-  { q: 'WhatsApp gönderimi için ne gerekiyor?', a: 'Meta Business API onayı gerekiyor. Ayarlar → Entegrasyonlar bölümünden bağlayabilirsiniz.' },
+  { q: 'WhatsApp gönderimi için ne gerekiyor?',  a: 'Meta Business API onayı gerekiyor. Ayarlar → Entegrasyonlar bölümünden bağlayabilirsiniz.' },
+  { q: 'Kredi kartım güvende mi?',               a: 'Tüm ödemeler Lemon Squeezy altyapısıyla işlenir. Kart bilgileri Marksio sistemlerine ulaşmaz.' },
+  { q: 'Kampanya limiti aşılırsa ne olur?',      a: 'Yeni kampanya oluşturulamaz. Planınızı yükselterek devam edebilirsiniz.' },
+  { q: 'Birden fazla mağaza bağlayabilir miyim?', a: 'Agency planında çoklu mağaza desteği bulunuyor. Diğer planlarda tek mağaza bağlayabilirsiniz.' },
+  { q: 'İptal edersem verilerim silinir mi?',    a: 'Hayır. Plan iptal edilse bile verileriniz 30 gün boyunca saklanır. Bu süre içinde yeniden aktifleştirebilirsiniz.' },
+  { q: 'Fatura ve ödeme yönetimi nerede?',       a: "Planlar sayfasındaki \"Faturalarım\" bölümünden tüm ödemelerinizi görüntüleyebilir ve fatura indirebilirsiniz." },
 ]
 
 const PLAN_STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  active:    { label: 'Aktif',       color: '#22c97a' },
-  cancelled: { label: 'İptal Edildi', color: '#f0a020' },
-  expired:   { label: 'Süresi Doldu', color: '#e84545' },
-  past_due:  { label: 'Ödeme Gecikmiş', color: '#e84545' },
+  active:    { label: 'Aktif',             color: '#22c97a' },
+  cancelled: { label: 'İptal Edildi',      color: '#f0a020' },
+  expired:   { label: 'Süresi Doldu',      color: '#e84545' },
+  past_due:  { label: 'Ödeme Gecikmiş',    color: '#e84545' },
 }
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface UsageData {
+  emailQuotaUsed: number
+  emailQuotaLimit: number
+  campaignCount: number
+  campaignLimit: number
+  whatsappQuotaUsed: number
+  whatsappQuotaLimit: number
+}
+
+interface Invoice {
+  id: string
+  createdAt: string
+  total: number
+  currency: string
+  status: string
+  receiptUrl: string | null
+  productName: string
+}
+
+// ─── Shared components ────────────────────────────────────────────────────────
+
+function UsageBar({ label, used, limit }: { label: string; used: number; limit: number }) {
+  const unlimited = limit === -1 || limit === 0
+  const pct       = unlimited ? 0 : Math.min((used / limit) * 100, 100)
+  const barColor  = pct >= 100 ? '#e84545' : pct >= 80 ? '#f0a020' : '#22c97a'
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1.5">
+        <p className="text-xs" style={{ color: '#8c90a1' }}>{label}</p>
+        <p className="text-xs font-mono" style={{ color: '#8c90a1' }}>
+          {unlimited
+            ? limit === 0 ? 'Bu planda yok' : `${used.toLocaleString('tr-TR')} / ∞`
+            : `${used.toLocaleString('tr-TR')} / ${limit.toLocaleString('tr-TR')}`}
+        </p>
+      </div>
+      <div className="h-1.5 rounded-full overflow-hidden" style={{ background: '#1c1b1b' }}>
+        {!unlimited && (
+          <div className="h-full rounded-full transition-all duration-300"
+            style={{ width: `${pct}%`, background: barColor }} />
+        )}
+        {limit === -1 && (
+          <div className="h-full rounded-full" style={{ width: '30%', background: 'rgba(34,201,122,0.3)' }} />
+        )}
+      </div>
+    </div>
+  )
+}
+
+function FaqItem({ q, a }: { q: string; a: string }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="bento-card overflow-hidden">
+      <button onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between gap-3 p-4 text-left">
+        <p className="text-sm font-semibold" style={{ color: '#e5e2e1' }}>{q}</p>
+        <ChevronDown className={cn('w-4 h-4 shrink-0 transition-transform', open && 'rotate-180')}
+          style={{ color: '#8c90a1' }} />
+      </button>
+      {open && (
+        <div className="px-4 pb-4">
+          <p className="text-xs leading-relaxed" style={{ color: '#8c90a1' }}>{a}</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Main content ─────────────────────────────────────────────────────────────
 
 function PlansContent() {
   const { data: session } = useSession()
   const searchParams = useSearchParams()
-  const router = useRouter()
+  const router       = useRouter()
 
   const currentPlan = (session?.user as { plan?: string })?.plan ?? 'free'
   const planStatus  = (session?.user as { planStatus?: string })?.planStatus ?? 'active'
   const renewsAt    = (session?.user as { planRenewsAt?: string })?.planRenewsAt
 
-  const [billing,     setBilling]     = useState<'monthly' | 'yearly'>('monthly')
-  const [loadingPlan, setLoadingPlan] = useState<string | null>(null)
-  const [toast,       setToast]       = useState<{ type: 'success' | 'error'; msg: string } | null>(null)
+  const [loadingPlan,    setLoadingPlan]    = useState<string | null>(null)
+  const [toast,          setToast]          = useState<{ type: 'success' | 'error'; msg: string } | null>(null)
+  const [usage,          setUsage]          = useState<UsageData | null>(null)
+  const [usageLoading,   setUsageLoading]   = useState(true)
+  const [invoices,       setInvoices]       = useState<Invoice[]>([])
+  const [invoicesLoading, setInvoicesLoading] = useState(true)
+  const [portalUrl,      setPortalUrl]      = useState<string | null>(null)
 
   // Handle redirect back from Lemon Squeezy
   useEffect(() => {
@@ -143,6 +228,27 @@ function PlansContent() {
     const t = setTimeout(() => setToast(null), 5000)
     return () => clearTimeout(t)
   }, [toast])
+
+  useEffect(() => {
+    fetch('/api/billing/usage')
+      .then(r => r.ok ? r.json() : null)
+      .then((d: UsageData | null) => { if (d) setUsage(d) })
+      .catch(() => {})
+      .finally(() => setUsageLoading(false))
+
+    fetch('/api/billing/invoices')
+      .then(r => r.ok ? r.json() : null)
+      .then((d: { orders?: Invoice[] } | null) => { if (d?.orders) setInvoices(d.orders) })
+      .catch(() => {})
+      .finally(() => setInvoicesLoading(false))
+
+    if (currentPlan !== 'free') {
+      fetch('/api/billing/portal')
+        .then(r => r.ok ? r.json() : null)
+        .then((d: { url?: string } | null) => { if (d?.url) setPortalUrl(d.url) })
+        .catch(() => {})
+    }
+  }, [currentPlan])
 
   async function handleUpgrade(planId: string) {
     if (!planId || planId === 'free') return
@@ -170,6 +276,12 @@ function PlansContent() {
 
   const statusInfo = PLAN_STATUS_LABELS[planStatus] ?? PLAN_STATUS_LABELS.active
 
+  const renewalText = (() => {
+    if (currentPlan === 'free') return 'Ücretsiz plan — süre sınırı yok'
+    if (!renewsAt) return 'Bilinmiyor'
+    return new Date(renewsAt).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })
+  })()
+
   return (
     <AppShell>
       {/* Toast */}
@@ -191,31 +303,10 @@ function PlansContent() {
       <Header title="Planlar & Fiyatlandırma" subtitle="İhtiyacınıza göre plan seçin" />
       <div className="page-content space-y-10 flex-1 max-w-5xl">
 
-        {/* Billing toggle */}
-        <div className="flex justify-center">
-          <div className="flex items-center gap-1 p-1 rounded-xl" style={{ background: '#0a0a0a', border: '1px solid rgba(255,255,255,0.06)' }}>
-            {(['monthly', 'yearly'] as const).map(b => (
-              <button key={b} onClick={() => setBilling(b)}
-                className={cn(
-                  'flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold transition-all',
-                  billing === b ? 'text-white' : 'text-[#8c90a1] hover:text-[#c2c6d8]'
-                )}
-                style={billing === b ? { background: '#1c1b1b', border: '1px solid rgba(255,255,255,0.08)' } : undefined}
-              >
-                {b === 'monthly' ? 'Aylık' : 'Yıllık'}
-                {b === 'yearly' && (
-                  <span className="chip chip-green text-[9px]">%20 İndirim</span>
-                )}
-              </button>
-            ))}
-          </div>
-        </div>
-
         {/* Plan cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {plans.map(plan => {
             const Icon      = plan.icon
-            const price     = plan.price[billing]
             const isCurrent = currentPlan === plan.id
             const isLoading = loadingPlan === plan.id
 
@@ -250,15 +341,9 @@ function PlansContent() {
 
                   <div className="mb-5">
                     <div className="flex items-end gap-1">
-                      <span className="text-3xl font-black" style={{ color: '#e5e2e1' }}>${price}</span>
+                      <span className="text-3xl font-black" style={{ color: '#e5e2e1' }}>${plan.price}</span>
                       <span className="text-xs mb-1" style={{ color: '#8c90a1' }}>/ay</span>
                     </div>
-                    {billing === 'yearly' && plan.price.monthly > 0 && (
-                      <p className="text-[10px] mt-0.5">
-                        <span className="line-through" style={{ color: '#424656' }}>${plan.price.monthly}/ay</span>
-                        <span className="ml-1" style={{ color: '#34d399' }}>%20 tasarruf</span>
-                      </p>
-                    )}
                   </div>
 
                   <ul className="space-y-2 mb-6 flex-1">
@@ -276,7 +361,7 @@ function PlansContent() {
                     className={cn(
                       'w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all',
                       isCurrent ? 'cursor-default' : plan.lsVariant ? 'cursor-pointer' : 'cursor-default',
-                      plan.popular && !isCurrent && plan.lsVariant ? 'btn-gradient' : ''
+                      plan.popular && !isCurrent && plan.lsVariant ? 'btn-gradient' : '',
                     )}
                     style={!plan.popular && !isCurrent && plan.lsVariant ? {
                       background: '#1c1b1b',
@@ -298,8 +383,7 @@ function PlansContent() {
                       ? <><Check className="w-3.5 h-3.5" /> Mevcut Plan</>
                       : plan.id === 'free'
                       ? 'Ücretsiz'
-                      : <>{plan.cta} <ArrowRight className="w-3.5 h-3.5" /></>
-                    }
+                      : <>{plan.cta} <ArrowRight className="w-3.5 h-3.5" /></>}
                   </button>
                 </div>
               </div>
@@ -308,7 +392,7 @@ function PlansContent() {
         </div>
 
         {/* Current plan summary */}
-        <div className="stat-card">
+        <div className="stat-card space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="label">Mevcut Plan</p>
@@ -332,28 +416,153 @@ function PlansContent() {
                 </p>
               )}
             </div>
-            <div className="text-right">
-              <p className="label" style={{ textAlign: 'right' }}>Sonraki yenileme</p>
-              <p className="text-sm" style={{ color: '#8c90a1' }}>
-                {renewsAt
-                  ? new Date(renewsAt).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })
-                  : currentPlan === 'free' ? '—' : 'Bilinmiyor'}
-              </p>
+            <div className="text-right space-y-2">
+              <div>
+                <p className="label" style={{ textAlign: 'right' }}>
+                  {currentPlan === 'free' ? 'Plan türü' : 'Sonraki yenileme'}
+                </p>
+                <p className="text-sm" style={{ color: '#8c90a1' }}>{renewalText}</p>
+              </div>
+              {currentPlan !== 'free' && portalUrl && (
+                <a href={portalUrl} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs font-semibold"
+                  style={{ color: '#6b9fff' }}>
+                  Planı Yönet <ExternalLink className="w-3 h-3" />
+                </a>
+              )}
             </div>
           </div>
+
+          {/* Usage bars in current plan card */}
+          {usage && (
+            <div className="space-y-3 pt-2" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+              <UsageBar
+                label="Email Gönderimi"
+                used={usage.emailQuotaUsed}
+                limit={usage.emailQuotaLimit}
+              />
+              <UsageBar
+                label="Kampanyalar (bu ay)"
+                used={usage.campaignCount}
+                limit={usage.campaignLimit}
+              />
+            </div>
+          )}
+          {usageLoading && (
+            <div className="space-y-3 pt-2" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+              {[1, 2].map(i => (
+                <div key={i} className="space-y-1.5">
+                  <div className="h-3 w-32 rounded animate-pulse" style={{ background: 'rgba(255,255,255,0.06)' }} />
+                  <div className="h-1.5 w-full rounded-full animate-pulse" style={{ background: 'rgba(255,255,255,0.06)' }} />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Bu Ay Kullanımın */}
+        <div>
+          <p className="label mb-4">Bu Ay Kullanımın</p>
+          {usageLoading ? (
+            <div className="bento-card p-5 space-y-4">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="space-y-1.5">
+                  <div className="h-3 w-40 rounded animate-pulse" style={{ background: 'rgba(255,255,255,0.06)' }} />
+                  <div className="h-1.5 w-full rounded-full animate-pulse" style={{ background: 'rgba(255,255,255,0.06)' }} />
+                </div>
+              ))}
+            </div>
+          ) : usage ? (
+            <div className="bento-card p-5 space-y-4">
+              <UsageBar
+                label="Email Gönderimi"
+                used={usage.emailQuotaUsed}
+                limit={usage.emailQuotaLimit}
+              />
+              <UsageBar
+                label="Kampanyalar"
+                used={usage.campaignCount}
+                limit={usage.campaignLimit}
+              />
+              {currentPlan !== 'free' && (
+                <UsageBar
+                  label="WhatsApp Mesajı"
+                  used={usage.whatsappQuotaUsed}
+                  limit={usage.whatsappQuotaLimit}
+                />
+              )}
+            </div>
+          ) : (
+            <div className="bento-card p-5">
+              <p className="text-xs" style={{ color: '#8c90a1' }}>Kullanım verisi yüklenemedi.</p>
+            </div>
+          )}
         </div>
 
         {/* FAQ */}
         <div>
-          <p className="label mb-5">Sık Sorulan Sorular</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <p className="label mb-4">Sık Sorulan Sorular</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {faqs.map(item => (
-              <div key={item.q} className="bento-card p-4">
-                <p className="text-sm font-semibold mb-1.5" style={{ color: '#e5e2e1' }}>{item.q}</p>
-                <p className="text-xs leading-relaxed" style={{ color: '#8c90a1' }}>{item.a}</p>
-              </div>
+              <FaqItem key={item.q} q={item.q} a={item.a} />
             ))}
           </div>
+        </div>
+
+        {/* Faturalarım */}
+        <div>
+          <p className="label mb-4">Faturalarım</p>
+          {invoicesLoading ? (
+            <div className="bento-card p-5 space-y-3">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="h-10 rounded-lg animate-pulse" style={{ background: 'rgba(255,255,255,0.04)' }} />
+              ))}
+            </div>
+          ) : invoices.length === 0 ? (
+            <div className="bento-card p-8 flex flex-col items-center gap-2">
+              <Receipt className="w-8 h-8" style={{ color: '#424656' }} />
+              <p className="text-sm" style={{ color: '#8c90a1' }}>Henüz ödeme geçmişiniz yok.</p>
+            </div>
+          ) : (
+            <div className="bento-card overflow-hidden">
+              <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 px-5 py-3"
+                style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                {['Tarih', 'Plan', 'Tutar', 'Durum', ''].map(h => (
+                  <p key={h} className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: '#424656' }}>{h}</p>
+                ))}
+              </div>
+              {invoices.map(inv => (
+                <div key={inv.id}
+                  className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 items-center px-5 py-3.5"
+                  style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                  <p className="text-xs" style={{ color: '#8c90a1' }}>
+                    {new Date(inv.createdAt).toLocaleDateString('tr-TR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                  </p>
+                  <p className="text-xs font-medium" style={{ color: '#e5e2e1' }}>{inv.productName}</p>
+                  <p className="text-xs font-mono" style={{ color: '#e5e2e1' }}>
+                    ${inv.total.toFixed(2)}
+                  </p>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                    style={{
+                      background: inv.status === 'paid' ? 'rgba(34,201,122,0.1)' : 'rgba(240,160,32,0.1)',
+                      color: inv.status === 'paid' ? '#22c97a' : '#f0a020',
+                      border: `1px solid ${inv.status === 'paid' ? 'rgba(34,201,122,0.2)' : 'rgba(240,160,32,0.2)'}`,
+                    }}>
+                    {inv.status === 'paid' ? 'Ödendi' : inv.status}
+                  </span>
+                  {inv.receiptUrl ? (
+                    <a href={inv.receiptUrl} target="_blank" rel="noopener noreferrer"
+                      className="text-xs font-semibold inline-flex items-center gap-1"
+                      style={{ color: '#6b9fff' }}>
+                      PDF <ExternalLink className="w-3 h-3" />
+                    </a>
+                  ) : (
+                    <span className="text-xs" style={{ color: '#424656' }}>—</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
       </div>

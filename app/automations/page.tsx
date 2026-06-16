@@ -520,7 +520,7 @@ export default function AutomationsPage() {
               </div>
               <span className="text-[11px] font-mono" style={{ color: '#44445a' }}>{templates.length} şablon</span>
             </div>
-            <div className="grid grid-cols-2 xl:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
               {templates.map(tpl => {
                 const TplIcon = ICON_MAP[tpl.icon] ?? Zap
                 const bg = `${tpl.color}18`
@@ -575,22 +575,22 @@ export default function AutomationsPage() {
 
           {/* ── Active automations table ── */}
           <div>
-            <div className="flex items-center gap-3 mb-3">
-              <h2 className="text-[14px] font-bold" style={{ color: '#eeeef4' }}>Aktif Otomasyonlar</h2>
-              <div className="flex items-center p-0.5 gap-0.5 rounded-xl" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-3">
+              <h2 className="text-[14px] font-bold shrink-0" style={{ color: '#eeeef4' }}>Aktif Otomasyonlar</h2>
+              <div className="flex items-center p-0.5 gap-0.5 rounded-xl overflow-x-auto no-scrollbar" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.06)' }}>
                 {(['all','active','paused','draft'] as FilterKey[]).map(f => (
                   <button key={f} onClick={() => setFilter(f)}
-                    className="px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all"
+                    className="px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all shrink-0 whitespace-nowrap"
                     style={filter === f ? { background: 'rgba(255,255,255,0.08)', color: '#eeeef4' } : { color: '#44445a' }}>
                     {f === 'all' ? 'Tümü' : STATUS_CFG[f]?.label ?? f}
                   </button>
                 ))}
               </div>
-              <div className="relative ml-auto">
+              <div className="relative sm:ml-auto">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3" style={{ color: '#44445a' }} />
                 <input value={search} onChange={e => setSearch(e.target.value)}
                   placeholder="Otomasyon ara..."
-                  className="pl-8 pr-3 py-1.5 text-[12px] rounded-xl outline-none w-48"
+                  className="pl-8 pr-3 py-1.5 text-[12px] rounded-xl outline-none w-full sm:w-48"
                   style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#eeeef4' }} />
               </div>
             </div>
@@ -624,7 +624,8 @@ export default function AutomationsPage() {
                 <p className="text-[13px]" style={{ color: '#44445a' }}>Filtreyle eşleşen otomasyon bulunamadı</p>
               </div>
             ) : (
-              <div className="rounded-2xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)' }}>
+              <div className="rounded-2xl" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)' }}>
+              <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr style={{ background: 'rgba(0,0,0,0.15)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
@@ -714,6 +715,7 @@ export default function AutomationsPage() {
                     })}
                   </tbody>
                 </table>
+              </div>
               </div>
             )}
           </div>
