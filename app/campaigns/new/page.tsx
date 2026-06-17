@@ -57,12 +57,20 @@ const INITIAL: WizardData = {
   scheduledTime: '10:00',
 }
 
-const TEMPLATES: Record<TemplateKey, { label: string; accent: string }> = {
-  promo:   { label: 'Promosyon',  accent: '#4470ff' },
-  welcome: { label: 'Hoş Geldin', accent: '#22c97a' },
-  cart:    { label: 'Sepet Terk', accent: '#f0a020' },
-  order:   { label: 'Sipariş',    accent: '#9f7afa' },
-  winback: { label: 'Geri Kazan', accent: '#e84545' },
+const TEMPLATES: Record<TemplateKey, { label: string; accent: string; desc: string }> = {
+  promo:   { label: 'Promosyon',  accent: '#4470ff', desc: 'İndirim ve kampanya duyuruları' },
+  welcome: { label: 'Hoş Geldin', accent: '#22c97a', desc: 'Yeni üye karşılama e-postası' },
+  cart:    { label: 'Sepet Terk', accent: '#f0a020', desc: 'Terk edilen sepeti hatırlat' },
+  order:   { label: 'Sipariş',    accent: '#9f7afa', desc: 'Sipariş onay bildirimi' },
+  winback: { label: 'Geri Kazan', accent: '#e84545', desc: 'Uzak müşterileri geri kazan' },
+}
+
+const TEMPLATE_TYPE_MAP: Record<TemplateKey, string> = {
+  promo:   'promotion',
+  welcome: 'welcome',
+  cart:    'cart_abandonment',
+  order:   'order_confirmation',
+  winback: 'win_back',
 }
 
 const STEPS = [
@@ -177,6 +185,8 @@ export default function NewCampaignPage() {
   const [saving, setSaving] = useState(false)
   const [aiLoading, setAiLoading] = useState(false)
   const [aiSubjects, setAiSubjects] = useState<string[]>([])
+  const [previewHtml, setPreviewHtml] = useState<string | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
   const [testEmail, setTestEmail] = useState('')
   const [testSending, setTestSending] = useState(false)
   const [campaignId, setCampaignId] = useState<string | null>(null)
@@ -237,6 +247,34 @@ export default function NewCampaignPage() {
     finally { setAiLoading(false) }
   }
 
+  const fetchPreview = async () => {
+    setPreviewLoading(true)
+    try {
+      const res = await fetch('/api/email/render', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          templateName: TEMPLATE_TYPE_MAP[data.templateKey],
+          props: {
+            brandName:      data.senderName || 'Mağazanız',
+            brandColor:     data.content.brandColor,
+            customerName:   'Değerli Müşterimiz',
+            ctaText:        data.content.ctaText,
+            ctaUrl:         data.content.ctaUrl || '#',
+            bodyText:       data.content.body,
+            heroText:       data.content.title,
+            subject:        data.subject,
+            specialOfferText: data.content.body,
+            unsubscribeUrl: '#',
+          },
+        }),
+      })
+      const d = await res.json()
+      if (d.html) setPreviewHtml(d.html)
+    } catch { /* preview non-critical */ }
+    finally { setPreviewLoading(false) }
+  }
+
   const saveCampaign = async (): Promise<string | null> => {
     try {
       const scheduledAt = data.timing === 'scheduled' && data.scheduledAt
@@ -246,15 +284,19 @@ export default function NewCampaignPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: data.name,
-          type: 'email',
-          subject: data.subject,
-          previewText: data.previewText,
-          senderName: data.senderName,
-          senderEmail: data.senderEmail,
-          segmentIds: data.segmentIds,
-          templateKey: data.templateKey,
-          content: data.content,
+          name:         data.name,
+          type:         'email',
+          subject:      data.subject,
+          previewText:  data.previewText,
+          senderName:   data.senderName,
+          senderEmail:  data.senderEmail,
+          segmentIds:   data.segmentIds,
+          templateType: TEMPLATE_TYPE_MAP[data.templateKey],
+          headline:     data.content.title,
+          body:         data.content.body,
+          ctaText:      data.content.ctaText,
+          ctaUrl:       data.content.ctaUrl,
+          brandColor:   data.content.brandColor,
           scheduledAt,
         }),
       })
@@ -645,23 +687,32 @@ export default function NewCampaignPage() {
                 <p className="text-[13px]" style={{ color: '#44445a' }}>E-posta şablonunu seçin ve içeriği özelleştirin.</p>
               </div>
 
-              {/* Template picker */}
-              <div className="flex items-center gap-2 mb-5 overflow-x-auto pb-1">
-                {(Object.entries(TEMPLATES) as [TemplateKey, { label: string; accent: string }][]).map(([key, t]) => (
-                  <button key={key} onClick={() => update({ templateKey: key })}
-                    className="px-3.5 py-2 rounded-xl text-[12px] font-semibold shrink-0 transition-all"
-                    style={data.templateKey === key
-                      ? { background: `${t.accent}18`, border: `1px solid ${t.accent}40`, color: t.accent }
-                      : { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', color: '#44445a' }}>
-                    {t.label}
-                  </button>
-                ))}
+              {/* Template picker cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 mb-5">
+                {(Object.entries(TEMPLATES) as [TemplateKey, { label: string; accent: string; desc: string }][]).map(([key, t]) => {
+                  const active = data.templateKey === key
+                  return (
+                    <button key={key}
+                      onClick={() => { update({ templateKey: key }); setPreviewHtml(null) }}
+                      className="p-3 rounded-xl text-left transition-all"
+                      style={active
+                        ? { background: `${t.accent}18`, border: `1px solid ${t.accent}40` }
+                        : { background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                      <div className="w-7 h-7 rounded-lg flex items-center justify-center mb-2"
+                        style={{ background: `${t.accent}20` }}>
+                        <span className="text-[14px]">{key === 'promo' ? '🎯' : key === 'welcome' ? '👋' : key === 'cart' ? '🛒' : key === 'order' ? '📦' : '💌'}</span>
+                      </div>
+                      <p className="text-[12px] font-bold" style={{ color: active ? t.accent : '#eeeef4' }}>{t.label}</p>
+                      <p className="text-[10px] leading-snug mt-0.5" style={{ color: '#44445a' }}>{t.desc}</p>
+                    </button>
+                  )
+                })}
               </div>
 
               <div className="flex gap-5">
                 {/* Form fields */}
                 <div className="flex-1 space-y-4" style={{ maxWidth: 320 }}>
-                  <Field label="Başlık">
+                  <Field label="Başlık / Konu">
                     <input value={data.content.title} onChange={e => updateContent({ title: e.target.value })}
                       placeholder="E-posta başlığı" className={inp} style={inpSt} />
                   </Field>
@@ -688,31 +739,61 @@ export default function NewCampaignPage() {
                         className={cn(inp, 'flex-1')} style={inpSt} />
                     </div>
                   </Field>
-                  <button onClick={fillWithAi} disabled={!data.name || aiLoading}
-                    className="flex items-center gap-1.5 w-full justify-center px-4 py-2.5 rounded-xl text-[12px] font-bold disabled:opacity-40 transition-all"
-                    style={{ background: 'rgba(159,122,250,0.1)', color: '#9f7afa', border: '1px solid rgba(159,122,250,0.2)' }}>
-                    {aiLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-                    AI ile Doldur
-                  </button>
+                  <div className="flex gap-2">
+                    <button onClick={fillWithAi} disabled={!data.name || aiLoading}
+                      className="flex items-center gap-1.5 flex-1 justify-center px-4 py-2.5 rounded-xl text-[12px] font-bold disabled:opacity-40 transition-all"
+                      style={{ background: 'rgba(159,122,250,0.1)', color: '#9f7afa', border: '1px solid rgba(159,122,250,0.2)' }}>
+                      {aiLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                      AI ile Doldur
+                    </button>
+                    <button onClick={fetchPreview} disabled={previewLoading}
+                      className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-[12px] font-bold disabled:opacity-40 transition-all"
+                      style={{ background: 'rgba(68,112,255,0.1)', color: '#99b4ff', border: '1px solid rgba(68,112,255,0.2)' }}>
+                      {previewLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Eye className="w-3.5 h-3.5" />}
+                      Önizle
+                    </button>
+                  </div>
                 </div>
 
                 {/* Preview */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-3">
-                    <p className="text-[11px] font-semibold" style={{ color: '#44445a' }}>Canlı Önizleme</p>
-                    <div className="flex items-center gap-1 p-0.5 rounded-lg"
-                      style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                      {([['desktop', Monitor], ['mobile', Smartphone]] as const).map(([mode, Icon]) => (
-                        <button key={mode} onClick={() => setPreviewMode(mode)}
-                          className="p-1.5 rounded-md transition-all"
-                          style={previewMode === mode ? { background: 'rgba(255,255,255,0.1)', color: '#eeeef4' } : { color: '#44445a' }}>
-                          <Icon className="w-3.5 h-3.5" />
-                        </button>
-                      ))}
-                    </div>
+                    <p className="text-[11px] font-semibold" style={{ color: '#44445a' }}>
+                      {previewHtml ? 'Gerçek E-posta Önizlemesi' : 'Hızlı Önizleme'}
+                    </p>
+                    {!previewHtml && (
+                      <div className="flex items-center gap-1 p-0.5 rounded-lg"
+                        style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                        {([['desktop', Monitor], ['mobile', Smartphone]] as const).map(([mode, Icon]) => (
+                          <button key={mode} onClick={() => setPreviewMode(mode)}
+                            className="p-1.5 rounded-md transition-all"
+                            style={previewMode === mode ? { background: 'rgba(255,255,255,0.1)', color: '#eeeef4' } : { color: '#44445a' }}>
+                            <Icon className="w-3.5 h-3.5" />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {previewHtml && (
+                      <button onClick={() => setPreviewHtml(null)}
+                        className="text-[10px] px-2 py-1 rounded-md"
+                        style={{ color: '#44445a', background: 'rgba(255,255,255,0.04)' }}>
+                        Kapat
+                      </button>
+                    )}
                   </div>
-                  <div className="rounded-xl overflow-auto" style={{ background: '#ebebeb', padding: 16, maxHeight: 480 }}>
-                    <EmailPreview content={data.content} mode={previewMode} />
+                  <div className="rounded-xl overflow-hidden" style={{ background: '#ebebeb', maxHeight: 480 }}>
+                    {previewHtml ? (
+                      <iframe
+                        srcDoc={previewHtml}
+                        sandbox="allow-same-origin"
+                        title="E-posta önizleme"
+                        style={{ width: '100%', height: 460, border: 'none', display: 'block' }}
+                      />
+                    ) : (
+                      <div style={{ padding: 16, overflowY: 'auto', maxHeight: 480 }}>
+                        <EmailPreview content={data.content} mode={previewMode} />
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

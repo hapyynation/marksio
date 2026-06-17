@@ -23,9 +23,21 @@ interface NavItem {
   onClick?: () => void
 }
 
-const NAV_CORE: NavItem[] = [
+const NAV_CORE_TOP: NavItem[] = [
   { href: '/dashboard',   label: 'Dashboard',     icon: 'space_dashboard' },
-  { href: '/campaigns',   label: 'Kampanyalar',    icon: 'campaign' },
+]
+
+const EMAIL_ITEMS: NavItem[] = [
+  { href: '/email/broadcasts',  label: 'Yayınlar',     icon: 'send' },
+  { href: '/email/subscribers', label: 'Aboneler',     icon: 'group' },
+  { href: '/email/templates',   label: 'Şablonlar',    icon: 'description' },
+  { href: '/email/domains',     label: 'Alan Adları',  icon: 'dns' },
+  { href: '/email/metrics',     label: 'Metrikler',    icon: 'bar_chart_4_bars' },
+  { href: '/email/health',      label: 'Sağlık Skoru', icon: 'favorite' },
+  { href: '/email/ab-test',     label: 'A/B Test',     icon: 'science' },
+]
+
+const NAV_CORE: NavItem[] = [
   { href: '/automations', label: 'Otomasyonlar',   icon: 'bolt' },
   { href: '/live',        label: 'Canlı Takip',    icon: 'radio_button_checked' },
   { href: '/customers',   label: 'Müşteriler',     icon: 'group' },
@@ -141,50 +153,22 @@ function NavLink({
   )
 }
 
-interface StoreInfo {
-  name: string
-  platform: string
-  connected: boolean
-}
-
-function formatStoreName(domain: string | null | undefined): string {
-  if (!domain) return ''
-  const base = domain.replace(/\.myshopify\.com$/i, '').replace(/\.com$/i, '').replace(/[-_]/g, ' ')
-  return base.charAt(0).toUpperCase() + base.slice(1)
-}
-
-const PLATFORM_BADGE: Record<string, { label: string; color: string }> = {
-  shopify:     { label: 'S', color: '#96bf48' },
-  ikas:        { label: 'İ', color: '#f0a020' },
-  woocommerce: { label: 'W', color: '#7f54b3' },
-}
-
 export default function Sidebar() {
   const { open, setOpen, collapsed, setCollapsed } = useSidebar()
   const { data: session } = useSession()
   const router = useRouter()
   const [hovered, setHovered] = useState(false)
+  const [emailOpen, setEmailOpen] = useState(false)
   const { open: openSettingsDrawer } = useSettingsDrawer()
-  const [storeInfo, setStoreInfo] = useState<StoreInfo | null>(null)
+  const pathname = usePathname()
+  const isEmailActive = pathname.startsWith('/email')
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
 
   useEffect(() => {
-    fetch('/api/integrations')
+    fetch('/api/settings/profile')
       .then(r => r.json())
-      .then((d: { integrations?: Array<{ platform: string; shopDomain?: string; status: string }> }) => {
-        const active = (d.integrations ?? []).find(
-          i => ['shopify', 'ikas', 'woocommerce'].includes(i.platform) && i.status === 'active'
-        )
-        if (active) {
-          setStoreInfo({
-            name: formatStoreName(active.shopDomain) || 'Mağazanız',
-            platform: active.platform,
-            connected: true,
-          })
-        } else {
-          setStoreInfo({ name: '', platform: '', connected: false })
-        }
-      })
-      .catch(() => setStoreInfo({ name: '', platform: '', connected: false }))
+      .then((d: { avatarUrl?: string }) => { if (d.avatarUrl) setAvatarUrl(d.avatarUrl) })
+      .catch(() => {})
   }, [])
 
   const NAV_BOTTOM_DYNAMIC: NavItem[] = [
@@ -192,11 +176,9 @@ export default function Sidebar() {
     { href: '/settings', label: 'Ayarlar',  icon: 'settings', onClick: () => { openSettingsDrawer(); setOpen(false) } },
   ]
 
-  // Hover temporarily expands when in permanent-collapsed mode
   const isExpanded = !collapsed || hovered
 
   const handleSignOut = async () => {
-    // Kill both session types: NextAuth JWT and legacy Supabase OTP sessions
     const supabase = createClient()
     await Promise.all([
       supabase.auth.signOut(),
@@ -209,6 +191,7 @@ export default function Sidebar() {
   const initials = user?.name
     ? user.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
     : 'MA'
+  const storeName = user?.storeName ?? ''
 
   return (
     <>
@@ -294,41 +277,34 @@ export default function Sidebar() {
               exit={{ opacity: 0, height: 0, transition: { duration: 0.1 } }}
               className="mx-3 mt-2.5 mb-1 overflow-hidden"
             >
-              {storeInfo?.connected ? (
+              {storeName ? (
                 <button
-                  onClick={() => router.push('/settings?tab=integrations')}
+                  onClick={() => router.push('/settings?tab=hesap')}
                   className="w-full px-2.5 py-2 rounded-[9px] flex items-center gap-2 transition-all text-left"
                   style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.055)' }}
                   onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.09)' }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.025)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.055)' }}
                 >
                   <div
-                    className="flex items-center justify-center shrink-0 rounded-md text-[10px] font-bold"
-                    style={{
-                      width: 22, height: 22,
-                      background: `${PLATFORM_BADGE[storeInfo.platform]?.color ?? '#4470ff'}22`,
-                      border: `1px solid ${PLATFORM_BADGE[storeInfo.platform]?.color ?? '#4470ff'}44`,
-                      color: PLATFORM_BADGE[storeInfo.platform]?.color ?? '#4470ff',
-                    }}
+                    className="shrink-0 rounded-md overflow-hidden flex items-center justify-center text-[9px] font-bold"
+                    style={{ width: 22, height: 22 }}
                   >
-                    {PLATFORM_BADGE[storeInfo.platform]?.label ?? 'M'}
+                    {avatarUrl ? (
+                      <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center"
+                        style={{ background: '#4470ff22', border: '1px solid #4470ff44', color: '#4470ff', fontSize: 9, fontWeight: 700, borderRadius: 6 }}>
+                        {storeName.slice(0, 1).toUpperCase()}
+                      </div>
+                    )}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[11.5px] font-medium truncate leading-tight" style={{ color: '#dde2f0' }}>
-                      {storeInfo.name}
-                    </p>
-                    <p className="text-[10px] leading-tight capitalize" style={{ color: 'var(--text-3)' }}>
-                      {storeInfo.platform}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <span className="w-1.5 h-1.5 rounded-full"
-                      style={{ background: 'var(--green)', boxShadow: '0 0 4px rgba(34,201,122,0.5)' }} />
-                  </div>
+                  <p className="text-[11.5px] font-medium truncate leading-tight flex-1" style={{ color: '#dde2f0' }}>
+                    {storeName}
+                  </p>
                 </button>
-              ) : storeInfo !== null ? (
+              ) : (
                 <button
-                  onClick={() => router.push('/settings?tab=integrations')}
+                  onClick={() => router.push('/settings?tab=hesap')}
                   className="w-full px-2.5 py-2 rounded-[9px] flex items-center gap-2 transition-all text-left"
                   style={{ background: 'rgba(255,255,255,0.015)', border: '1px solid rgba(255,255,255,0.04)' }}
                   onMouseEnter={e => { e.currentTarget.style.background = 'rgba(68,112,255,0.06)'; e.currentTarget.style.borderColor = 'rgba(68,112,255,0.2)' }}
@@ -346,10 +322,6 @@ export default function Sidebar() {
                     Mağaza Bağla
                   </p>
                 </button>
-              ) : (
-                <div className="px-2.5 py-2 rounded-[9px]" style={{ background: 'rgba(255,255,255,0.015)', border: '1px solid rgba(255,255,255,0.04)' }}>
-                  <div className="h-3 w-24 rounded animate-pulse" style={{ background: 'rgba(255,255,255,0.06)' }} />
-                </div>
               )}
             </motion.div>
           )}
@@ -366,6 +338,70 @@ export default function Sidebar() {
             )}
           </AnimatePresence>
           <div className="space-y-0.5">
+            {NAV_CORE_TOP.map(item => (
+              <NavLink key={item.href} item={item} expanded={isExpanded} onNavigate={() => setOpen(false)} />
+            ))}
+          </div>
+
+          {/* E-posta accordion */}
+          <div className="space-y-0.5 mt-0.5">
+            <button
+              onClick={() => isExpanded && setEmailOpen(o => !o)}
+              title={!isExpanded ? 'E-posta' : undefined}
+              className={cn(
+                'relative flex items-center rounded-lg text-[13px] font-medium transition-colors duration-150 overflow-hidden w-full',
+                isExpanded ? 'gap-2.5 px-2.5 py-[7px]' : 'justify-center p-[9px]',
+                !isEmailActive && 'hover:bg-white/[0.04]',
+              )}
+              style={isEmailActive ? { background: 'rgba(68,112,255,0.1)', color: '#eeeef4' } : { color: 'var(--text-2)' }}
+            >
+              {isEmailActive && isExpanded && (
+                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r-full" style={{ background: 'var(--blue)' }} />
+              )}
+              <span
+                className="material-symbols-outlined shrink-0"
+                style={{
+                  fontSize: 17,
+                  color: isEmailActive ? 'var(--blue)' : 'var(--text-2)',
+                  fontVariationSettings: isEmailActive ? "'FILL' 1, 'wght' 400" : "'FILL' 0, 'wght' 350",
+                }}
+              >
+                email
+              </span>
+              <AnimatePresence initial={false}>
+                {isExpanded && (
+                  <motion.span key="email-label" variants={labelVariants} initial="hide" animate="show" exit="hide" className="flex-1 truncate text-left">
+                    E-posta
+                  </motion.span>
+                )}
+              </AnimatePresence>
+              <AnimatePresence initial={false}>
+                {isExpanded && (
+                  <motion.span key="email-chevron" variants={labelVariants} initial="hide" animate="show" exit="hide">
+                    <ChevronDown className={cn('w-3 h-3 transition-transform', (emailOpen || isEmailActive) ? 'rotate-180' : '')} />
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </button>
+            <AnimatePresence initial={false}>
+              {(emailOpen || isEmailActive) && isExpanded && (
+                <motion.div
+                  key="email-sub"
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.15 }}
+                  className="overflow-hidden pl-4 space-y-0.5"
+                >
+                  {EMAIL_ITEMS.map(item => (
+                    <NavLink key={item.href} item={item} expanded={isExpanded} onNavigate={() => setOpen(false)} />
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          <div className="space-y-0.5 mt-0.5">
             {NAV_CORE.map(item => (
               <NavLink key={item.href} item={item} expanded={isExpanded} onNavigate={() => setOpen(false)} />
             ))}

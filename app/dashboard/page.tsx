@@ -12,14 +12,13 @@ import {
   Sparkles, ArrowUpRight, ArrowDownRight, MousePointerClick, Send,
   Eye, CheckCheck, Megaphone, ArrowRight, Cpu, Globe, Link2,
   ShoppingCart, Star, Package, CheckCircle2, XCircle,
-  Clock, Play, Pause, LayoutGrid, Layers, Radio, Download,
+  Clock, Play, Pause, LayoutGrid, Layers, Download,
 } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
 import AppShell from '@/components/layout/AppShell'
 import { formatCurrency, formatNumber, cn } from '@/lib/utils'
 import { useSession } from '@/lib/hooks/use-session'
-import LiveActivityDashboard from '@/components/ui/live-activity-dashboard'
 import { DashboardSkeleton } from '@/components/ui/page-skeleton'
 
 /* ─── Types ─── */
@@ -73,7 +72,6 @@ interface DashboardData {
   }
   segments?: Array<{ id: string; name: string; count: number; color: string; icon: string }>
 }
-type Tab = 'overview' | 'live'
 type TimeRange = '1m' | '1w' | '24h'
 
 /* ─── Static lookup maps ─── */
@@ -318,7 +316,6 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [retryKey, setRetryKey] = useState(0)
-  const [activeTab, setActiveTab] = useState<Tab>('overview')
   const [timeRange, setTimeRange] = useState<TimeRange>('1m')
   const [showChecklist, setShowChecklist] = useState(true)
 
@@ -447,28 +444,9 @@ export default function DashboardPage() {
       {/* ── Top bar ── */}
       <div className="sticky top-0 z-20 flex items-center justify-between px-4 md:px-6 h-14 shrink-0 gap-2"
         style={{ background:'rgba(10,10,15,0.9)', backdropFilter:'blur(24px)', borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
-        <div className="flex items-center gap-1">
-          {([
-            { key:'overview' as Tab, label:'Genel Bakış', icon:LayoutGrid },
-            { key:'live'     as Tab, label:'Canlı',       icon:Radio,  pulse:true },
-          ]).map(tab => {
-            const Icon = tab.icon
-            const active = activeTab === tab.key
-            return (
-              <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[12px] font-semibold transition-all"
-                style={active ? { background:'rgba(255,255,255,0.07)', color:'#eeeef4' } : { color:'#55556a' }}>
-                <Icon className="w-3.5 h-3.5"/>
-                {tab.label}
-                {'pulse' in tab && tab.pulse && (
-                  <span className="relative flex w-1.5 h-1.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"/>
-                    <span className="relative inline-flex rounded-full w-1.5 h-1.5 bg-emerald-500"/>
-                  </span>
-                )}
-              </button>
-            )
-          })}
+        <div className="flex items-center gap-1.5">
+          <LayoutGrid className="w-3.5 h-3.5" style={{ color:'#55556a' }}/>
+          <span className="text-[12px] font-semibold" style={{ color:'#eeeef4' }}>Genel Bakış</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-0.5 p-0.5 rounded-lg" style={{ background:'rgba(0,0,0,0.4)', border:'1px solid rgba(255,255,255,0.06)' }}>
@@ -492,12 +470,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ── Live tab ── */}
-      {activeTab === 'live' && <div className="p-6 flex-1"><LiveActivityDashboard/></div>}
-
-      {/* ── Overview tab ── */}
-      {activeTab === 'overview' && (
-        <div className="p-6 pb-12 space-y-8 flex-1 max-w-[1400px] mx-auto w-full">
+      <div className="p-6 pb-12 space-y-8 flex-1 max-w-[1400px] mx-auto w-full">
 
           {/* Hero */}
           <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -1067,7 +1040,6 @@ export default function DashboardPage() {
           </div>
 
         </div>
-      )}
     </AppShell>
   )
 }
