@@ -2,13 +2,24 @@
 import { getApiSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
-export async function GET() {
+export async function GET(req: Request) {
   const session = await getApiSession()
   if (!session?.user?.id) return NextResponse.json({ error: 'Yetkisiz' }, { status: 401 })
   const userId = session.user.id
 
   try {
+    const { searchParams } = new URL(req.url)
+    const periodParam = searchParams.get('period') ?? '30d'
+
     const now = new Date()
+    const periodMs: Record<string, number> = {
+      '7d':  7  * 86400000,
+      '30d': 30 * 86400000,
+      '3m':  90 * 86400000,
+      '12m': 365 * 86400000,
+    }
+    const startDate = new Date(now.getTime() - (periodMs[periodParam] ?? periodMs['30d']))
+
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
     const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
     const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0)
@@ -17,11 +28,11 @@ export async function GET() {
     // ── Kampanya istatistikleri ───────────────────────────────────────────────
     const [emailAgg, waAgg, autoAgg] = await Promise.all([
       prisma.campaign.aggregate({
-        where: { userId, type: 'email' },
+        where: { userId, type: 'email', createdAt: { gte: startDate } },
         _sum: { sent: true, opened: true, clicked: true, converted: true, revenue: true },
       }),
       prisma.campaign.aggregate({
-        where: { userId, type: 'whatsapp' },
+        where: { userId, type: 'whatsapp', createdAt: { gte: startDate } },
         _sum: { sent: true, revenue: true },
       }),
       prisma.automation.aggregate({
@@ -44,7 +55,7 @@ export async function GET() {
     // ── Sipariş / AOV ────────────────────────────────────────────────────────
     const [ordersAgg, thisMonthOrd, lastMonthOrd] = await Promise.all([
       prisma.order.aggregate({
-        where: { userId, financialStatus: 'paid' },
+        where: { userId, placedAt: { gte: startDate }, financialStatus: 'paid' },
         _sum: { total: true }, _count: { id: true },
       }),
       prisma.order.aggregate({
@@ -227,12 +238,12 @@ export async function GET() {
           clickRate: emailSent > 0 ? +(emailClicked / emailSent * 100).toFixed(1) : 0,
           convRate:  emailSent > 0 ? +(emailConv    / emailSent * 100).toFixed(1) : 0,
           revenue: emailRevenue,
-          roi: emailRevenue > 0 && emailSent > 0 ? Math.round(emailRevenue / (emailSent * 0.05) * 100) : 0,
+          roi: 0,
         },
         whatsapp: {
           sent: waSent, openRate: waOpenRate, clickRate: 0, convRate: 0,
           revenue: waRevenue,
-          roi: waRevenue > 0 && waSent > 0 ? Math.round(waRevenue / (waSent * 0.10) * 100) : 0,
+          roi: 0,
         },
       },
       revenueData,

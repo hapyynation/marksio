@@ -26,7 +26,7 @@ const tabs: Array<{ key: Tab; label: string; icon: React.ElementType; danger?: b
   { key: 'integrations',  label: 'Entegrasyonlar',    icon: Link2          },
   { key: 'email',         label: 'E-posta Gönderimi', icon: Mail           },
   { key: 'whatsapp',      label: 'WhatsApp AI',       icon: MessageCircle  },
-  { key: 'ai-studio',     label: 'AI Studio',         icon: Sparkles       },
+  { key: 'ai-studio',     label: 'Marka Kimliği',     icon: Sparkles       },
   { key: 'notifications', label: 'Bildirimler',       icon: Bell           },
   { key: 'team',          label: 'Takım',             icon: Users          },
   { key: 'security',      label: 'Güvenlik',          icon: Shield         },
@@ -807,29 +807,107 @@ function HesapSection() {
 
 // ─── Plan & Faturalama ────────────────────────────────────────────────────────
 
+interface BillingData {
+  plan: string; planStatus: string; planRenewsAt: string | null; hasSubscription: boolean
+  emailQuotaUsed: number; emailQuotaLimit: number
+  whatsappQuotaUsed: number; whatsappQuotaLimit: number
+  campaignCount: number; campaignLimit: number
+}
+interface InvoiceData { id: string; createdAt: string; total: number; currency: string; status: string; receiptUrl: string | null; productName: string }
+
+const PLAN_META: Record<string, { name: string; price: string; color: string }> = {
+  free:    { name: 'Free',    price: 'Ücretsiz', color: '#8080a0' },
+  starter: { name: 'Starter', price: '$19/ay',   color: '#8080a0' },
+  growth:  { name: 'Growth',  price: '$49/ay',   color: 'var(--blue)' },
+  agency:  { name: 'Agency',  price: '$249/ay',  color: 'var(--violet)' },
+}
+
+function UsageBar({ label, used, total, color }: { label: string; used: number; total: number; color: string }) {
+  const isUnlimited = total === -1
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1.5">
+        <p className="text-xs" style={{ color: 'var(--text-2)' }}>{label}</p>
+        <p className="text-xs font-mono" style={{ color: 'var(--text-2)' }}>
+          {isUnlimited ? <span style={{ color: 'var(--green)' }}>Sınırsız</span> : `${used.toLocaleString('tr-TR')} / ${total.toLocaleString('tr-TR')}`}
+        </p>
+      </div>
+      {!isUnlimited && (
+        <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-3)' }}>
+          <div className="h-full rounded-full transition-all" style={{ width: `${Math.min((used / total) * 100, 100)}%`, background: color }} />
+        </div>
+      )}
+    </div>
+  )
+}
+
 function BillingSection() {
-  const planMap: Record<string, { name: string; price: string; emails: string; color: string }> = {
-    starter: { name: 'Starter',   price: 'Ücretsiz',  emails: '5.000',    color: '#8080a0' },
-    growth:  { name: 'Growth',    price: '$49/ay',    emails: '50.000',   color: 'var(--blue)' },
-    pro:     { name: 'Pro',       price: '$99/ay',    emails: '200.000',  color: 'var(--violet)' },
-    scale:   { name: 'Scale',     price: '$249/ay',   emails: 'Sınırsız', color: '#f0a020' },
+  const [billing, setBilling]   = useState<BillingData | null>(null)
+  const [invoices, setInvoices] = useState<InvoiceData[]>([])
+  const [portalUrl, setPortalUrl] = useState<string | null>(null)
+  const [loaded, setLoaded]     = useState(false)
+  const [cancelling, setCancelling] = useState(false)
+  const [showCancelModal, setShowCancelModal] = useState(false)
+  const [cancelResult, setCancelResult] = useState<{ ok?: boolean; error?: string } | null>(null)
+
+  useEffect(() => {
+    Promise.all([
+      fetch('/api/settings/billing').then(r => r.json() as Promise<BillingData>),
+      fetch('/api/billing/invoices').then(r => r.json() as Promise<{ orders: InvoiceData[] }>),
+      fetch('/api/billing/portal').then(r => r.json() as Promise<{ url: string | null }>),
+    ]).then(([b, inv, portal]) => {
+      setBilling(b)
+      setInvoices(inv.orders ?? [])
+      setPortalUrl(portal.url)
+    }).catch(() => {}).finally(() => setLoaded(true))
+  }, [])
+
+  async function handleCancel() {
+    setCancelling(true); setCancelResult(null)
+    try {
+      const res = await fetch('/api/billing/cancel', { method: 'POST' })
+      const d = await res.json() as { error?: string }
+      if (!res.ok) throw new Error(d.error)
+      setCancelResult({ ok: true })
+      setBilling(prev => prev ? { ...prev, planStatus: 'cancelled' } : prev)
+    } catch (e) { setCancelResult({ error: e instanceof Error ? e.message : 'İptal başarısız' }) }
+    finally { setCancelling(false); setShowCancelModal(false) }
   }
-  const plan = planMap['growth']
+
+  if (!loaded) return <div className="flex items-center justify-center py-16"><Loader2 className="w-5 h-5 animate-spin" style={{ color: 'var(--text-3)' }} /></div>
+
+  const planKey = billing?.plan ?? 'starter'
+  const planInfo = PLAN_META[planKey] ?? PLAN_META.starter
+  const isFree = planKey === 'free'
+  const isCancelled = billing?.planStatus === 'cancelled'
 
   return (
     <div className="space-y-4">
       <SectionHeader title="Plan ve Faturalandırma" desc="Aboneliğinizi ve fatura bilgilerinizi yönetin" />
 
+      {isCancelled && (
+        <div className="ds-alert ds-alert-error">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <p className="text-xs">Aboneliğiniz iptal edildi. Dönem sonuna kadar kullanmaya devam edebilirsiniz.</p>
+        </div>
+      )}
+      {cancelResult?.ok && !isCancelled && (
+        <div className="ds-alert ds-alert-success"><Check className="w-4 h-4 shrink-0" /><p className="text-xs">Abonelik başarıyla iptal edildi.</p></div>
+      )}
+
       {/* Current plan card */}
       <div className="relative p-6 rounded-xl overflow-hidden"
         style={{ background: 'linear-gradient(135deg, #0f1729 0%, #0a0f1e 100%)', border: '1px solid rgba(68,112,255,0.2)' }}>
         <div className="absolute top-0 right-0 w-48 h-48 rounded-full -translate-y-1/2 translate-x-1/4 blur-2xl opacity-30"
-          style={{ background: 'var(--blue)' }} />
+          style={{ background: planInfo.color }} />
         <div className="relative flex items-start justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'rgba(68,112,255,0.7)' }}>Mevcut Plan</p>
-            <p className="text-3xl font-bold" style={{ color: 'var(--text-1)' }}>{plan.name}</p>
-            <p className="text-sm mt-1.5" style={{ color: 'rgba(68,112,255,0.6)' }}>{plan.price} · {plan.emails} e-posta</p>
+            <p className="text-3xl font-bold" style={{ color: 'var(--text-1)' }}>{planInfo.name}</p>
+            <p className="text-sm mt-1.5" style={{ color: 'rgba(68,112,255,0.6)' }}>
+              {isFree ? 'Ücretsiz' : planInfo.price}
+              {isCancelled && <span className="ml-2 text-amber-400 text-xs">(İptal Edildi)</span>}
+            </p>
           </div>
           <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'var(--blue-soft)', border: '1px solid rgba(68,112,255,0.2)' }}>
             <CreditCard className="w-5 h-5" style={{ color: 'var(--blue)' }} />
@@ -838,54 +916,93 @@ function BillingSection() {
       </div>
 
       {/* Usage */}
-      <div className="bento-card p-5 space-y-4">
-        <p className="text-sm font-semibold" style={{ color: 'var(--text-1)' }}>Kullanım Durumu</p>
-        {[
-          { label: 'E-posta Gönderimi', used: 12400, total: 50000, color: 'var(--blue)' },
-          { label: 'Müşteri Kaydı',     used: 2431,  total: 10000, color: 'var(--violet)' },
-          { label: 'Otomasyon Akışı',   used: 4,     total: 10,    color: 'var(--green)' },
-        ].map(u => (
-          <div key={u.label}>
-            <div className="flex items-center justify-between mb-1.5">
-              <p className="text-xs" style={{ color: 'var(--text-2)' }}>{u.label}</p>
-              <p className="text-xs font-mono" style={{ color: 'var(--text-2)' }}>{u.used.toLocaleString('tr-TR')} / {u.total.toLocaleString('tr-TR')}</p>
-            </div>
-            <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-3)' }}>
-              <div className="h-full rounded-full transition-all" style={{ width: `${Math.min((u.used / u.total) * 100, 100)}%`, background: u.color }} />
-            </div>
-          </div>
-        ))}
-      </div>
+      {billing && (
+        <div className="bento-card p-5 space-y-4">
+          <p className="text-sm font-semibold" style={{ color: 'var(--text-1)' }}>Kullanım Durumu</p>
+          <UsageBar label="E-posta Gönderimi" used={billing.emailQuotaUsed} total={billing.emailQuotaLimit} color="var(--blue)" />
+          <UsageBar label="WhatsApp Mesaj" used={billing.whatsappQuotaUsed} total={billing.whatsappQuotaLimit} color="var(--green)" />
+          <UsageBar label="Bu Ay Kampanya" used={billing.campaignCount} total={billing.campaignLimit} color="var(--violet)" />
+        </div>
+      )}
 
-      {/* Renewal + actions */}
+      {/* Renewal + invoices */}
       <div className="bento-card divide-y" style={{ '--tw-divide-opacity': 1 } as React.CSSProperties}>
-        {[
-          { label: 'Yenileme Tarihi',  value: '15 Haziran 2026', action: null },
-          { label: 'Fatura Geçmişi',   value: '3 fatura',         action: <button className="btn-ghost text-xs px-2 py-1 rounded gap-1.5"><Download className="w-3 h-3" /> İndir</button> },
-        ].map(row => (
-          <div key={row.label} className="flex items-center justify-between px-5 py-3.5">
-            <p className="text-sm" style={{ color: 'var(--text-2)' }}>{row.label}</p>
-            <div className="flex items-center gap-2">
-              <p className="text-sm font-medium" style={{ color: 'var(--text-1)' }}>{row.value}</p>
-              {row.action}
-            </div>
+        <div className="flex items-center justify-between px-5 py-3.5">
+          <p className="text-sm" style={{ color: 'var(--text-2)' }}>Yenileme Tarihi</p>
+          <p className="text-sm font-medium" style={{ color: 'var(--text-1)' }}>
+            {isFree ? 'Ücretsiz plan — süre sınırı yok'
+              : billing?.planRenewsAt
+                ? `${new Date(billing.planRenewsAt).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })}`
+                : '—'}
+          </p>
+        </div>
+        <div className="flex items-center justify-between px-5 py-3.5">
+          <p className="text-sm" style={{ color: 'var(--text-2)' }}>Fatura Geçmişi</p>
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-medium" style={{ color: 'var(--text-1)' }}>
+              {invoices.length > 0 ? `${invoices.length} fatura` : 'Henüz fatura yok'}
+            </p>
+            {invoices.length > 0 && invoices[0].receiptUrl && (
+              <a href={invoices[0].receiptUrl} target="_blank" rel="noopener noreferrer" className="btn-ghost text-xs px-2 py-1 rounded gap-1.5">
+                <Download className="w-3 h-3" /> Son Fatura
+              </a>
+            )}
           </div>
-        ))}
+        </div>
       </div>
 
       <div className="flex gap-3">
-        <a href="/plans" className="btn-primary flex-1 justify-center gap-2">
-          <ChevronRight className="w-4 h-4" /> Planı Yükselt
-        </a>
+        {portalUrl ? (
+          <a href={portalUrl} target="_blank" rel="noopener noreferrer" className="btn-secondary flex-1 justify-center gap-2">
+            <Key className="w-4 h-4" /> Fatura Portalı
+          </a>
+        ) : (
+          <a href="/plans" className="btn-primary flex-1 justify-center gap-2">
+            <ChevronRight className="w-4 h-4" /> Planı Yükselt
+          </a>
+        )}
         <button className="btn-ghost flex-1 justify-center gap-2 opacity-50 cursor-not-allowed">
           Kart Güncelle <span className="chip chip-muted">Yakında</span>
         </button>
       </div>
 
-      <button className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm transition-colors hover:bg-red-500/10"
-        style={{ color: 'var(--red)', border: '1px solid rgba(232,69,69,0.15)' }}>
-        <Pause className="w-4 h-4" /> Planı İptal Et
-      </button>
+      {!isFree && !isCancelled && billing?.hasSubscription && (
+        <button onClick={() => setShowCancelModal(true)}
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm transition-colors hover:bg-red-500/10"
+          style={{ color: 'var(--red)', border: '1px solid rgba(232,69,69,0.15)' }}>
+          <Pause className="w-4 h-4" /> Planı İptal Et
+        </button>
+      )}
+
+      {showCancelModal && (
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-sm rounded-2xl shadow-2xl p-6 space-y-4"
+            style={{ background: 'var(--surface)', border: '1px solid rgba(232,69,69,0.25)' }}>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'var(--red-soft)' }}>
+                <AlertTriangle className="w-5 h-5" style={{ color: 'var(--red)' }} />
+              </div>
+              <div>
+                <p className="text-sm font-bold" style={{ color: 'var(--text-1)' }}>Planı İptal Et</p>
+                <p className="text-xs" style={{ color: 'var(--text-3)' }}>Bu işlem geri alınamaz</p>
+              </div>
+            </div>
+            <p className="text-xs" style={{ color: 'var(--text-2)' }}>
+              Planınızı iptal etmek istediğinizden emin misiniz? Mevcut dönem sonuna kadar kullanmaya devam edebilirsiniz.
+            </p>
+            {cancelResult?.error && (
+              <div className="ds-alert ds-alert-error text-xs"><AlertCircle className="w-3.5 h-3.5 shrink-0" /> {cancelResult.error}</div>
+            )}
+            <div className="flex gap-3">
+              <button onClick={() => setShowCancelModal(false)} className="btn-secondary flex-1 justify-center">Vazgeç</button>
+              <button onClick={handleCancel} disabled={cancelling} className="btn-danger flex-1 justify-center gap-2 disabled:opacity-40">
+                {cancelling ? <Loader2 className="w-4 h-4 animate-spin" /> : <Pause className="w-4 h-4" />}
+                {cancelling ? 'İptal ediliyor...' : 'İptal Et'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -1214,6 +1331,7 @@ function WhatsAppAISection() {
   const [saved,  setSaved]  = useState(false)
   const [testMsg, setTestMsg] = useState('')
   const [sending, setSending] = useState(false)
+  const [testResult, setTestResult] = useState<{ ok?: boolean; error?: string } | null>(null)
 
   useEffect(() => {
     fetch('/api/whatsapp/settings').then(r => r.json()).then((d: { settings?: WASettings }) => { if (d.settings) setS(d.settings) })
@@ -1319,12 +1437,32 @@ function WhatsAppAISection() {
         <p className="text-xs mb-4" style={{ color: 'var(--text-3)' }}>Bağlı WhatsApp hattınızdan test mesajı gönderin</p>
         <div className="flex gap-2">
           <input value={testMsg} onChange={e => setTestMsg(e.target.value)} placeholder="+90 555 000 0000" className="input flex-1" />
-          <button disabled={!isConnected || !testMsg || sending} onClick={() => { setSending(true); setTimeout(() => setSending(false), 1500) }}
+          <button
+            disabled={!isConnected || !testMsg || sending}
+            onClick={async () => {
+              setSending(true); setTestResult(null)
+              try {
+                const res = await fetch('/api/whatsapp/test-message', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ phoneNumber: testMsg }),
+                })
+                const d = await res.json() as { error?: string }
+                setTestResult(res.ok ? { ok: true } : { error: d.error ?? 'Gönderilemedi' })
+              } catch { setTestResult({ error: 'Bağlantı hatası' }) }
+              finally { setSending(false) }
+            }}
             className="btn-primary gap-2 whitespace-nowrap disabled:opacity-40">
             {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             Gönder
           </button>
         </div>
+        {testResult?.ok && (
+          <div className="ds-alert ds-alert-success mt-3 text-xs"><Check className="w-3.5 h-3.5 shrink-0" /> Test mesajı başarıyla gönderildi.</div>
+        )}
+        {testResult?.error && (
+          <div className="ds-alert ds-alert-error mt-3 text-xs"><AlertCircle className="w-3.5 h-3.5 shrink-0" /> {testResult.error}</div>
+        )}
       </div>
 
       <SaveButton saving={saving} saved={saved} onClick={handleSave} />
@@ -1359,7 +1497,7 @@ function AIStudioSection() {
 
   return (
     <div className="space-y-4">
-      <SectionHeader title="AI Studio Ayarları" desc="AI üretimlerinde kullanılacak marka kimliğinizi tanımlayın" />
+      <SectionHeader title="Marka Kimliği & Görsel Stil" desc="E-posta şablonlarınızda kullanılacak marka renklerinizi ve görsel stilinizi yapılandırın" />
 
       <div className="bento-card p-6 space-y-5">
         <p className="text-sm font-semibold" style={{ color: 'var(--text-1)' }}>Marka Renkleri</p>
@@ -1436,18 +1574,31 @@ function AIStudioSection() {
 
 // ─── Bildirimler ──────────────────────────────────────────────────────────────
 
+const DEFAULT_NOTIF_PREFS = {
+  campaignDone:       true,
+  automationError:    true,
+  weeklyReport:       true,
+  newOrder:           false,
+  emailNotifications: true,
+  cartAbandoned:      false,
+  newCustomer:        false,
+}
+
 function BildirimlerSection() {
-  const [prefs, setPrefs] = useState({
-    campaignDone:     true,
-    automationError:  true,
-    weeklyReport:     true,
-    newOrder:         false,
-    emailNotifications: true,
-    cartAbandoned:    false,
-    newCustomer:      false,
-  })
+  const [prefs, setPrefs] = useState(DEFAULT_NOTIF_PREFS)
+  const [loaded, setLoaded] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saved,  setSaved]  = useState(false)
+
+  useEffect(() => {
+    fetch('/api/settings/store')
+      .then(r => r.json())
+      .then((d: { notifications?: Partial<typeof DEFAULT_NOTIF_PREFS> | null }) => {
+        if (d.notifications) setPrefs(prev => ({ ...prev, ...d.notifications }))
+      })
+      .catch(() => {})
+      .finally(() => setLoaded(true))
+  }, [])
 
   function toggle(key: keyof typeof prefs) { setPrefs(p => ({ ...p, [key]: !p[key] })) }
 
@@ -1457,6 +1608,8 @@ function BildirimlerSection() {
     if (res.ok) { setSaved(true); setTimeout(() => setSaved(false), 2500) }
     setSaving(false)
   }
+
+  if (!loaded) return <div className="flex items-center justify-center py-16"><Loader2 className="w-5 h-5 animate-spin" style={{ color: 'var(--text-3)' }} /></div>
 
   return (
     <div className="space-y-4">
@@ -1502,49 +1655,101 @@ function BildirimlerSection() {
 
 function TakimSection() {
   const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteRole, setInviteRole]   = useState('Üye')
+  const [sending, setSending]         = useState(false)
+  const [inviteResult, setInviteResult] = useState<{ ok?: boolean; error?: string } | null>(null)
+  const [plan, setPlan]               = useState<string | null>(null)
+
+  useEffect(() => {
+    fetch('/api/settings/billing')
+      .then(r => r.json())
+      .then((d: { plan?: string }) => setPlan(d.plan ?? 'starter'))
+      .catch(() => setPlan('starter'))
+  }, [])
+
+  const isAgency = plan === 'agency'
+
+  async function handleInvite() {
+    if (!inviteEmail.trim()) return
+    setSending(true); setInviteResult(null)
+    try {
+      const res = await fetch('/api/settings/team/invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: inviteEmail.trim(), role: inviteRole }),
+      })
+      const d = await res.json() as { error?: string }
+      if (!res.ok) throw new Error(d.error)
+      setInviteResult({ ok: true }); setInviteEmail('')
+    } catch (e) { setInviteResult({ error: e instanceof Error ? e.message : 'Gönderim başarısız' }) }
+    finally { setSending(false) }
+  }
+
+  if (plan === null) return <div className="flex items-center justify-center py-16"><Loader2 className="w-5 h-5 animate-spin" style={{ color: 'var(--text-3)' }} /></div>
+
+  if (!isAgency) {
+    return (
+      <div className="space-y-4">
+        <SectionHeader title="Takım Yönetimi" desc="Birden fazla üye ile çalışın" />
+        <div className="bento-card p-8 flex flex-col items-center text-center gap-4">
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: 'var(--blue-soft)', border: '1px solid rgba(68,112,255,0.2)' }}>
+            <Lock className="w-6 h-6" style={{ color: 'var(--blue)' }} />
+          </div>
+          <div>
+            <p className="text-base font-bold mb-1" style={{ color: 'var(--text-1)' }}>Takım Yönetimi — Agency Planı Gerektirir</p>
+            <p className="text-sm" style={{ color: 'var(--text-3)' }}>Birden fazla ekip üyesi ekleyerek Marksio&apos;yu birlikte kullanın. Üye, Yönetici ve Görüntüleyici rolleriyle erişimi yönetin.</p>
+          </div>
+          <a href="/plans" className="btn-primary gap-2">
+            <ChevronRight className="w-4 h-4" /> Agency&apos;e Yükselt
+          </a>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-4">
       <SectionHeader title="Takım Yönetimi" desc="Üyeleri davet edin ve yetkilerini yönetin" />
 
-      {/* Coming soon notice */}
       <div className="bento-card p-5">
         <p className="text-sm font-semibold mb-1" style={{ color: 'var(--text-1)' }}>Üye Davet Et</p>
         <p className="text-xs mb-4" style={{ color: 'var(--text-3)' }}>E-posta adresiyle takımınıza yeni üye ekleyin</p>
         <div className="flex gap-2">
           <input value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} placeholder="colleague@example.com" className="input flex-1" />
-          <select className="input w-36">
+          <select value={inviteRole} onChange={e => setInviteRole(e.target.value)} className="input w-36">
             <option>Üye</option>
             <option>Yönetici</option>
             <option>Görüntüleyici</option>
           </select>
-          <button disabled={!inviteEmail} className="btn-primary gap-2 disabled:opacity-40 whitespace-nowrap">
-            <Plus className="w-4 h-4" /> Davet Gönder
+          <button onClick={handleInvite} disabled={!inviteEmail || sending} className="btn-primary gap-2 disabled:opacity-40 whitespace-nowrap">
+            {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+            Davet Gönder
           </button>
         </div>
-        <div className="mt-3 p-3 rounded-xl text-xs" style={{ background: 'var(--blue-soft)', border: '1px solid rgba(68,112,255,0.15)' }}>
-          <p style={{ color: 'var(--blue)' }}>Bu özellik yakında aktif olacak. Çoklu kullanıcı desteği Pro plana dahildir.</p>
-        </div>
+        {inviteResult?.ok && (
+          <div className="ds-alert ds-alert-success mt-3 text-xs"><Check className="w-3.5 h-3.5 shrink-0" /> Davet e-postası gönderildi.</div>
+        )}
+        {inviteResult?.error && (
+          <div className="ds-alert ds-alert-error mt-3 text-xs"><AlertCircle className="w-3.5 h-3.5 shrink-0" /> {inviteResult.error}</div>
+        )}
       </div>
 
-      {/* Members — empty until team feature ships */}
       <div className="bento-card overflow-hidden">
         <div className="px-5 py-3.5" style={{ borderBottom: '1px solid var(--border)' }}>
           <p className="text-sm font-semibold" style={{ color: 'var(--text-1)' }}>Mevcut Üyeler</p>
         </div>
         <div className="flex flex-col items-center justify-center py-10 gap-2">
           <p className="text-sm" style={{ color: 'var(--text-3)' }}>Henüz takım üyesi yok</p>
-          <p className="text-xs" style={{ color: 'var(--text-3)' }}>Çoklu kullanıcı desteği yakında aktif olacak.</p>
+          <p className="text-xs" style={{ color: 'var(--text-3)' }}>Davet gönderdiğinizde üyeler burada görünecek.</p>
         </div>
       </div>
 
-      {/* Roles info */}
       <div className="bento-card p-5">
         <p className="text-sm font-semibold mb-3" style={{ color: 'var(--text-1)' }}>Roller ve Yetkiler</p>
         {[
-          { role: 'Sahip',        desc: 'Tüm ayarlar, fatura, üye yönetimi' },
-          { role: 'Yönetici',     desc: 'Kampanya, otomasyon, müşteri yönetimi' },
-          { role: 'Üye',          desc: 'Kampanya oluşturma ve görüntüleme' },
+          { role: 'Sahip',         desc: 'Tüm ayarlar, fatura, üye yönetimi' },
+          { role: 'Yönetici',      desc: 'Kampanya, otomasyon, müşteri yönetimi' },
+          { role: 'Üye',           desc: 'Kampanya oluşturma ve görüntüleme' },
           { role: 'Görüntüleyici', desc: 'Sadece okuma yetkisi' },
         ].map(r => (
           <div key={r.role} className="flex items-center justify-between py-2.5 last:border-0" style={{ borderBottom: '1px solid var(--border)' }}>
@@ -1630,17 +1835,11 @@ function GuvenlikSection() {
 
       {/* Active sessions */}
       <div className="bento-card p-5">
-        <p className="text-sm font-semibold mb-3" style={{ color: 'var(--text-1)' }}>Aktif Oturumlar</p>
-        <div className="flex items-center gap-3 py-2.5 px-3 rounded-xl" style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'var(--green-soft)' }}>
-            <Globe className="w-4 h-4 text-emerald-400" />
-          </div>
-          <div className="flex-1">
-            <p className="text-xs font-medium" style={{ color: 'var(--text-1)' }}>Chrome / Windows — İstanbul</p>
-            <p className="text-[11px]" style={{ color: 'var(--text-3)' }}>Şu an aktif · Bu cihaz</p>
-          </div>
-          <span className="chip chip-green">Aktif</span>
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-sm font-semibold" style={{ color: 'var(--text-1)' }}>Aktif Oturumlar</p>
+          <span className="chip chip-muted">Yakında</span>
         </div>
+        <p className="text-xs" style={{ color: 'var(--text-3)' }}>Oturum yönetimi ve aktif cihaz listesi yakında kullanıma açılacak.</p>
       </div>
 
       {/* API Keys */}
@@ -1662,8 +1861,42 @@ function GuvenlikSection() {
 // ─── Tehlikeli Bölge ──────────────────────────────────────────────────────────
 
 function TehlikeliBolgeSection() {
-  const [deleteConfirm, setDeleteConfirm]   = useState('')
+  const router = useRouter()
+  const [deleteConfirm, setDeleteConfirm]     = useState('')
   const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deleting, setDeleting]               = useState(false)
+  const [deleteError, setDeleteError]         = useState('')
+  const [exporting, setExporting]             = useState(false)
+
+  async function handleExport() {
+    setExporting(true)
+    try {
+      const res = await fetch('/api/settings/export')
+      if (!res.ok) throw new Error('Export başarısız')
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `marksio-export-${new Date().toISOString().slice(0, 10)}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch { /* swallow — user will see nothing happen, which is fine */ }
+    finally { setExporting(false) }
+  }
+
+  async function handleDelete() {
+    if (deleteConfirm !== 'sil') return
+    setDeleting(true); setDeleteError('')
+    try {
+      const res = await fetch('/api/settings/account', { method: 'DELETE' })
+      const d = await res.json() as { error?: string }
+      if (!res.ok) throw new Error(d.error)
+      router.push('/')
+    } catch (e) {
+      setDeleteError(e instanceof Error ? e.message : 'Silme işlemi başarısız')
+      setDeleting(false)
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -1673,21 +1906,25 @@ function TehlikeliBolgeSection() {
       <div className="bento-card p-5 flex items-center justify-between">
         <div>
           <p className="text-sm font-semibold" style={{ color: 'var(--text-1)' }}>Verileri Dışa Aktar</p>
-          <p className="text-xs mt-0.5" style={{ color: 'var(--text-3)' }}>Tüm müşteri, kampanya ve analitik verilerinizi CSV olarak indirin</p>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--text-3)' }}>Müşteri, kampanya, segment ve otomasyon verilerini JSON olarak indirin</p>
         </div>
-        <button className="btn-secondary gap-2">
-          <Download className="w-4 h-4" /> Dışa Aktar
+        <button onClick={handleExport} disabled={exporting} className="btn-secondary gap-2 disabled:opacity-40">
+          {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+          {exporting ? 'Hazırlanıyor...' : 'Dışa Aktar'}
         </button>
       </div>
 
-      {/* Freeze */}
+      {/* Freeze — Yakında */}
       <div className="rounded-xl p-5 flex items-center justify-between"
         style={{ background: 'var(--surface)', border: '1px solid rgba(240,160,32,0.2)' }}>
         <div>
-          <p className="text-sm font-semibold" style={{ color: 'var(--amber)' }}>Hesabı Dondur</p>
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-semibold" style={{ color: 'var(--amber)' }}>Hesabı Dondur</p>
+            <span className="chip chip-muted">Yakında</span>
+          </div>
           <p className="text-xs mt-0.5" style={{ color: 'var(--text-3)' }}>Verileriniz korunur, tüm kampanyalar ve otomasyonlar duraklatılır</p>
         </div>
-        <button className="text-sm px-4 py-2 rounded-xl transition-colors"
+        <button disabled className="text-sm px-4 py-2 rounded-xl opacity-40 cursor-not-allowed"
           style={{ background: 'rgba(240,160,32,0.1)', color: 'var(--amber)', border: '1px solid rgba(240,160,32,0.2)' }}>
           Dondur
         </button>
@@ -1700,7 +1937,7 @@ function TehlikeliBolgeSection() {
           <p className="text-sm font-semibold" style={{ color: 'var(--red)' }}>Hesabı Sil</p>
           <p className="text-xs mt-0.5" style={{ color: 'var(--text-3)' }}>Tüm verileriniz kalıcı olarak silinir, bu işlem geri alınamaz</p>
         </div>
-        <button onClick={() => setShowDeleteModal(true)} className="btn-danger gap-2">
+        <button onClick={() => { setShowDeleteModal(true); setDeleteError('') }} className="btn-danger gap-2">
           <AlertTriangle className="w-4 h-4" /> Hesabı Sil
         </button>
       </div>
@@ -1722,9 +1959,17 @@ function TehlikeliBolgeSection() {
               Tüm kampanya, müşteri, segment ve otomasyon verileriniz kalıcı olarak silinecek. Devam etmek için <strong style={{ color: 'var(--text-1)' }}>sil</strong> yazın:
             </p>
             <input value={deleteConfirm} onChange={e => setDeleteConfirm(e.target.value)} placeholder="sil" className="input w-full" />
+            {deleteError && (
+              <div className="ds-alert ds-alert-error text-xs"><AlertCircle className="w-3.5 h-3.5 shrink-0" /> {deleteError}</div>
+            )}
             <div className="flex gap-3">
-              <button onClick={() => { setShowDeleteModal(false); setDeleteConfirm('') }} className="btn-secondary flex-1 justify-center">İptal</button>
-              <button disabled={deleteConfirm !== 'sil'} className="btn-danger flex-1 justify-center disabled:opacity-40">Kalıcı Olarak Sil</button>
+              <button onClick={() => { setShowDeleteModal(false); setDeleteConfirm(''); setDeleteError('') }} disabled={deleting}
+                className="btn-secondary flex-1 justify-center">İptal</button>
+              <button onClick={handleDelete} disabled={deleteConfirm !== 'sil' || deleting}
+                className="btn-danger flex-1 justify-center gap-2 disabled:opacity-40">
+                {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                {deleting ? 'Siliniyor...' : 'Kalıcı Olarak Sil'}
+              </button>
             </div>
           </div>
         </div>
@@ -1743,7 +1988,7 @@ const TAB_META: Record<Tab, { label: string; desc: string; icon: React.ElementTy
   integrations:  { label: 'Entegrasyonlar',    desc: 'Platform ve servis bağlantıları', icon: Link2       },
   email:         { label: 'E-posta Gönderimi', desc: 'Domain ve gönderim ayarları',  icon: Mail           },
   whatsapp:      { label: 'WhatsApp AI',       desc: 'Bot yapılandırması',            icon: MessageCircle  },
-  'ai-studio':   { label: 'AI Studio',         desc: 'Marka kimliği ve görsel stili', icon: Sparkles      },
+  'ai-studio':   { label: 'Marka Kimliği',      desc: 'E-posta şablonlarında kullanılacak marka stili', icon: Sparkles },
   notifications: { label: 'Bildirimler',       desc: 'Bildirim tercihleriniz',        icon: Bell           },
   team:          { label: 'Takım',             desc: 'Üyeler ve yetkilendirme',       icon: Users          },
   security:      { label: 'Güvenlik',          desc: 'Şifre ve erişim kontrolü',      icon: Shield         },

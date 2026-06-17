@@ -170,6 +170,7 @@ export default function SegmentsPage() {
   const [saving, setSaving]             = useState(false)
   const [previewCount, setPreviewCount] = useState<number | null>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
+  const [userPlan, setUserPlan] = useState<string>('starter')
 
   const [form, setForm] = useState({
     name: '', description: '', matchType: 'all' as 'all' | 'any',
@@ -203,8 +204,17 @@ export default function SegmentsPage() {
 
   useEffect(() => {
     fetchSegments()
-    fetchSuggestions()
-  }, [fetchSegments, fetchSuggestions])
+    fetch('/api/user/plan')
+      .then(r => r.json())
+      .then((d: { plan?: string }) => { if (d.plan) setUserPlan(d.plan) })
+      .catch(() => {})
+  }, [fetchSegments])
+
+  const canUseAISegments = ['growth', 'agency'].includes(userPlan)
+
+  useEffect(() => {
+    if (canUseAISegments) fetchSuggestions()
+  }, [canUseAISegments, fetchSuggestions])
 
   // Debounced preview count
   useEffect(() => {
@@ -500,7 +510,7 @@ export default function SegmentsPage() {
                             <Pencil className="w-2.5 h-2.5" /> Düzenle
                           </Link>
                         )}
-                        <Link href={`/ai-studio`}
+                        <Link href={`/campaigns/new`}
                           className="px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-all"
                           style={{ background: 'rgba(68,112,255,0.08)', color: '#99b4ff', border: '1px solid rgba(68,112,255,0.15)' }}>
                           Kampanya Oluştur
@@ -736,15 +746,37 @@ export default function SegmentsPage() {
                 </div>
                 <p className="text-[13px] font-semibold" style={{ color: '#eeeef4' }}>AI Segment Önerileri</p>
               </div>
-              <button onClick={fetchSuggestions} disabled={aiLoading}
-                className="p-1.5 rounded-lg transition-all" style={{ color: '#44445a' }}
-                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
-                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                <RefreshCw className={cn('w-3.5 h-3.5', aiLoading && 'animate-spin')} />
-              </button>
+              {canUseAISegments && (
+                <button onClick={fetchSuggestions} disabled={aiLoading}
+                  className="p-1.5 rounded-lg transition-all" style={{ color: '#44445a' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                  <RefreshCw className={cn('w-3.5 h-3.5', aiLoading && 'animate-spin')} />
+                </button>
+              )}
             </div>
 
             <div className="p-4 flex-1 overflow-auto space-y-3">
+              {!canUseAISegments ? (
+                <div className="flex flex-col items-center justify-center py-10 gap-4 text-center">
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center"
+                    style={{ background: 'rgba(159,122,250,0.1)', border: '1px solid rgba(159,122,250,0.2)' }}>
+                    <Sparkles className="w-5 h-5 text-violet-400" />
+                  </div>
+                  <div>
+                    <p className="text-[13px] font-bold mb-1" style={{ color: '#eeeef4' }}>🔒 AI Segment Önerileri</p>
+                    <p className="text-[11px] leading-relaxed" style={{ color: '#44445a' }}>
+                      Bu özellik Growth planında kullanılabilir.
+                    </p>
+                  </div>
+                  <a href="/plans"
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-bold transition-all"
+                    style={{ background: 'rgba(159,122,250,0.12)', color: '#9f7afa', border: '1px solid rgba(159,122,250,0.25)' }}>
+                    Growth&apos;a Yükselt →
+                  </a>
+                </div>
+              ) : (
+                <>
               <p className="text-[11px]" style={{ color: '#44445a' }}>
                 Müşteri verileriniz analiz edilerek oluşturuldu.
               </p>
@@ -802,6 +834,8 @@ export default function SegmentsPage() {
                 </button>
                 <GenerateAiButton onDone={fetchSegments} />
               </div>
+              </>
+              )}
             </div>
           </div>
         )}

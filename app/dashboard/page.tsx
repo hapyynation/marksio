@@ -117,7 +117,7 @@ function buildInsights(d: DashboardData): AiInsight[] {
       type: 'revenue', color: '#34d399', bg: 'rgba(52,211,153,0.08)', border: 'rgba(52,211,153,0.15)',
       icon: TrendingUp, title: 'Gelir Fırsatı',
       text: `${d.stats.cartAbandons} sepet terk eden müşteri hedeflenerek gelir kurtarılabilir.`,
-      action: 'Kampanya Oluştur', href: '/ai-studio',
+      action: 'Kampanya Oluştur', href: '/campaigns/new',
     })
   }
   if (d.integrationStatus && !d.integrationStatus.email.ok) {
@@ -154,7 +154,7 @@ function buildChecklist(d: DashboardData | null): ChecklistItem[] {
     { key: 'store',      label: 'Mağazanı bağla',          href: '/settings#integrations', done: d?.integrationStatus?.shopify.ok ?? false },
     { key: 'domain',     label: 'E-posta gönderimi hazır',   href: '/settings?tab=email',    done: true },
     { key: 'segment',    label: 'İlk segmenti oluştur',     href: '/segments',              done: (d?.segments?.length ?? 0) > 0 },
-    { key: 'campaign',   label: 'İlk kampanyayı oluştur',   href: '/ai-studio',         done: (d?.recentCampaigns?.length ?? 0) > 0 },
+    { key: 'campaign',   label: 'İlk kampanyayı oluştur',   href: '/campaigns/new',     done: (d?.recentCampaigns?.length ?? 0) > 0 },
     { key: 'automation', label: 'İlk otomasyonu aktif et',  href: '/automations',           done: d?.recentAutomations?.some(a => a.status === 'active') ?? false },
   ]
 }
@@ -484,7 +484,7 @@ export default function DashboardPage() {
             style={{ background:'rgba(255,255,255,0.04)', color:'#8080a0', border:'1px solid rgba(255,255,255,0.08)' }}>
             <Download className="w-3.5 h-3.5"/> Raporu İndir
           </button>
-          <Link href="/ai-studio"
+          <Link href="/campaigns/new"
             className="hidden md:flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[12px] font-semibold transition-all"
             style={{ background:'#4470ff', color:'#fff' }}>
             <Plus className="w-3.5 h-3.5"/> Kampanya Oluştur
@@ -896,7 +896,7 @@ export default function DashboardPage() {
                 <div className="flex flex-col items-center justify-center py-14 gap-3">
                   <Megaphone className="w-7 h-7" style={{ color:'#33334a' }}/>
                   <p className="text-[13px]" style={{ color:'#44445a' }}>Henüz kampanya gönderilmedi</p>
-                  <Link href="/ai-studio" className="flex items-center gap-1.5 text-[12px] font-semibold" style={{ color:'#99b4ff' }}>
+                  <Link href="/campaigns/new" className="flex items-center gap-1.5 text-[12px] font-semibold" style={{ color:'#99b4ff' }}>
                     İlk kampanyayı oluştur <ArrowRight className="w-3.5 h-3.5"/>
                   </Link>
                 </div>
@@ -936,11 +936,11 @@ export default function DashboardPage() {
             <p className="text-[11px] font-semibold mb-3" style={{ color:'#44445a' }}>Hızlı İşlemler</p>
             <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
               {([
-                { href:'/ai-studio',   icon:Megaphone,     label:'Yeni Kampanya', sub:'Oluştur',        color:'#99b4ff', bg:'rgba(153,180,255,0.1)' },
+                { href:'/campaigns/new', icon:Megaphone,     label:'Yeni Kampanya', sub:'Oluştur',        color:'#99b4ff', bg:'rgba(153,180,255,0.1)' },
                 { href:'/automations/new', icon:Zap,           label:'Otomasyon',     sub:'Oluştur',        color:'#a78bfa', bg:'rgba(167,139,250,0.1)' },
                 { href:'/whatsapp',        icon:MessageSquare, label:'WhatsApp Mesajı', sub:'Gönder',        color:'#2dd4bf', bg:'rgba(45,212,191,0.1)'  },
                 { href:'/segments',        icon:Target,        label:'Segment',       sub:'Oluştur',        color:'#34d399', bg:'rgba(52,211,153,0.1)'  },
-                { href:'/ai-studio',       icon:Sparkles,      label:'AI Studio',     sub:'Görsel Oluştur', color:'#f59e0b', bg:'rgba(245,158,11,0.1)'  },
+                { href:'/campaigns',        icon:Sparkles,      label:'Kampanyalar',   sub:'Tümünü Gör',     color:'#f59e0b', bg:'rgba(245,158,11,0.1)'  },
                 { href:'/analytics',       icon:BarChart3,     label:'Rapor',         sub:'Oluştur',        color:'#fb923c', bg:'rgba(251,146,60,0.1)'  },
               ] as const).map(item => {
                 const ItemIcon = item.icon
@@ -983,7 +983,7 @@ export default function DashboardPage() {
                 <div className="flex flex-col items-center justify-center py-14 gap-3">
                   <Activity className="w-7 h-7" style={{ color:'#33334a' }}/>
                   <p className="text-[13px]" style={{ color:'#44445a' }}>Kampanya gönderin, aktiviteler burada görünür</p>
-                  <Link href="/ai-studio" className="flex items-center gap-1.5 text-[12px] font-semibold" style={{ color:'#99b4ff' }}>
+                  <Link href="/campaigns/new" className="flex items-center gap-1.5 text-[12px] font-semibold" style={{ color:'#99b4ff' }}>
                     İlk kampanyayı oluştur <ArrowRight className="w-3.5 h-3.5"/>
                   </Link>
                 </div>
@@ -1053,7 +1053,7 @@ export default function DashboardPage() {
                     ))}
                   </div>
                   <div className="px-5 pb-5">
-                    <Link href="/ai-studio"
+                    <Link href="/campaigns/new"
                       className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-[12px] font-semibold transition-all"
                       style={{ background:'rgba(68,112,255,0.1)', color:'#99b4ff', border:'1px solid rgba(68,112,255,0.2)' }}
                       onMouseEnter={e=>{e.currentTarget.style.background='rgba(68,112,255,0.18)';e.currentTarget.style.borderColor='rgba(68,112,255,0.35)'}}

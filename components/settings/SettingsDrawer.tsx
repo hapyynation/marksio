@@ -42,7 +42,7 @@ const CATEGORIES: Category[] = [
     icon: MessageCircle, iconColor: '#25d366', iconBg: 'rgba(37,211,102,0.1)',
   },
   {
-    key: 'ai-studio', label: 'AI Studio', desc: 'Marka kimliği ve görsel stili',
+    key: 'ai-studio', label: 'Marka Kimliği', desc: 'E-posta şablonu görsel stili',
     icon: Sparkles, iconColor: 'var(--violet)', iconBg: 'var(--violet-soft)',
   },
   {

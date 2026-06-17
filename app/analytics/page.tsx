@@ -7,9 +7,9 @@ import {
 } from 'recharts'
 import {
   TrendingUp, Mail, MessageSquare,
-  Target, Sparkles, ShoppingBag, Smartphone, Globe,
+  Target, Sparkles, ShoppingBag,
   BarChart3, Filter, ChevronDown, Send, Download,
-  AlertTriangle, Package, Percent as PercentIcon,
+  Package, Percent as PercentIcon,
 } from 'lucide-react'
 import Link from 'next/link'
 import AppShell from '@/components/layout/AppShell'
@@ -182,23 +182,34 @@ function AnalyticsAiPanel({ data, aiInput, setAiInput }: { data: AnalyticsData; 
   )
 }
 
+type Period = '7d' | '30d' | '3m' | '12m'
+
+const PERIODS: { key: Period; label: string }[] = [
+  { key: '7d',  label: 'Son 7 gün'  },
+  { key: '30d', label: 'Son 30 gün' },
+  { key: '3m',  label: 'Son 3 ay'   },
+  { key: '12m', label: 'Son 12 ay'  },
+]
+
 export default function AnalyticsPage() {
   const [data, setData] = useState<AnalyticsData>(DEMO_DATA)
   const [loading, setLoading] = useState(true)
   const [channelFilter, setChannelFilter] = useState('all')
   const [aiInput, setAiInput] = useState('')
+  const [period, setPeriod] = useState<Period>('30d')
 
   const now = new Date()
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 86400000)
   const dateRangeLabel = `${thirtyDaysAgo.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })} - ${now.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric' })}`
 
   useEffect(() => {
-    fetch('/api/analytics')
+    setLoading(true)
+    fetch(`/api/analytics?period=${period}`)
       .then(r => r.json())
       .then(d => { if (d?.kpis) setData(d) })
       .catch(() => {})
       .finally(() => setLoading(false))
-  }, [])
+  }, [period])
 
   const kpis = [
     { label: 'Toplam Gelir',         value: data.kpis.totalRevenue > 0 ? formatCurrency(data.kpis.totalRevenue) : '—',     icon: TrendingUp,    color: '#22c97a', bg: 'rgba(34,201,122,0.1)' },
@@ -225,15 +236,18 @@ export default function AnalyticsPage() {
           <p className="text-[11px] hidden sm:block" style={{ color: '#44445a' }}>Pazarlama performansınızı analiz edin ve büyüme fırsatlarını keşfedin.</p>
         </div>
         <div className="flex items-center gap-2">
-          <button className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold transition-all"
-            style={{ background: 'rgba(255,255,255,0.04)', color: '#8080a0', border: '1px solid rgba(255,255,255,0.08)' }}>
-            <span className="text-[11px]">📅</span> {dateRangeLabel}
-            <ChevronDown className="w-3 h-3" />
-          </button>
-          <button className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold transition-all"
-            style={{ background: 'rgba(255,255,255,0.04)', color: '#8080a0', border: '1px solid rgba(255,255,255,0.08)' }}>
-            Önceki 30 gün ile karşılaştır <ChevronDown className="w-3 h-3" />
-          </button>
+          <div className="hidden md:flex items-center gap-0.5 p-0.5 rounded-xl"
+            style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.06)' }}>
+            {PERIODS.map(p => (
+              <button key={p.key} onClick={() => setPeriod(p.key)}
+                className="px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all whitespace-nowrap"
+                style={period === p.key
+                  ? { background: 'rgba(255,255,255,0.08)', color: '#eeeef4' }
+                  : { color: '#44445a' }}>
+                {p.label}
+              </button>
+            ))}
+          </div>
           <button className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-bold transition-all"
             style={{ background: '#4470ff', color: '#fff' }}>
             <Download className="w-3.5 h-3.5" /> Raporu Dışa Aktar
@@ -486,48 +500,6 @@ export default function AnalyticsPage() {
                   </tbody>
                 </table>
               </div>
-            </div>
-          </div>
-
-          {/* ── Device Breakdown ── */}
-          <div className="rounded-2xl overflow-hidden"
-            style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)' }}>
-            <div className="px-5 pt-4 pb-3 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-              <h3 className="text-[13px] font-semibold" style={{ color: '#eeeef4' }}>Cihaz Bazlı Performans</h3>
-              <button className="text-[11px] font-semibold" style={{ color: '#44445a' }}>Detayları Gör →</button>
-            </div>
-            <div className="p-5 grid grid-cols-3 gap-4">
-              {[
-                { device: 'Mobil',    icon: Smartphone, pct: 68.4, count: 156250, color: '#4470ff' },
-                { device: 'Masaüstü', icon: Globe,      pct: 27.1, count: 61930,  color: '#22c97a' },
-                { device: 'Tablet',   icon: Target,     pct: 4.5,  count: 10270,  color: '#9f7afa' },
-              ].map(d => {
-                const Icon = d.icon
-                return (
-                  <div key={d.device} className="flex items-center gap-4">
-                    <div className="h-28 w-28 relative shrink-0">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie data={[{ value: d.pct }, { value: 100 - d.pct }]} cx="50%" cy="50%" innerRadius={32} outerRadius={44} dataKey="value" startAngle={90} endAngle={-270} strokeWidth={0}>
-                            <Cell fill={d.color} />
-                            <Cell fill="rgba(255,255,255,0.04)" />
-                          </Pie>
-                        </PieChart>
-                      </ResponsiveContainer>
-                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                        <p className="text-[14px] font-bold" style={{ color: '#eeeef4' }}>%{d.pct}</p>
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-1.5 mb-1">
-                        <Icon className="w-3.5 h-3.5" style={{ color: d.color }} />
-                        <p className="text-[12px] font-semibold" style={{ color: '#eeeef4' }}>{d.device}</p>
-                      </div>
-                      <p className="text-[11px]" style={{ color: '#44445a' }}>{formatNumber(d.count)} ziyaretçi</p>
-                    </div>
-                  </div>
-                )
-              })}
             </div>
           </div>
 

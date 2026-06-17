@@ -8,9 +8,20 @@ export async function GET() {
 
   const user = await prisma.user.findUnique({
     where: { email: session.user.email },
-    select: { storeName: true, currency: true, language: true, timezone: true },
+    select: { storeName: true, currency: true, language: true, timezone: true, onboardingData: true },
   })
-  return NextResponse.json(user)
+
+  let extra: Record<string, unknown> = {}
+  try { extra = JSON.parse(user?.onboardingData ?? '{}') as Record<string, unknown> } catch {}
+
+  return NextResponse.json({
+    storeName: user?.storeName,
+    currency: user?.currency,
+    language: user?.language,
+    timezone: user?.timezone,
+    notifications: (extra.notificationPrefs as Record<string, boolean> | undefined) ?? null,
+    brandSettings: (extra.brandSettings as Record<string, string> | undefined) ?? null,
+  })
 }
 
 export async function PUT(req: Request) {
