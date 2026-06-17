@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { writeFile, mkdir } from 'fs/promises'
-import path from 'path'
 import { getApiSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
-const MAX_SIZE = 5 * 1024 * 1024
+const MAX_SIZE = 500 * 1024  // 500 KB
 const ALLOWED = ['jpg', 'jpeg', 'png', 'webp']
 
 export async function POST(req: NextRequest) {
@@ -17,22 +15,15 @@ export async function POST(req: NextRequest) {
     if (!file) return NextResponse.json({ error: 'Dosya bulunamadı' }, { status: 400 })
 
     if (file.size > MAX_SIZE)
-      return NextResponse.json({ error: 'Dosya çok büyük (maks 5MB)' }, { status: 400 })
+      return NextResponse.json({ error: 'Maksimum 500KB yükleyebilirsiniz' }, { status: 400 })
 
     const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
     if (!ALLOWED.includes(ext))
       return NextResponse.json({ error: 'Geçersiz dosya türü. JPG, PNG veya WebP olmalı.' }, { status: 400 })
 
-    const filename = `avatar-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'avatars')
-
-    await mkdir(uploadDir, { recursive: true })
     const bytes = await file.arrayBuffer()
-    await writeFile(path.join(uploadDir, filename), Buffer.from(bytes))
-
-    const host = req.headers.get('host') || 'localhost:3000'
-    const proto = host.startsWith('localhost') ? 'http' : 'https'
-    const avatarUrl = `${proto}://${host}/uploads/avatars/${filename}`
+    const base64 = Buffer.from(bytes).toString('base64')
+    const avatarUrl = `data:${file.type};base64,${base64}`
 
     const existing = await prisma.user.findUnique({
       where: { email: session.user.email },

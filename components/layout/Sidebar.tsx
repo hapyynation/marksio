@@ -11,7 +11,7 @@ import { useSession } from '@/lib/hooks/use-session'
 import { createClient } from '@/lib/supabase/client'
 import { signOut as nextAuthSignOut } from 'next-auth/react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useSettingsDrawer } from '@/lib/settings-drawer-context'
 
 interface NavItem {
@@ -141,12 +141,51 @@ function NavLink({
   )
 }
 
+interface StoreInfo {
+  name: string
+  platform: string
+  connected: boolean
+}
+
+function formatStoreName(domain: string | null | undefined): string {
+  if (!domain) return ''
+  const base = domain.replace(/\.myshopify\.com$/i, '').replace(/\.com$/i, '').replace(/[-_]/g, ' ')
+  return base.charAt(0).toUpperCase() + base.slice(1)
+}
+
+const PLATFORM_BADGE: Record<string, { label: string; color: string }> = {
+  shopify:     { label: 'S', color: '#96bf48' },
+  ikas:        { label: 'İ', color: '#f0a020' },
+  woocommerce: { label: 'W', color: '#7f54b3' },
+}
+
 export default function Sidebar() {
   const { open, setOpen, collapsed, setCollapsed } = useSidebar()
   const { data: session } = useSession()
   const router = useRouter()
   const [hovered, setHovered] = useState(false)
   const { open: openSettingsDrawer } = useSettingsDrawer()
+  const [storeInfo, setStoreInfo] = useState<StoreInfo | null>(null)
+
+  useEffect(() => {
+    fetch('/api/integrations')
+      .then(r => r.json())
+      .then((d: { integrations?: Array<{ platform: string; shopDomain?: string; status: string }> }) => {
+        const active = (d.integrations ?? []).find(
+          i => ['shopify', 'ikas', 'woocommerce'].includes(i.platform) && i.status === 'active'
+        )
+        if (active) {
+          setStoreInfo({
+            name: formatStoreName(active.shopDomain) || 'Mağazanız',
+            platform: active.platform,
+            connected: true,
+          })
+        } else {
+          setStoreInfo({ name: '', platform: '', connected: false })
+        }
+      })
+      .catch(() => setStoreInfo({ name: '', platform: '', connected: false }))
+  }, [])
 
   const NAV_BOTTOM_DYNAMIC: NavItem[] = [
     { href: '/plans',    label: 'Planlar',  icon: 'credit_card' },
@@ -255,41 +294,63 @@ export default function Sidebar() {
               exit={{ opacity: 0, height: 0, transition: { duration: 0.1 } }}
               className="mx-3 mt-2.5 mb-1 overflow-hidden"
             >
-              <button
-                className="w-full px-2.5 py-2 rounded-[9px] flex items-center gap-2 transition-all text-left"
-                style={{
-                  background: 'rgba(255,255,255,0.025)',
-                  border: '1px solid rgba(255,255,255,0.055)',
-                }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.04)'
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.09)'
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.025)'
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.055)'
-                }}
-              >
-                <div
-                  className="flex items-center justify-center shrink-0 rounded-md"
-                  style={{ width: 22, height: 22, background: 'rgba(68,112,255,0.12)', border: '1px solid rgba(68,112,255,0.22)' }}
+              {storeInfo?.connected ? (
+                <button
+                  onClick={() => router.push('/settings?tab=integrations')}
+                  className="w-full px-2.5 py-2 rounded-[9px] flex items-center gap-2 transition-all text-left"
+                  style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.055)' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.09)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.025)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.055)' }}
                 >
-                  <span className="material-symbols-outlined" style={{ fontSize: 12, color: 'var(--blue)' }}>
-                    storefront
-                  </span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[11.5px] font-medium truncate leading-tight" style={{ color: '#dde2f0' }}>
-                    {user?.storeName ?? 'Demo Mağaza'}
+                  <div
+                    className="flex items-center justify-center shrink-0 rounded-md text-[10px] font-bold"
+                    style={{
+                      width: 22, height: 22,
+                      background: `${PLATFORM_BADGE[storeInfo.platform]?.color ?? '#4470ff'}22`,
+                      border: `1px solid ${PLATFORM_BADGE[storeInfo.platform]?.color ?? '#4470ff'}44`,
+                      color: PLATFORM_BADGE[storeInfo.platform]?.color ?? '#4470ff',
+                    }}
+                  >
+                    {PLATFORM_BADGE[storeInfo.platform]?.label ?? 'M'}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11.5px] font-medium truncate leading-tight" style={{ color: '#dde2f0' }}>
+                      {storeInfo.name}
+                    </p>
+                    <p className="text-[10px] leading-tight capitalize" style={{ color: 'var(--text-3)' }}>
+                      {storeInfo.platform}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="w-1.5 h-1.5 rounded-full"
+                      style={{ background: 'var(--green)', boxShadow: '0 0 4px rgba(34,201,122,0.5)' }} />
+                  </div>
+                </button>
+              ) : storeInfo !== null ? (
+                <button
+                  onClick={() => router.push('/settings?tab=integrations')}
+                  className="w-full px-2.5 py-2 rounded-[9px] flex items-center gap-2 transition-all text-left"
+                  style={{ background: 'rgba(255,255,255,0.015)', border: '1px solid rgba(255,255,255,0.04)' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(68,112,255,0.06)'; e.currentTarget.style.borderColor = 'rgba(68,112,255,0.2)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.015)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.04)' }}
+                >
+                  <div
+                    className="flex items-center justify-center shrink-0 rounded-md"
+                    style={{ width: 22, height: 22, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: 12, color: 'var(--text-3)' }}>
+                      add
+                    </span>
+                  </div>
+                  <p className="text-[11.5px] font-medium truncate leading-tight flex-1" style={{ color: 'var(--text-3)' }}>
+                    Mağaza Bağla
                   </p>
-                  <p className="text-[10px] leading-tight" style={{ color: 'var(--text-3)' }}>Shopify</p>
+                </button>
+              ) : (
+                <div className="px-2.5 py-2 rounded-[9px]" style={{ background: 'rgba(255,255,255,0.015)', border: '1px solid rgba(255,255,255,0.04)' }}>
+                  <div className="h-3 w-24 rounded animate-pulse" style={{ background: 'rgba(255,255,255,0.06)' }} />
                 </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <span className="w-1.5 h-1.5 rounded-full"
-                    style={{ background: 'var(--green)', boxShadow: '0 0 4px rgba(34,201,122,0.5)' }} />
-                  <ChevronDown className="w-3 h-3" style={{ color: 'var(--text-3)' }} />
-                </div>
-              </button>
+              )}
             </motion.div>
           )}
         </AnimatePresence>

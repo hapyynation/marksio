@@ -817,7 +817,7 @@ interface InvoiceData { id: string; createdAt: string; total: number; currency: 
 
 const PLAN_META: Record<string, { name: string; price: string; color: string }> = {
   free:    { name: 'Free',    price: 'Ücretsiz', color: '#8080a0' },
-  starter: { name: 'Starter', price: '$19/ay',   color: '#8080a0' },
+  starter: { name: 'Starter', price: '$29/ay',   color: '#8080a0' },
   growth:  { name: 'Growth',  price: '$49/ay',   color: 'var(--blue)' },
   agency:  { name: 'Agency',  price: '$249/ay',  color: 'var(--violet)' },
 }
