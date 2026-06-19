@@ -97,5 +97,7 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
+  // api/webhooks/* tamamen hariç: Meta webhook POST'larının Edge middleware'den geçmeden
+  // doğrudan route handler'a ulaşması gerekiyor (Vary: RSC interceptini önler).
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|api/webhooks/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
 }
