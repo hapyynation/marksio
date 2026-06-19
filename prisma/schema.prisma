@@ -49,6 +49,11 @@ model User {
   whatsappQuickReplies WhatsAppQuickReply[]
   whatsappConversations WhatsAppConversation[]
   whatsappCampaigns    WhatsAppCampaign[]
+  whatsappAccounts     WhatsappAccount[]
+
+  emailTemplates  EmailTemplate[]
+  emailHealthScore EmailHealthScore?
+  abTests         ABTest[]
 }
 
 model Campaign {
@@ -675,4 +680,274 @@ model WhatsAppCampaign {
 
   @@index([userId])
   @@index([externalMessageId])
+}
+
+// ─── E-posta Yönetim Merkezi ──────────────────────────────────────────────────
+
+model EmailTemplate {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  description String?
+  type        String   @default("custom") // welcome|promotion|cart_abandonment|order_confirmation|win_back|custom
+  subject     String?
+  htmlContent String?
+  textContent String?
+  thumbnail   String?
+  isDefault   Boolean  @default(false)
+  usageCount  Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+}
+
+model EmailHealthScore {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  score           Int      @default(100)
+  bounceRate      Float    @default(0)
+  complaintRate   Float    @default(0)
+  openRate        Float    @default(0)
+  deliveryRate    Float    @default(0)
+  unsubscribeRate Float    @default(0)
+  lastCalculated  DateTime @default(now())
+  status          String   @default("good") // good|warning|danger
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ABTest {
+  id            String    @id @default(cuid())
+  userId        String
+  name          String
+  campaignId    String?
+  variantA      Json
+  variantB      Json
+  splitPercent  Int       @default(50)
+  status        String    @default("draft") // draft|running|completed
+  winnerVariant String?
+  sentA         Int       @default(0)
+  sentB         Int       @default(0)
+  openedA       Int       @default(0)
+  openedB       Int       @default(0)
+  clickedA      Int       @default(0)
+  clickedB      Int       @default(0)
+  startedAt     DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime  @default(now())
+
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+}
+
+// ─── WhatsApp Business API (BYO Credentials) ─────────────────────────────────
+
+enum QualityRating {
+  GREEN
+  YELLOW
+  RED
+  UNKNOWN
+}
+
+enum MessagingTier {
+  TIER_250
+  TIER_1K
+  TIER_10K
+  TIER_100K
+  UNLIMITED
+}
+
+enum WhatsappAccountStatus {
+  PENDING
+  CONNECTED
+  ERROR
+  DISCONNECTED
+}
+
+enum TemplateCategory {
+  MARKETING
+  UTILITY
+  AUTHENTICATION
+}
+
+enum WaTemplateStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PAUSED
+  DISABLED
+}
+
+enum OptInStatus {
+  OPTED_IN
+  OPTED_OUT
+  UNKNOWN
+}
+
+enum WaConversationStatus {
+  AI_HANDLING
+  HUMAN_TAKEOVER
+  CLOSED
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum WaMessageStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+enum BroadcastStatus {
+  DRAFT
+  SCHEDULED
+  SENDING
+  COMPLETED
+  FAILED
+}
+
+model WhatsappAccount {
+  id                 String               @id @default(cuid())
+  userId             String
+  user               User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wabaId             String
+  phoneNumberId      String               @unique
+  accessToken        String
+  appSecret          String
+  displayName        String?
+  verifiedName       String?
+  qualityRating      QualityRating        @default(UNKNOWN)
+  messagingTier      MessagingTier        @default(TIER_250)
+  webhookVerifyToken String               @unique
+  status             WhatsappAccountStatus @default(PENDING)
+  lastWebhookAt      DateTime?
+  connectedAt        DateTime             @default(now())
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  templates          WhatsappTemplate[]
+  waConversations    WhatsappConversation[]
+  broadcasts         WhatsappBroadcast[]
+  assistantConfig    WhatsappAssistantConfig?
+}
+
+model WhatsappTemplate {
+  id              String           @id @default(cuid())
+  accountId       String
+  account         WhatsappAccount  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  metaTemplateId  String
+  name            String
+  category        TemplateCategory
+  language        String
+  status          WaTemplateStatus
+  componentsJson  Json
+  rejectedReason  String?
+  syncedAt        DateTime         @default(now())
+
+  broadcasts      WhatsappBroadcast[]
+  waMessages      WhatsappMessage[]
+
+  @@unique([accountId, metaTemplateId])
+}
+
+model WhatsappContact {
+  id              String          @id @default(cuid())
+  userId          String
+  phoneNumber     String
+  optInStatus     OptInStatus     @default(UNKNOWN)
+  lastInboundAt   DateTime?
+  windowExpiresAt DateTime?
+  tags            String[]
+  createdAt       DateTime        @default(now())
+
+  conversations   WhatsappConversation[]
+
+  @@unique([userId, phoneNumber])
+}
+
+model WhatsappConversation {
+  id            String              @id @default(cuid())
+  contactId     String
+  contact       WhatsappContact     @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  accountId     String
+  account       WhatsappAccount     @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  status        WaConversationStatus @default(AI_HANDLING)
+  lastMessageAt DateTime            @default(now())
+
+  messages      WhatsappMessage[]
+}
+
+model WhatsappMessage {
+  id             String              @id @default(cuid())
+  conversationId String
+  conversation   WhatsappConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  direction      MessageDirection
+  templateId     String?
+  template       WhatsappTemplate?   @relation(fields: [templateId], references: [id])
+  content        String?
+  metaMessageId  String?             @unique
+  status         WaMessageStatus     @default(QUEUED)
+  errorReason    String?
+  sentAt         DateTime            @default(now())
+
+  broadcast      WhatsappBroadcast?  @relation(fields: [broadcastId], references: [id])
+  broadcastId    String?
+}
+
+model WhatsappBroadcast {
+  id               String          @id @default(cuid())
+  accountId        String
+  account          WhatsappAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  templateId       String
+  template         WhatsappTemplate @relation(fields: [templateId], references: [id])
+  segmentId        String?
+  name             String
+  scheduledAt      DateTime?
+  status           BroadcastStatus @default(DRAFT)
+  totalRecipients  Int             @default(0)
+  sentCount        Int             @default(0)
+  deliveredCount   Int             @default(0)
+  readCount        Int             @default(0)
+  failedCount      Int             @default(0)
+
+  messages         WhatsappMessage[]
+}
+
+enum AssistantTone {
+  FORMAL
+  FRIENDLY
+  PROFESSIONAL
+}
+
+model WhatsappAssistantConfig {
+  id               String          @id @default(cuid())
+  accountId        String          @unique
+  account          WhatsappAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  enabled          Boolean         @default(false)
+  tone             AssistantTone   @default(PROFESSIONAL)
+  businessName     String?
+  customKnowledge  String?
+  fallbackMessage  String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  faqs             WhatsappAssistantFaq[]
+}
+
+model WhatsappAssistantFaq {
+  id        String                  @id @default(cuid())
+  configId  String
+  config    WhatsappAssistantConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
+  question  String
+  answer    String
+  createdAt DateTime                @default(now())
 }
