@@ -377,9 +377,9 @@ export default async function HomePage() {
           </div>
           <p className="text-xs text-white/20">© 2025 Marksio. Tüm hakları saklıdır.</p>
           <div className="flex items-center gap-6 text-xs text-white/30">
-            <a href="#" className="hover:text-white/60 transition-colors">Gizlilik</a>
+            <a href="/privacy" className="hover:text-white/60 transition-colors">Gizlilik</a>
             <a href="#" className="hover:text-white/60 transition-colors">Kullanım Şartları</a>
-            <a href="#" className="hover:text-white/60 transition-colors">Destek</a>
+            <a href="mailto:info@vosensio.com" className="hover:text-white/60 transition-colors">Destek</a>
           </div>
         </div>
       </footer>
