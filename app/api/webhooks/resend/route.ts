@@ -85,13 +85,25 @@ export async function POST(req: NextRequest) {
       }).catch(() => null)
     }
 
-    // 2. Bounce → mark customer as bounced (suppress from future sends)
+    // 2. Bounce → mark customer as bounced + hit health score
     if (mappedType === 'bounced' && event.customerId) {
       await prisma.customer.update({
         where: { id: event.customerId },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         data: { bounced: true, bouncedAt: new Date() } as any,
       }).catch(() => null)
+
+      const campaign = await prisma.campaign.findUnique({ where: { id: event.campaignId }, select: { userId: true } }).catch(() => null)
+      if (campaign?.userId) {
+        await prisma.emailHealthScore.upsert({
+          where:  { userId: campaign.userId },
+          create: { userId: campaign.userId, score: 90, status: 'good', bounceRate: 1.5 },
+          update: {
+            score:          { decrement: 3 },
+            lastCalculated: new Date(),
+          },
+        }).catch(() => null)
+      }
 
       // Record unsubscribed EmailEvent so dashboards reflect this
       await prisma.emailEvent.create({
@@ -106,13 +118,26 @@ export async function POST(req: NextRequest) {
       }).catch(() => null)
     }
 
-    // 3. Complaint → immediately unsubscribe customer
+    // 3. Complaint → immediately unsubscribe customer + hit health score
     if (mappedType === 'complained' && event.customerId) {
       await prisma.customer.update({
         where: { id: event.customerId },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         data: { unsubscribed: true, complained: true, complainedAt: new Date() } as any,
       }).catch(() => null)
+
+      const campaign = await prisma.campaign.findUnique({ where: { id: event.campaignId }, select: { userId: true } }).catch(() => null)
+      if (campaign?.userId) {
+        await prisma.emailHealthScore.upsert({
+          where:  { userId: campaign.userId },
+          create: { userId: campaign.userId, score: 80, status: 'warning', complaintRate: 0.15 },
+          update: {
+            score:         { decrement: 15 },
+            status:        'warning',
+            lastCalculated: new Date(),
+          },
+        }).catch(() => null)
+      }
     }
 
     // 4. Unsubscribe event from Resend → sync to customer

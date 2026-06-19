@@ -38,7 +38,14 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       ...(body.sent !== undefined && { sent: body.sent }),
       ...(body.opened !== undefined && { opened: body.opened }),
       ...(body.clicked !== undefined && { clicked: body.clicked }),
-      ...(body.revenue !== undefined && { revenue: body.revenue }),
+      ...(body.revenue   !== undefined && { revenue:     body.revenue }),
+      ...(body.segment     !== undefined && { segment: body.segment }),
+      ...(body.design      !== undefined && { design:  body.design }),
+      ...(body.previewText !== undefined && { previewText: body.previewText }),
+      ...(body.scheduledAt !== undefined && {
+        scheduledAt: body.scheduledAt ? new Date(body.scheduledAt) : null,
+        ...(body.scheduledAt ? { status: 'scheduled' } : {}),
+      }),
     },
   })
 

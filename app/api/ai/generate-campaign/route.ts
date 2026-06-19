@@ -1,8 +1,8 @@
 ﻿import { NextRequest, NextResponse } from 'next/server'
 import { getApiSession } from '@/lib/auth'
-import Groq from 'groq-sdk'
+import Anthropic from '@anthropic-ai/sdk'
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
+const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 const PURPOSE_LABELS: Record<string, string> = {
   cart_abandoned: 'Sepeti Terk Edenler',
@@ -112,7 +112,7 @@ export async function POST(req: NextRequest) {
   if (!session?.user) return NextResponse.json({ error: 'Yetkisiz' }, { status: 401 })
 
   const {
-    purpose,
+    purpose: rawPurpose,
     name,
     productDescription,
     products = [],
@@ -124,9 +124,8 @@ export async function POST(req: NextRequest) {
     primaryColor,
   } = await req.json()
 
-  if (!purpose) {
-    return NextResponse.json({ error: 'purpose zorunlu' }, { status: 400 })
-  }
+  // purpose may be omitted when called from the quick "AI Yaz" editor button
+  const purpose = rawPurpose ?? 'discount'
 
   const purposeLabel = PURPOSE_LABELS[purpose] ?? purpose
   const discount = discountRate ? `%${discountRate} indirim` : 'indirim yok'
@@ -176,16 +175,15 @@ SADECE aşağıdaki JSON formatında dön:
 }`
 
   try {
-    const completion = await groq.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.72,
+    const message = await client.messages.create({
+      model: 'claude-sonnet-4-6',
       max_tokens: 1800,
-      response_format: { type: 'json_object' },
+      messages: [{ role: 'user', content: prompt + '\n\nÖNEMLİ: Sadece geçerli JSON döndür, başka hiçbir şey yazma.' }],
     })
 
-    const raw = completion.choices[0]?.message?.content ?? '{}'
-    const result = JSON.parse(raw)
+    const raw = message.content[0]?.type === 'text' ? message.content[0].text : '{}'
+    const jsonMatch = raw.match(/\{[\s\S]*\}/)
+    const result = JSON.parse(jsonMatch ? jsonMatch[0] : raw)
 
     // Fallbacks
     if (!result.recommendedSegment) result.recommendedSegment = SEGMENT_MAP[purpose] ?? 'all'

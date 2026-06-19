@@ -1,497 +1,388 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { useRouter } from 'next/navigation'
-import { LogOut, ChevronLeft, ChevronRight, X, ChevronDown } from 'lucide-react'
-import Image from 'next/image'
-import { cn } from '@/lib/utils'
+import { usePathname, useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import { useSidebar } from '@/lib/sidebar-context'
-import { useSession } from '@/lib/hooks/use-session'
 import { createClient } from '@/lib/supabase/client'
 import { signOut as nextAuthSignOut } from 'next-auth/react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { useState, useEffect } from 'react'
-import { useSettingsDrawer } from '@/lib/settings-drawer-context'
+import { useTheme } from '@/components/providers/ThemeProvider'
 
-interface NavItem {
+type NavItem = {
   href: string
-  label: string
   icon: string
-  badge?: number
-  badgeVariant?: 'blue' | 'green' | 'amber' | 'red'
-  onClick?: () => void
+  label: string
+  exact?: boolean
+  children?: NavItem[]
 }
 
-const NAV_CORE_TOP: NavItem[] = [
-  { href: '/dashboard',   label: 'Dashboard',     icon: 'space_dashboard' },
+const NAV: NavItem[] = [
+  { href: '/dashboard', icon: 'space_dashboard', label: 'Dashboard', exact: true },
+  {
+    href: '/email', icon: 'mail', label: 'Email',
+    children: [
+      { href: '/email/broadcasts', icon: 'send', label: 'Broadcasts' },
+      { href: '/email/subscribers', icon: 'group', label: 'Aboneler' },
+      { href: '/email/templates', icon: 'description', label: 'Şablonlar' },
+      { href: '/email/ab-test', icon: 'science', label: 'A/B Test' },
+      { href: '/email/domains', icon: 'dns', label: 'Domain' },
+      { href: '/email/health', icon: 'monitor_heart', label: 'Sağlık' },
+    ],
+  },
+  { href: '/campaigns', icon: 'campaign', label: 'Kampanyalar' },
+  { href: '/automations', icon: 'account_tree', label: 'Otomasyonlar' },
+  { href: '/customers', icon: 'group', label: 'Müşteriler' },
+  { href: '/segments', icon: 'workspaces', label: 'Segmentler' },
+  { href: '/analytics', icon: 'bar_chart', label: 'Analitik' },
+  {
+    href: '/whatsapp', icon: 'chat_bubble', label: 'WhatsApp',
+    children: [
+      { href: '/whatsapp/connection', icon: 'link', label: 'Bağlantı' },
+      { href: '/whatsapp/broadcasts', icon: 'send', label: 'Broadcasts' },
+      { href: '/whatsapp/subscribers', icon: 'group', label: 'Aboneler' },
+      { href: '/whatsapp/templates', icon: 'description', label: 'Şablonlar' },
+      { href: '/whatsapp/ab-test', icon: 'science', label: 'A/B Test' },
+      { href: '/whatsapp/inbox', icon: 'inbox', label: 'Inbox' },
+      { href: '/whatsapp/ai-assistant', icon: 'smart_toy', label: 'AI Asistan' },
+      { href: '/whatsapp/health', icon: 'monitor_heart', label: 'Sağlık' },
+    ],
+  },
 ]
 
-const EMAIL_ITEMS: NavItem[] = [
-  { href: '/email/broadcasts',  label: 'Yayınlar',     icon: 'send' },
-  { href: '/email/subscribers', label: 'Aboneler',     icon: 'group' },
-  { href: '/email/templates',   label: 'Şablonlar',    icon: 'description' },
-  { href: '/email/domains',     label: 'Alan Adları',  icon: 'dns' },
-  { href: '/email/metrics',     label: 'Metrikler',    icon: 'bar_chart_4_bars' },
-  { href: '/email/health',      label: 'Sağlık Skoru', icon: 'favorite' },
-  { href: '/email/ab-test',     label: 'A/B Test',     icon: 'science' },
+const BOTTOM_NAV: NavItem[] = [
+  { href: '/plans', icon: 'credit_card', label: 'Plan' },
+  { href: '/settings', icon: 'settings', label: 'Ayarlar' },
 ]
 
-const NAV_CORE: NavItem[] = [
-  { href: '/automations', label: 'Otomasyonlar',   icon: 'bolt' },
-  { href: '/live',        label: 'Canlı Takip',    icon: 'radio_button_checked' },
-  { href: '/customers',   label: 'Müşteriler',     icon: 'group' },
-  { href: '/segments',    label: 'Segmentler',     icon: 'donut_small' },
-  { href: '/analytics',   label: 'Analitik',       icon: 'bar_chart_4_bars' },
-]
-
-const NAV_AI: NavItem[] = [
-  { href: '/whatsapp', label: 'WhatsApp AI', icon: 'smart_toy' },
-]
-
-const NAV_BOTTOM: NavItem[] = [
-  { href: '/plans',    label: 'Planlar',  icon: 'credit_card' },
-  { href: '/settings', label: 'Ayarlar',  icon: 'settings' },
-]
-
-const BADGE_STYLES: Record<string, { bg: string; text: string }> = {
-  blue:  { bg: 'rgba(68,112,255,0.2)',  text: '#99b4ff' },
-  green: { bg: 'rgba(34,201,122,0.2)',  text: '#22c97a' },
-  amber: { bg: 'rgba(240,160,32,0.2)',  text: '#f0a020' },
-  red:   { bg: 'rgba(232,69,69,0.2)',   text: '#e84545' },
-}
-
-const labelVariants = {
-  show: { opacity: 1, x: 0, transition: { duration: 0.12, delay: 0.06 } },
-  hide: { opacity: 0, x: -6, transition: { duration: 0.08 } },
+function isActive(href: string, pathname: string, exact?: boolean): boolean {
+  if (exact) return pathname === href
+  return pathname === href || pathname.startsWith(href + '/')
 }
 
 function NavLink({
   item,
-  expanded,
-  onNavigate,
+  collapsed,
+  depth = 0,
 }: {
   item: NavItem
-  expanded: boolean
-  onNavigate: () => void
+  collapsed: boolean
+  depth?: number
 }) {
   const pathname = usePathname()
-  const active = pathname === item.href || pathname.startsWith(item.href + '/')
-  const badge = item.badge
-  const badgeStyle = badge && badge > 0 ? BADGE_STYLES[item.badgeVariant ?? 'blue'] : null
+  const active = isActive(item.href, pathname, item.exact)
+  const parentActive = item.children?.some(c => isActive(c.href, pathname)) ?? false
+  const [open, setOpen] = useState(parentActive || active)
 
-  const sharedClass = cn(
-    'relative flex items-center rounded-lg text-[13px] font-medium transition-colors duration-150 overflow-hidden w-full',
-    expanded ? 'gap-2.5 px-2.5 py-[7px]' : 'justify-center p-[9px]',
-    !active && 'hover:bg-white/[0.04]',
-  )
-  const sharedStyle = active
-    ? { background: 'rgba(68,112,255,0.1)', color: '#eeeef4' }
-    : { color: 'var(--text-2)' }
+  useEffect(() => {
+    if (item.children && (parentActive || isActive(item.href, pathname, item.exact))) {
+      setOpen(true)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname])
 
-  const inner = (
-    <>
-      {active && expanded && (
-        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r-full"
-          style={{ background: 'var(--blue)' }} />
-      )}
-      <span
-        className="material-symbols-outlined shrink-0"
-        style={{
-          fontSize: 17,
-          color: active ? 'var(--blue)' : 'var(--text-2)',
-          fontVariationSettings: active
-            ? "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24"
-            : "'FILL' 0, 'wght' 350, 'GRAD' 0, 'opsz' 24",
-        }}
-      >
-        {item.icon}
-      </span>
-      <AnimatePresence initial={false}>
-        {expanded && (
-          <motion.span key="label" variants={labelVariants} initial="hide" animate="show" exit="hide" className="flex-1 truncate">
-            {item.label}
-          </motion.span>
-        )}
-      </AnimatePresence>
-      {expanded && badgeStyle && badge && badge > 0 && (
-        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 min-w-[18px] text-center"
-          style={{ background: badgeStyle.bg, color: badgeStyle.text }}>
-          {badge > 99 ? '99+' : badge}
-        </span>
-      )}
-      {!expanded && badgeStyle && badge && badge > 0 && (
-        <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full"
-          style={{ background: badgeStyle.text }} />
-      )}
-    </>
-  )
-
-  if (item.onClick) {
+  if (item.children) {
+    const anyChildActive = item.children.some(c => isActive(c.href, pathname))
     return (
-      <button
-        onClick={() => { item.onClick!(); onNavigate() }}
-        title={!expanded ? item.label : undefined}
-        className={sharedClass}
-        style={sharedStyle}
-      >
-        {inner}
-      </button>
+      <div>
+        <button
+          onClick={() => !collapsed && setOpen(v => !v)}
+          className="w-full flex items-center transition-colors duration-100 rounded-lg group"
+          style={{
+            padding: collapsed ? '8px' : '8px 10px',
+            justifyContent: collapsed ? 'center' : 'flex-start',
+            gap: collapsed ? 0 : 8,
+            background: anyChildActive && !open ? 'rgba(37,99,235,0.06)' : 'transparent',
+            color: anyChildActive ? 'var(--text-1)' : 'var(--text-2)',
+          }}
+        >
+          <span
+            className="material-symbols-outlined flex-shrink-0 transition-colors"
+            style={{ fontSize: 18, color: anyChildActive ? '#2563EB' : '#6B7280' }}
+          >
+            {item.icon}
+          </span>
+          {!collapsed && (
+            <>
+              <span style={{ fontSize: 13, fontWeight: anyChildActive ? 600 : 400, flex: 1, textAlign: 'left' }}>
+                {item.label}
+              </span>
+              <span
+                className="material-symbols-outlined flex-shrink-0 transition-transform duration-200"
+                style={{ fontSize: 14, color: '#9CA3AF', transform: open ? 'rotate(180deg)' : 'none' }}
+              >
+                keyboard_arrow_down
+              </span>
+            </>
+          )}
+        </button>
+
+        {!collapsed && (
+          <AnimatePresence initial={false}>
+            {open && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.18, ease: 'easeInOut' }}
+                style={{ overflow: 'hidden' }}
+              >
+                <div style={{ paddingLeft: 28, paddingTop: 2, paddingBottom: 2 }}>
+                  {item.children.map(child => (
+                    <NavLink key={child.href} item={child} collapsed={false} depth={depth + 1} />
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        )}
+      </div>
     )
   }
 
   return (
     <Link
       href={item.href}
-      onClick={onNavigate}
-      title={!expanded ? item.label : undefined}
-      className={sharedClass}
-      style={sharedStyle}
+      className="flex items-center transition-colors duration-100 rounded-lg relative"
+      style={{
+        padding: collapsed ? '8px' : depth > 0 ? '6px 10px' : '8px 10px',
+        justifyContent: collapsed ? 'center' : 'flex-start',
+        gap: collapsed ? 0 : 8,
+        background: active ? 'rgba(37,99,235,0.08)' : 'transparent',
+        color: active ? 'var(--text-1)' : 'var(--text-2)',
+        fontWeight: active ? 600 : 400,
+        textDecoration: 'none',
+      }}
+      title={collapsed ? item.label : undefined}
     >
-      {inner}
+      {active && !collapsed && depth === 0 && (
+        <div style={{
+          position: 'absolute', left: 0, top: '20%', bottom: '20%',
+          width: 2, borderRadius: 1, background: '#2563EB',
+        }} />
+      )}
+      <span
+        className="material-symbols-outlined flex-shrink-0"
+        style={{ fontSize: depth > 0 ? 15 : 18, color: active ? '#2563EB' : '#9CA3AF' }}
+      >
+        {item.icon}
+      </span>
+      {!collapsed && (
+        <span style={{ fontSize: depth > 0 ? 12.5 : 13 }}>{item.label}</span>
+      )}
     </Link>
   )
 }
 
 export default function Sidebar() {
   const { open, setOpen, collapsed, setCollapsed } = useSidebar()
-  const { data: session } = useSession()
+  const { theme, toggle: toggleTheme } = useTheme()
   const router = useRouter()
-  const [hovered, setHovered] = useState(false)
-  const [emailOpen, setEmailOpen] = useState(false)
-  const { open: openSettingsDrawer } = useSettingsDrawer()
-  const pathname = usePathname()
-  const isEmailActive = pathname.startsWith('/email')
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  const [workspace, setWorkspace] = useState<string | null>(null)
+  const [userEmail, setUserEmail] = useState<string | null>(null)
 
   useEffect(() => {
-    fetch('/api/settings/profile')
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data }) => {
+      if (data?.user?.email) setUserEmail(data.user.email)
+    })
+    fetch('/api/settings')
       .then(r => r.json())
-      .then((d: { avatarUrl?: string }) => { if (d.avatarUrl) setAvatarUrl(d.avatarUrl) })
+      .then((d: { storeName?: string }) => { if (d?.storeName) setWorkspace(d.storeName) })
       .catch(() => {})
   }, [])
 
-  const NAV_BOTTOM_DYNAMIC: NavItem[] = [
-    { href: '/plans',    label: 'Planlar',  icon: 'credit_card' },
-    { href: '/settings', label: 'Ayarlar',  icon: 'settings', onClick: () => { openSettingsDrawer(); setOpen(false) } },
-  ]
-
-  const isExpanded = !collapsed || hovered
-
-  const handleSignOut = async () => {
+  async function handleSignOut() {
     const supabase = createClient()
-    await Promise.all([
-      supabase.auth.signOut(),
-      nextAuthSignOut({ redirect: false }),
-    ])
+    await Promise.all([supabase.auth.signOut(), nextAuthSignOut({ redirect: false })])
     router.push('/login')
   }
 
-  const user = session?.user as { name?: string; storeName?: string } | undefined
-  const initials = user?.name
-    ? user.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
-    : 'MA'
-  const storeName = user?.storeName ?? ''
-
-  return (
-    <>
-      {open && (
-        <div
-          className="fixed inset-0 z-20 lg:hidden"
-          style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)' }}
-          onClick={() => setOpen(false)}
-        />
-      )}
-
-      <motion.aside
-        animate={{ width: isExpanded ? 220 : 58 }}
-        transition={{ type: 'tween', ease: 'easeOut', duration: 0.18 }}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-        className={cn(
-          'fixed inset-y-0 left-0 flex flex-col z-30',
-          'lg:translate-x-0',
-          open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
-        )}
+  const inner = (
+    <div
+      className="flex flex-col h-full"
+      style={{
+        background: 'var(--bg-sidebar)',
+        borderRight: '1px solid var(--border)',
+        width: collapsed ? 58 : 220,
+        overflow: 'hidden',
+        height: '100%',
+      }}
+    >
+      {/* Logo */}
+      <div
+        className="flex items-center flex-shrink-0"
         style={{
-          background: '#111827',
-          borderRight: '1px solid rgba(255,255,255,0.06)',
-          boxShadow: '2px 0 8px rgba(0,0,0,0.15)',
+          height: 56,
+          padding: collapsed ? '0 17px' : '0 14px',
+          borderBottom: '1px solid var(--border)',
+          justifyContent: collapsed ? 'center' : 'flex-start',
+          gap: 8,
           overflow: 'hidden',
         }}
       >
-
-        {/* ── Brand ── */}
         <div
-          className={cn('h-14 flex items-center shrink-0', isExpanded ? 'px-4 gap-2.5' : 'justify-center px-2')}
-          style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}
+          className="flex-shrink-0 flex items-center justify-center rounded-lg font-black text-white"
+          style={{ width: 26, height: 26, background: '#2563EB', fontSize: 12 }}
         >
-          <Image
-            src="/marksio-logo.png"
-            alt="Marksio"
-            width={28}
-            height={28}
-            className="rounded-[8px] shrink-0"
-            style={{ objectFit: 'contain' }}
-          />
-          <AnimatePresence initial={false}>
-            {isExpanded && (
-              <motion.span
-                key="brand"
-                variants={labelVariants}
-                initial="hide"
-                animate="show"
-                exit="hide"
-                className="text-[14.5px] font-bold flex-1 truncate"
-                style={{ color: '#eeeef4', letterSpacing: '-0.025em' }}
-              >
-                Marksio
-              </motion.span>
-            )}
-          </AnimatePresence>
-          <AnimatePresence initial={false}>
-            {isExpanded && (
-              <motion.button
-                key="close-btn"
-                variants={labelVariants}
-                initial="hide"
-                animate="show"
-                exit="hide"
-                onClick={() => setOpen(false)}
-                className="lg:hidden p-1.5 rounded-md transition-colors hover:bg-white/[0.04] shrink-0"
-                style={{ color: 'var(--text-2)' }}
-              >
-                <X className="w-3.5 h-3.5" />
-              </motion.button>
-            )}
-          </AnimatePresence>
+          M
         </div>
+        {!collapsed && (
+          <span style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--text-1)', letterSpacing: '-0.02em', whiteSpace: 'nowrap' }}>
+            Marksio
+          </span>
+        )}
+      </div>
 
-        {/* ── Workspace chip ── */}
-        <AnimatePresence initial={false}>
-          {isExpanded && (
-            <motion.div
-              key="workspace"
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto', transition: { duration: 0.15, delay: 0.04 } }}
-              exit={{ opacity: 0, height: 0, transition: { duration: 0.1 } }}
-              className="mx-3 mt-2.5 mb-1 overflow-hidden"
+      {/* Workspace chip */}
+      {!collapsed && (
+        <div style={{ padding: '10px 12px 6px' }}>
+          <div
+            className="flex items-center gap-2 rounded-lg"
+            style={{ padding: '7px 10px', background: 'var(--bg-hover)', border: '1px solid var(--border)' }}
+          >
+            <div
+              className="flex-shrink-0 rounded-md flex items-center justify-center"
+              style={{ width: 20, height: 20, background: '#DBEAFE', fontSize: 10, color: '#2563EB', fontWeight: 700 }}
             >
-              {storeName ? (
-                <button
-                  onClick={() => router.push('/settings?tab=hesap')}
-                  className="w-full px-2.5 py-2 rounded-[9px] flex items-center gap-2 transition-all text-left"
-                  style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.055)' }}
-                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.09)' }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.025)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.055)' }}
-                >
-                  <div
-                    className="shrink-0 rounded-md overflow-hidden flex items-center justify-center text-[9px] font-bold"
-                    style={{ width: 22, height: 22 }}
-                  >
-                    {avatarUrl ? (
-                      <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center"
-                        style={{ background: '#4470ff22', border: '1px solid #4470ff44', color: '#4470ff', fontSize: 9, fontWeight: 700, borderRadius: 6 }}>
-                        {storeName.slice(0, 1).toUpperCase()}
-                      </div>
-                    )}
-                  </div>
-                  <p className="text-[11.5px] font-medium truncate leading-tight flex-1" style={{ color: '#dde2f0' }}>
-                    {storeName}
-                  </p>
-                </button>
-              ) : (
-                <button
-                  onClick={() => router.push('/settings?tab=hesap')}
-                  className="w-full px-2.5 py-2 rounded-[9px] flex items-center gap-2 transition-all text-left"
-                  style={{ background: 'rgba(255,255,255,0.015)', border: '1px solid rgba(255,255,255,0.04)' }}
-                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(68,112,255,0.06)'; e.currentTarget.style.borderColor = 'rgba(68,112,255,0.2)' }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.015)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.04)' }}
-                >
-                  <div
-                    className="flex items-center justify-center shrink-0 rounded-md"
-                    style={{ width: 22, height: 22, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: 12, color: 'var(--text-3)' }}>
-                      add
-                    </span>
-                  </div>
-                  <p className="text-[11.5px] font-medium truncate leading-tight flex-1" style={{ color: 'var(--text-3)' }}>
-                    Mağaza Bağla
-                  </p>
-                </button>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* ── Main navigation ── */}
-        <nav className={cn('flex-1 overflow-y-auto no-scrollbar', isExpanded ? 'px-2 pb-2' : 'px-[7px] py-2')}>
-          <AnimatePresence initial={false}>
-            {isExpanded && (
-              <motion.div key="core-label" variants={labelVariants} initial="hide" animate="show" exit="hide"
-                className="px-2 pt-3 pb-1">
-                <span className="text-[10px] font-semibold uppercase tracking-[0.07em]" style={{ color: 'var(--text-3)' }}>Menü</span>
-              </motion.div>
-            )}
-          </AnimatePresence>
-          <div className="space-y-0.5">
-            {NAV_CORE_TOP.map(item => (
-              <NavLink key={item.href} item={item} expanded={isExpanded} onNavigate={() => setOpen(false)} />
-            ))}
+              {workspace ? workspace[0].toUpperCase() : 'M'}
+            </div>
+            <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-1)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {workspace ?? 'Mağaza Bağla'}
+            </span>
+            <span className="material-symbols-outlined" style={{ fontSize: 14, color: '#9CA3AF' }}>unfold_more</span>
           </div>
+        </div>
+      )}
 
-          {/* E-posta accordion */}
-          <div className="space-y-0.5 mt-0.5">
-            <button
-              onClick={() => isExpanded && setEmailOpen(o => !o)}
-              title={!isExpanded ? 'E-posta' : undefined}
-              className={cn(
-                'relative flex items-center rounded-lg text-[13px] font-medium transition-colors duration-150 overflow-hidden w-full',
-                isExpanded ? 'gap-2.5 px-2.5 py-[7px]' : 'justify-center p-[9px]',
-                !isEmailActive && 'hover:bg-white/[0.04]',
-              )}
-              style={isEmailActive ? { background: 'rgba(68,112,255,0.1)', color: '#eeeef4' } : { color: 'var(--text-2)' }}
-            >
-              {isEmailActive && isExpanded && (
-                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r-full" style={{ background: 'var(--blue)' }} />
-              )}
-              <span
-                className="material-symbols-outlined shrink-0"
-                style={{
-                  fontSize: 17,
-                  color: isEmailActive ? 'var(--blue)' : 'var(--text-2)',
-                  fontVariationSettings: isEmailActive ? "'FILL' 1, 'wght' 400" : "'FILL' 0, 'wght' 350",
-                }}
-              >
-                email
-              </span>
-              <AnimatePresence initial={false}>
-                {isExpanded && (
-                  <motion.span key="email-label" variants={labelVariants} initial="hide" animate="show" exit="hide" className="flex-1 truncate text-left">
-                    E-posta
-                  </motion.span>
-                )}
-              </AnimatePresence>
-              <AnimatePresence initial={false}>
-                {isExpanded && (
-                  <motion.span key="email-chevron" variants={labelVariants} initial="hide" animate="show" exit="hide">
-                    <ChevronDown className={cn('w-3 h-3 transition-transform', (emailOpen || isEmailActive) ? 'rotate-180' : '')} />
-                  </motion.span>
-                )}
-              </AnimatePresence>
-            </button>
-            <AnimatePresence initial={false}>
-              {(emailOpen || isEmailActive) && isExpanded && (
-                <motion.div
-                  key="email-sub"
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.15 }}
-                  className="overflow-hidden pl-4 space-y-0.5"
-                >
-                  {EMAIL_ITEMS.map(item => (
-                    <NavLink key={item.href} item={item} expanded={isExpanded} onNavigate={() => setOpen(false)} />
-                  ))}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+      {/* Nav */}
+      <nav className="flex-1 overflow-y-auto no-scrollbar" style={{ padding: collapsed ? '8px 6px' : '8px 8px' }}>
+        <div className="flex flex-col gap-0.5">
+          {NAV.map(item => (
+            <NavLink key={item.href} item={item} collapsed={collapsed} />
+          ))}
+        </div>
+      </nav>
 
-          <div className="space-y-0.5 mt-0.5">
-            {NAV_CORE.map(item => (
-              <NavLink key={item.href} item={item} expanded={isExpanded} onNavigate={() => setOpen(false)} />
-            ))}
-          </div>
-
-          <AnimatePresence initial={false}>
-            {isExpanded && (
-              <motion.div key="ai-label" variants={labelVariants} initial="hide" animate="show" exit="hide"
-                className="px-2 pt-4 pb-1">
-                <span className="text-[10px] font-semibold uppercase tracking-[0.07em]" style={{ color: 'var(--text-3)' }}>AI</span>
-              </motion.div>
-            )}
-          </AnimatePresence>
-          {!isExpanded && <div className="my-2 mx-1 h-px" style={{ background: 'rgba(255,255,255,0.05)' }} />}
-          <div className="space-y-0.5">
-            {NAV_AI.map(item => (
-              <NavLink key={item.href} item={item} expanded={isExpanded} onNavigate={() => setOpen(false)} />
-            ))}
-          </div>
-        </nav>
-
-        {/* ── Bottom nav ── */}
-        <div
-          className={cn('py-2 space-y-0.5', isExpanded ? 'px-2' : 'px-[7px]')}
-          style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}
-        >
-          {NAV_BOTTOM_DYNAMIC.map(item => (
-            <NavLink key={item.href} item={item} expanded={isExpanded} onNavigate={() => setOpen(false)} />
+      {/* Bottom */}
+      <div style={{ padding: collapsed ? '8px 6px' : '8px 8px', borderTop: '1px solid var(--border)' }}>
+        <div className="flex flex-col gap-0.5 mb-2">
+          {BOTTOM_NAV.map(item => (
+            <NavLink key={item.href} item={item} collapsed={collapsed} />
           ))}
         </div>
 
-        {/* ── User ── */}
-        <div className="p-2" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-          {isExpanded ? (
-            <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg group cursor-pointer transition-all hover:bg-white/[0.03]">
-              <div
-                className="flex items-center justify-center shrink-0 rounded-full text-[11px] font-bold"
-                style={{ width: 26, height: 26, background: 'rgba(68,112,255,0.14)', border: '1px solid rgba(68,112,255,0.24)', color: '#99b4ff' }}
-              >
-                {initials}
+        {/* User row */}
+        <div
+          className="flex items-center rounded-lg"
+          style={{
+            padding: collapsed ? '8px' : '8px 10px',
+            gap: 8,
+            justifyContent: collapsed ? 'center' : 'flex-start',
+            background: 'var(--surface-2)',
+          }}
+        >
+          <div
+            className="flex-shrink-0 rounded-full flex items-center justify-center font-semibold"
+            style={{ width: 26, height: 26, background: '#DBEAFE', color: '#2563EB', fontSize: 11 }}
+          >
+            {userEmail ? userEmail[0].toUpperCase() : 'U'}
+          </div>
+          {collapsed ? (
+            <button
+              onClick={toggleTheme}
+              className="rounded-md flex items-center justify-center transition-colors"
+              style={{ width: 24, height: 24, flexShrink: 0 }}
+              title={theme === 'light' ? 'Karanlık Mod' : 'Aydınlık Mod'}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 14, color: '#9CA3AF' }}>
+                {theme === 'light' ? 'dark_mode' : 'light_mode'}
+              </span>
+            </button>
+          ) : (
+            <>
+              <div className="flex-1 min-w-0">
+                <p style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {userEmail ?? 'Kullanıcı'}
+                </p>
               </div>
-              <AnimatePresence initial={false}>
-                {isExpanded && (
-                  <motion.div key="user-info" variants={labelVariants} initial="hide" animate="show" exit="hide"
-                    className="flex-1 min-w-0">
-                    <p className="text-[12px] font-semibold truncate leading-tight" style={{ color: '#eeeef4' }}>
-                      {user?.name ?? 'Kullanıcı'}
-                    </p>
-                    <p className="text-[10px] leading-tight" style={{ color: 'var(--text-3)' }}>Admin</p>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              <button
+                onClick={toggleTheme}
+                className="rounded-md flex items-center justify-center transition-colors hover:bg-gray-100"
+                style={{ width: 24, height: 24, flexShrink: 0 }}
+                title={theme === 'light' ? 'Karanlık Mod' : 'Aydınlık Mod'}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 14, color: '#9CA3AF' }}>
+                  {theme === 'light' ? 'dark_mode' : 'light_mode'}
+                </span>
+              </button>
               <button
                 onClick={handleSignOut}
-                title="Çıkış yap"
-                className="p-1.5 rounded-md opacity-0 group-hover:opacity-100 transition-all hover:bg-red-500/10"
-                style={{ color: 'var(--text-2)' }}
-                onMouseEnter={e => (e.currentTarget.style.color = 'var(--red)')}
-                onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-2)')}
+                className="rounded-md flex items-center justify-center transition-colors hover:bg-red-50"
+                style={{ width: 24, height: 24, flexShrink: 0 }}
+                title="Çıkış Yap"
               >
-                <LogOut className="w-3 h-3" />
+                <span className="material-symbols-outlined" style={{ fontSize: 14, color: '#9CA3AF' }}>logout</span>
               </button>
-            </div>
-          ) : (
-            <button
-              onClick={handleSignOut}
-              title="Çıkış yap"
-              className="flex items-center justify-center w-full p-[9px] rounded-lg transition-colors hover:bg-red-500/10"
-              style={{ color: 'var(--text-2)' }}
-              onMouseEnter={e => (e.currentTarget.style.color = 'var(--red)')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-2)')}
-            >
-              <LogOut className="w-3.5 h-3.5" />
-            </button>
+            </>
           )}
         </div>
 
-        {/* ── Collapse toggle ── */}
+        {/* Collapse toggle (desktop) */}
         <button
-          onClick={() => { setCollapsed(!collapsed); setHovered(false) }}
-          className="hidden lg:flex items-center justify-center gap-2 py-2 text-[11px] font-medium transition-all hover:bg-white/[0.03]"
-          style={{ borderTop: '1px solid rgba(255,255,255,0.04)', color: 'var(--text-3)' }}
-          onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-2)')}
-          onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-3)')}
+          onClick={() => setCollapsed(!collapsed)}
+          className="hidden lg:flex items-center justify-center mt-2 w-full rounded-lg transition-colors hover:bg-gray-50"
+          style={{ height: 30, border: '1px solid var(--border)' }}
+          title={collapsed ? 'Genişlet' : 'Daralt'}
         >
-          {collapsed
-            ? <ChevronRight className="w-3.5 h-3.5" />
-            : <><ChevronLeft className="w-3.5 h-3.5" /><span>Küçült</span></>}
+          <span
+            className="material-symbols-outlined"
+            style={{ fontSize: 14, color: '#9CA3AF', transform: collapsed ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}
+          >
+            chevron_left
+          </span>
         </button>
-      </motion.aside>
+      </div>
+    </div>
+  )
+
+  return (
+    <>
+      {/* Desktop — animated width */}
+      <motion.div
+        className="hidden lg:block fixed top-0 left-0 bottom-0 z-30"
+        animate={{ width: collapsed ? 58 : 220 }}
+        transition={{ duration: 0.2, ease: 'easeInOut' }}
+        style={{ boxShadow: '2px 0 8px rgba(0,0,0,0.04)' }}
+      >
+        {inner}
+      </motion.div>
+
+      {/* Mobile overlay */}
+      <AnimatePresence>
+        {open && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-20 lg:hidden"
+              style={{ background: 'rgba(0,0,0,0.3)' }}
+              onClick={() => setOpen(false)}
+            />
+            <motion.div
+              initial={{ x: -240 }}
+              animate={{ x: 0 }}
+              exit={{ x: -240 }}
+              transition={{ duration: 0.2, ease: 'easeInOut' }}
+              className="fixed top-0 left-0 bottom-0 z-30 lg:hidden"
+              style={{ width: 220 }}
+            >
+              {inner}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </>
   )
 }

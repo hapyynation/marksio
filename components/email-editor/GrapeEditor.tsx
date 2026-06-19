@@ -80,26 +80,29 @@ const GrapeEditor = forwardRef<GrapeEditorHandle, GrapeEditorProps>(
       doc.write(html)
       doc.close()
 
+      // Set up editing synchronously right after doc.close()
+      try {
+        const d = iframe.contentDocument
+        if (d?.body) {
+          d.body.setAttribute('contenteditable', 'true')
+        }
+        if (d && !d.getElementById('__edit_style__')) {
+          const s = d.createElement('style')
+          s.id = '__edit_style__'
+          s.textContent = EDIT_STYLE
+          d.head?.appendChild(s)
+        }
+      } catch {}
+
+      // Auto-resize after images/content settle
       setTimeout(() => {
         try {
           const d = iframe.contentDocument
           if (!d) return
-          // Enable content editing on the body
-          if (d.body) {
-            d.body.setAttribute('contenteditable', 'true')
-          }
-          // Inject edit helper styles
-          if (!d.getElementById('__edit_style__')) {
-            const s = d.createElement('style')
-            s.id = '__edit_style__'
-            s.textContent = EDIT_STYLE
-            d.head.appendChild(s)
-          }
-          // Auto-resize iframe
           const height = d.documentElement.scrollHeight
           if (height > 100) iframe.style.height = height + 'px'
         } catch {}
-      }, 80)
+      }, 300)
     }, [])
 
     useImperativeHandle(ref, () => ({

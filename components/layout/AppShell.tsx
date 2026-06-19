@@ -11,7 +11,6 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { signOut as nextAuthSignOut } from 'next-auth/react'
 
-// ─── Mobile Header ─────────────────────────────────────────────────────────────
 function MobileHeader() {
   const { setOpen } = useSidebar()
   const { open: openSettingsDrawer } = useSettingsDrawer()
@@ -22,9 +21,7 @@ function MobileHeader() {
   useEffect(() => {
     if (!menuOpen) return
     function handleOutside(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false)
-      }
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false)
     }
     document.addEventListener('mousedown', handleOutside)
     return () => document.removeEventListener('mousedown', handleOutside)
@@ -41,84 +38,75 @@ function MobileHeader() {
     <div
       className="fixed top-0 left-0 right-0 h-14 z-40 flex items-center justify-between px-4 lg:hidden"
       style={{
-        background: 'rgba(8,8,15,0.97)',
-        borderBottom: '1px solid rgba(255,255,255,0.06)',
-        backdropFilter: 'blur(20px)',
+        background: 'var(--bg-sidebar)',
+        borderBottom: '1px solid var(--border)',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
       }}
     >
-      {/* Hamburger — opens full-screen sidebar overlay */}
       <button
         onClick={() => setOpen(true)}
-        className="w-10 h-10 flex items-center justify-center rounded-xl shrink-0"
-        style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.09)', touchAction: 'manipulation' }}
+        className="w-9 h-9 flex items-center justify-center rounded-lg transition-colors hover:bg-gray-100"
         aria-label="Menüyü aç"
       >
-        <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#eeeef4' }}>menu</span>
+        <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#6B7280' }}>menu</span>
       </button>
 
-      {/* Logo — center */}
-      <span style={{ fontSize: 15, fontWeight: 700, color: '#eeeef4', letterSpacing: '-0.025em' }}>
+      <span style={{ fontSize: 14, fontWeight: 600, color: '#111827', letterSpacing: '-0.02em' }}>
         Marksio
       </span>
 
-      {/* 3-dots menu — always visible */}
       <div className="relative" ref={menuRef}>
         <button
           onClick={() => setMenuOpen(v => !v)}
-          className="w-10 h-10 flex items-center justify-center rounded-xl shrink-0"
-          style={{
-            background: menuOpen ? 'rgba(68,112,255,0.12)' : 'rgba(255,255,255,0.06)',
-            border: `1px solid ${menuOpen ? 'rgba(68,112,255,0.3)' : 'rgba(255,255,255,0.09)'}`,
-            touchAction: 'manipulation',
-          }}
-          aria-label="Daha fazla"
+          className="w-9 h-9 flex items-center justify-center rounded-lg transition-colors hover:bg-gray-100"
         >
-          <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#eeeef4' }}>more_vert</span>
+          <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#6B7280' }}>more_vert</span>
         </button>
 
         {menuOpen && (
           <div
-            className="absolute right-0 top-full mt-2 w-52 rounded-xl overflow-hidden"
+            className="absolute right-0 top-full mt-1.5 w-48 rounded-xl overflow-hidden z-50"
             style={{
-              background: '#0f0f1a',
-              border: '1px solid rgba(255,255,255,0.09)',
-              boxShadow: '0 16px 48px rgba(0,0,0,0.7)',
-              zIndex: 60,
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border)',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
             }}
           >
-            <Link
-              href="/settings"
-              onClick={() => setMenuOpen(false)}
-              className="flex items-center gap-3 px-4 py-3"
-              style={{ color: '#c8c8e0', fontSize: 14 }}
+            <Link href="/settings" onClick={() => setMenuOpen(false)}
+              className="flex items-center gap-3 px-4 py-2.5 transition-colors"
+              style={{ color: 'var(--text-1)', fontSize: 13 }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
             >
-              <span className="material-symbols-outlined" style={{ fontSize: 17, color: '#8080a0' }}>person</span>
+              <span className="material-symbols-outlined" style={{ fontSize: 16, color: 'var(--text-2)' }}>person</span>
               Profil &amp; Ayarlar
             </Link>
-            <button
-              onClick={() => { setMenuOpen(false); openSettingsDrawer() }}
-              className="flex items-center gap-3 px-4 py-3 w-full text-left"
-              style={{ color: '#c8c8e0', fontSize: 14 }}
+            <button onClick={() => { setMenuOpen(false); openSettingsDrawer() }}
+              className="flex items-center gap-3 px-4 py-2.5 w-full text-left transition-colors"
+              style={{ color: 'var(--text-1)', fontSize: 13 }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
             >
-              <span className="material-symbols-outlined" style={{ fontSize: 17, color: '#8080a0' }}>tune</span>
+              <span className="material-symbols-outlined" style={{ fontSize: 16, color: 'var(--text-2)' }}>tune</span>
               Entegrasyonlar
             </button>
-            <Link
-              href="/plans"
-              onClick={() => setMenuOpen(false)}
-              className="flex items-center gap-3 px-4 py-3"
-              style={{ color: '#c8c8e0', fontSize: 14 }}
+            <Link href="/plans" onClick={() => setMenuOpen(false)}
+              className="flex items-center gap-3 px-4 py-2.5 transition-colors"
+              style={{ color: 'var(--text-1)', fontSize: 13 }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
             >
-              <span className="material-symbols-outlined" style={{ fontSize: 17, color: '#8080a0' }}>credit_card</span>
+              <span className="material-symbols-outlined" style={{ fontSize: 16, color: 'var(--text-2)' }}>credit_card</span>
               Plan &amp; Faturalama
             </Link>
-            <div style={{ height: 1, background: 'rgba(255,255,255,0.07)' }} />
-            <button
-              onClick={handleSignOut}
-              className="flex items-center gap-3 px-4 py-3 w-full text-left"
-              style={{ color: '#e84545', fontSize: 14 }}
+            <div style={{ height: 1, background: 'var(--border)' }} />
+            <button onClick={handleSignOut}
+              className="flex items-center gap-3 px-4 py-2.5 w-full text-left transition-colors"
+              style={{ color: 'var(--red)', fontSize: 13 }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--red-soft)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
             >
-              <span className="material-symbols-outlined" style={{ fontSize: 17, color: '#e84545' }}>logout</span>
+              <span className="material-symbols-outlined" style={{ fontSize: 16, color: 'var(--red)' }}>logout</span>
               Çıkış Yap
             </button>
           </div>
@@ -128,7 +116,6 @@ function MobileHeader() {
   )
 }
 
-// ─── Auth Guard ────────────────────────────────────────────────────────────────
 function AuthGuard() {
   const router = useRouter()
   const pathname = usePathname()
@@ -137,33 +124,23 @@ function AuthGuard() {
     fetch('/api/auth/me')
       .then(r => r.json())
       .then((data: { onboarded?: boolean }) => {
-        if (data.onboarded === false) {
-          router.replace('/onboarding')
-        }
+        if (data.onboarded === false) router.replace('/onboarding')
       })
-      .catch(() => {/* network error — don't block */})
+      .catch(() => {})
   }, [pathname, router])
 
   return null
 }
 
-// ─── Shell Inner ───────────────────────────────────────────────────────────────
 function AppShellInner({ children }: { children: React.ReactNode }) {
   const { open, setOpen, collapsed } = useSidebar()
 
   return (
-    <div className="flex min-h-screen relative overflow-x-hidden" style={{ background: 'var(--bg)' }}>
-      {/* Ambient light */}
-      <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
-        <div className="absolute top-0 left-0 w-[600px] h-[400px] opacity-40"
-          style={{ background: 'radial-gradient(ellipse at 0% 0%, rgba(68,112,255,0.04) 0%, transparent 70%)' }} />
-      </div>
-
-      {/* Mobile sidebar overlay — closes on backdrop tap */}
+    <div className="flex min-h-screen relative overflow-x-hidden" style={{ background: 'var(--bg-app)' }}>
       {open && (
         <div
           className="fixed inset-0 z-20 lg:hidden"
-          style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
+          style={{ background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(2px)' }}
           onClick={() => setOpen(false)}
         />
       )}
@@ -172,8 +149,10 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
       <Sidebar />
       <MobileHeader />
 
-      {/* pt-14 on mobile offsets the fixed header; no bottom padding (bottom nav removed) */}
-      <main className={`relative z-10 flex-1 min-h-screen flex flex-col transition-all duration-250 pt-14 lg:pt-0 w-full overflow-x-hidden ${collapsed ? 'lg:ml-[58px]' : 'lg:ml-[220px]'}`}>
+      <main
+        className={`relative z-10 flex-1 min-h-screen flex flex-col transition-all duration-200 pt-14 lg:pt-0 w-full overflow-x-hidden ${collapsed ? 'lg:ml-[58px]' : 'lg:ml-[220px]'}`}
+        style={{ background: 'var(--bg-app)' }}
+      >
         {children}
       </main>
 

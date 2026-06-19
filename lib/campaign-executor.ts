@@ -188,7 +188,6 @@ export async function executeCampaignSend(
       unsubscribed: false,
       bounced:      false,
       complained:   false,
-      ...(campaign.type === 'email' ? { NOT: { email: null } } : {}),
       ...(!useRuleFilter && campaign.segment && campaign.segment !== 'all'
         ? { segment: campaign.segment }
         : {}),
@@ -203,9 +202,13 @@ export async function executeCampaignSend(
     },
   })
 
-  let customers = useRuleFilter
-    ? rawCustomers.filter(c => matchesRules(c, segRules, segMatchType))
+  const filteredCustomers = campaign.type === 'email'
+    ? rawCustomers.filter(c => c.email && c.email.trim() !== '')
     : rawCustomers
+
+  let customers = useRuleFilter
+    ? filteredCustomers.filter(c => matchesRules(c, segRules, segMatchType))
+    : filteredCustomers
 
   if (customers.length === 0) {
     return { success: false, sent: 0, failed: 0, total: 0, error: 'Bu segmentte gönderilecek müşteri yok', statusCode: 400 }
@@ -238,6 +241,29 @@ export async function executeCampaignSend(
     }
   }
 
+  // ── A/B test split ─────────────────────────────────────────────────────────
+  interface ABVariant { subject?: string; body?: string; ctaText?: string }
+  const customerVariantMap = new Map<string, 'A' | 'B'>()
+  let activeABTest: { id: string; variantA: ABVariant; variantB: ABVariant; splitPercent: number } | null = null
+
+  if (campaign.type === 'email') {
+    const abTest = await prisma.aBTest.findFirst({
+      where: { campaignId: campaign.id, userId, status: 'running' },
+    })
+    if (abTest) {
+      activeABTest = {
+        id:           abTest.id,
+        variantA:     (abTest.variantA as ABVariant),
+        variantB:     (abTest.variantB as ABVariant),
+        splitPercent: abTest.splitPercent,
+      }
+      const cutoff = Math.floor(customers.length * (abTest.splitPercent / 100))
+      customers.forEach((c, idx) => {
+        customerVariantMap.set(c.id, idx < cutoff ? 'A' : 'B')
+      })
+    }
+  }
+
   await prisma.campaign.update({ where: { id: campaign.id }, data: { status: 'sending' } })
 
   try {
@@ -257,14 +283,21 @@ export async function executeCampaignSend(
             const trackingPixelUrl        = `${BASE_URL}/api/track/open?${trackParams.toString()}`
 
             const vars: Record<string, string> = {
-              firstName, lastName, email: customer.email,
+              firstName, lastName,
+              name: customer.name,
+              email: customer.email ?? '',
+              segment: customer.segment ?? '',
               productName: campaign.name, discountCode: '',
             }
 
-            const subject  = personalize(campaign.subject  ?? campaign.name, vars)
+            // Apply A/B variant overrides if this customer is in a test
+            const abVariant = activeABTest ? customerVariantMap.get(customer.id) : undefined
+            const abOverride = abVariant === 'A' ? activeABTest?.variantA : abVariant === 'B' ? activeABTest?.variantB : undefined
+
+            const subject  = personalize(abOverride?.subject  ?? campaign.subject  ?? campaign.name, vars)
             const headline = personalize(campaign.headline ?? campaign.name, vars)
-            const body     = personalize(campaign.body, vars)
-            const ctaText  = personalize(campaign.ctaText ?? campaign.cta ?? 'Alışverişe Başla', vars)
+            const body     = personalize(abOverride?.body     ?? campaign.body, vars)
+            const ctaText  = personalize(abOverride?.ctaText  ?? campaign.ctaText ?? campaign.cta ?? 'Alışverişe Başla', vars)
 
             const campaignAny = campaign as Record<string, unknown>
             let html: string
@@ -415,6 +448,20 @@ export async function executeCampaignSend(
           errors.push(`${customer.phone}: ${e instanceof Error ? e.message : 'hata'}`)
         }
       }
+    }
+
+    // ── Finalize A/B test counts ────────────────────────────────────────────────
+    if (activeABTest) {
+      let sentA = 0; let sentB = 0
+      customerVariantMap.forEach(v => { if (v === 'A') sentA++; else sentB++ })
+      await prisma.aBTest.update({
+        where: { id: activeABTest.id },
+        data: {
+          sentA:     { increment: sentA },
+          sentB:     { increment: sentB },
+          startedAt: new Date(),
+        },
+      }).catch(() => null)
     }
 
     // ── Finalize ────────────────────────────────────────────────────────────────

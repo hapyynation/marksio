@@ -1,9 +1,9 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect, useRef } from 'react'
 import {
   Users, Search, AlertTriangle, UserPlus, Clock,
-  Mail, MessageSquare, Sparkles, Upload, X, CheckCircle, Loader2, AlertCircle,
+  Mail, MessageSquare, Upload, X, CheckCircle, Loader2, AlertCircle,
   TrendingUp, ShoppingCart, Filter,
   ChevronRight, ChevronDown, ChevronLeft, MoreHorizontal, Download, Plus,
   Crown, Activity, Tag, Trash2, Check,
@@ -20,7 +20,7 @@ const segmentConfig: Record<Segment, { label: string; icon: React.ElementType; c
   loyal:    { label: 'Sadık',  icon: Users,         color: '#99b4ff', bg: 'rgba(153,180,255,0.12)', badgeText: '#99b4ff', badgeBg: 'rgba(153,180,255,0.12)' },
   at_risk:  { label: 'Riskli', icon: AlertTriangle, color: '#e84545', bg: 'rgba(232,69,69,0.12)',   badgeText: '#e84545', badgeBg: 'rgba(232,69,69,0.12)' },
   new:      { label: 'Yeni',   icon: UserPlus,      color: '#22c97a', bg: 'rgba(34,201,122,0.12)',  badgeText: '#22c97a', badgeBg: 'rgba(34,201,122,0.12)' },
-  inactive: { label: 'Pasif',  icon: Clock,         color: '#8080a0', bg: 'rgba(128,128,160,0.12)', badgeText: '#8080a0', badgeBg: 'rgba(128,128,160,0.12)' },
+  inactive: { label: 'Pasif',  icon: Clock,         color: '#6B7280', bg: 'rgba(128,128,160,0.12)', badgeText: '#8080a0', badgeBg: 'rgba(128,128,160,0.12)' },
 }
 
 const SEGMENT_OPTIONS = [
@@ -80,10 +80,10 @@ function ImportModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
         <div className="ds-modal-header">
           <div className="flex items-center gap-2">
             <Upload className="w-4 h-4" style={{ color: '#99b4ff' }} />
-            <h3 className="text-sm font-semibold" style={{ color: '#eeeef4' }}>Müşteri İçe Aktar</h3>
+            <h3 className="text-sm font-semibold" style={{ color: '#111827' }}>Müşteri İçe Aktar</h3>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg" style={{ color: '#8080a0' }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
+          <button onClick={onClose} className="p-1.5 rounded-lg" style={{ color: '#6B7280' }}
+            onMouseEnter={e => (e.currentTarget.style.background = '#F3F4F6')}
             onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
             <X className="w-4 h-4" />
           </button>
@@ -92,18 +92,18 @@ function ImportModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
           {!result ? (
             <>
               <div className="border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all"
-                style={{ borderColor: fileName ? 'rgba(68,112,255,0.4)' : 'rgba(255,255,255,0.08)', background: fileName ? 'rgba(68,112,255,0.04)' : 'transparent' }}
+                style={{ borderColor: fileName ? 'rgba(68,112,255,0.4)' : '#E5E7EB', background: fileName ? 'rgba(68,112,255,0.04)' : 'transparent' }}
                 onClick={() => fileRef.current?.click()}
                 onDragOver={e => e.preventDefault()}
                 onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleFile(f) }}>
-                <Upload className="w-8 h-8 mx-auto mb-2" style={{ color: fileName ? '#4470ff' : '#3e3e54' }} />
-                <p className="text-sm font-medium" style={{ color: '#eeeef4' }}>{fileName || 'CSV veya TXT dosyası yükle'}</p>
-                <p className="text-xs mt-1" style={{ color: '#8080a0' }}>Tıklayın veya sürükleyip bırakın</p>
+                <Upload className="w-8 h-8 mx-auto mb-2" style={{ color: fileName ? '#4470ff' : '#9CA3AF' }} />
+                <p className="text-sm font-medium" style={{ color: '#111827' }}>{fileName || 'CSV veya TXT dosyası yükle'}</p>
+                <p className="text-xs mt-1" style={{ color: '#6B7280' }}>Tıklayın veya sürükleyip bırakın</p>
                 <input ref={fileRef} type="file" accept=".csv,.txt" className="hidden"
                   onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }} />
               </div>
               <div>
-                <p className="text-[11px] font-semibold mb-2" style={{ color: '#8080a0' }}>Ya da metni yapıştırın</p>
+                <p className="text-[11px] font-semibold mb-2" style={{ color: '#6B7280' }}>Ya da metni yapıştırın</p>
                 <textarea value={text} onChange={e => setText(e.target.value)} className="ds-textarea"
                   placeholder="Ad, Email, Telefon (her satır bir müşteri)" rows={4} />
               </div>
@@ -112,8 +112,8 @@ function ImportModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
           ) : (
             <div className="text-center py-4">
               <CheckCircle className="w-12 h-12 mx-auto mb-3 text-emerald-400" />
-              <p className="text-base font-bold" style={{ color: '#eeeef4' }}>İçe Aktarım Tamamlandı</p>
-              <p className="text-sm mt-1" style={{ color: '#8080a0' }}>
+              <p className="text-base font-bold" style={{ color: '#111827' }}>İçe Aktarım Tamamlandı</p>
+              <p className="text-sm mt-1" style={{ color: '#6B7280' }}>
                 <span className="font-bold text-emerald-400">{result.imported}</span> müşteri eklendi
                 {result.skipped > 0 && <span>, <span className="text-amber-400">{result.skipped}</span> atlandı</span>}
               </p>
@@ -140,20 +140,20 @@ function ImportModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
 /* ─── DeleteConfirmModal ─── */
 function DeleteConfirmModal({ count, onConfirm, onClose }: { count: number; onConfirm: () => void; onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)' }} onClick={onClose}>
-      <div className="w-full max-w-sm rounded-2xl p-6 space-y-4" style={{ background: '#0f0f1a', border: '1px solid rgba(232,69,69,0.3)' }} onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={onClose}>
+      <div className="w-full max-w-sm rounded-2xl p-6 space-y-4" style={{ background: '#FFFFFF', border: '1px solid rgba(232,69,69,0.3)' }} onClick={e => e.stopPropagation()}>
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(232,69,69,0.12)' }}>
             <Trash2 className="w-5 h-5" style={{ color: '#e84545' }} />
           </div>
           <div>
-            <p className="text-[14px] font-bold" style={{ color: '#eeeef4' }}>{count} müşteri silinecek</p>
-            <p className="text-[11px]" style={{ color: '#8080a0' }}>Bu işlem geri alınamaz.</p>
+            <p className="text-[14px] font-bold" style={{ color: '#111827' }}>{count} müşteri silinecek</p>
+            <p className="text-[11px]" style={{ color: '#6B7280' }}>Bu işlem geri alınamaz.</p>
           </div>
         </div>
         <div className="flex gap-2 pt-2">
           <button onClick={onClose} className="flex-1 py-2 rounded-xl text-[12px] font-semibold"
-            style={{ background: 'rgba(255,255,255,0.05)', color: '#8080a0', border: '1px solid rgba(255,255,255,0.08)' }}>
+            style={{ background: '#F3F4F6', color: '#6B7280', border: '1px solid #E5E7EB' }}>
             İptal
           </button>
           <button onClick={onConfirm} className="flex-1 py-2 rounded-xl text-[12px] font-bold"
@@ -349,23 +349,23 @@ export default function CustomersPage() {
 
       {/* ── Top bar ── */}
       <div className="flex items-center justify-between px-4 md:px-6 h-14 shrink-0 gap-2"
-        style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(8,8,15,0.95)', backdropFilter: 'blur(24px)' }}>
+        style={{ borderBottom: '1px solid #E5E7EB', background: 'rgba(255,255,255,0.97)', backdropFilter: 'blur(24px)' }}>
         <div>
-          <h1 className="text-[15px] md:text-[16px] font-bold" style={{ color: '#eeeef4' }}>Müşteriler</h1>
-          <p className="text-[11px] hidden sm:block" style={{ color: '#44445a' }}>Müşterilerinizi segmentlere ayırın, davranışlarını analiz edin.</p>
+          <h1 className="text-[15px] md:text-[16px] font-bold" style={{ color: '#111827' }}>Müşteriler</h1>
+          <p className="text-[11px] hidden sm:block" style={{ color: '#6B7280' }}>Müşterilerinizi segmentlere ayırın, davranışlarını analiz edin.</p>
         </div>
         <div className="flex items-center gap-1.5">
           <button
             onClick={() => handleExport()}
             disabled={exporting}
             className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold transition-all disabled:opacity-50"
-            style={{ background: 'rgba(255,255,255,0.04)', color: '#8080a0', border: '1px solid rgba(255,255,255,0.08)' }}>
+            style={{ background: '#F3F4F6', color: '#6B7280', border: '1px solid #E5E7EB' }}>
             {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
             Dışa Aktar
           </button>
           <button onClick={() => setShowImport(true)}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-semibold min-h-[44px]"
-            style={{ background: 'rgba(255,255,255,0.04)', color: '#8080a0', border: '1px solid rgba(255,255,255,0.08)' }}>
+            style={{ background: '#F3F4F6', color: '#6B7280', border: '1px solid #E5E7EB' }}>
             <UserPlus className="w-4 h-4" /> <span className="hidden sm:inline">Müşteri Ekle</span>
           </button>
           <Link href="/segments"
@@ -376,8 +376,7 @@ export default function CustomersPage() {
         </div>
       </div>
 
-      <div className="flex flex-1 min-h-0 overflow-hidden">
-        <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden">
 
           {/* ── KPI cards ── */}
           <div className="px-5 py-4 grid grid-cols-2 xl:grid-cols-3 gap-3 shrink-0">
@@ -392,15 +391,15 @@ export default function CustomersPage() {
               const Icon = kpi.icon
               return (
                 <div key={kpi.label} className="rounded-2xl p-4 relative overflow-hidden"
-                  style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                  style={{ background: '#FFFFFF', border: '1px solid #E5E7EB' }}>
                   <div className="absolute top-0 left-4 right-4 h-px" style={{ background: `linear-gradient(90deg,transparent,${kpi.color}44,transparent)` }} />
                   <div className="flex items-center justify-between mb-3">
-                    <p className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: '#44445a' }}>{kpi.label}</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: '#6B7280' }}>{kpi.label}</p>
                     <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${kpi.color}18` }}>
                       <Icon className="w-3.5 h-3.5" style={{ color: kpi.color }} />
                     </div>
                   </div>
-                  <p className="text-[22px] font-bold leading-none mb-2" style={{ color: '#eeeef4', letterSpacing: '-0.02em' }}>{kpi.value}</p>
+                  <p className="text-[22px] font-bold leading-none mb-2" style={{ color: '#111827', letterSpacing: '-0.02em' }}>{kpi.value}</p>
                 </div>
               )
             })}
@@ -423,20 +422,20 @@ export default function CustomersPage() {
                     onKeyDown={e => e.key === 'Enter' && handleBulkTag()}
                     placeholder="Etiket adı"
                     className="px-2.5 py-1 rounded-lg text-[11px] outline-none"
-                    style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', color: '#eeeef4', width: 120 }}
+                    style={{ background: '#F3F4F6', border: '1px solid #D1D5DB', color: '#111827', width: 120 }}
                     autoFocus
                   />
                   <button onClick={handleBulkTag} disabled={bulkProcessing} className="p-1 rounded-lg" style={{ color: '#22c97a' }}>
                     <Check className="w-3.5 h-3.5" />
                   </button>
-                  <button onClick={() => { setShowBulkTag(false); setBulkTagInput('') }} className="p-1 rounded-lg" style={{ color: '#8080a0' }}>
+                  <button onClick={() => { setShowBulkTag(false); setBulkTagInput('') }} className="p-1 rounded-lg" style={{ color: '#6B7280' }}>
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
               ) : (
                 <button onClick={() => { setShowBulkTag(true); setShowBulkSegment(false) }}
                   className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all"
-                  style={{ background: 'rgba(255,255,255,0.08)', color: '#eeeef4' }}>
+                  style={{ background: '#F3F4F6', color: '#111827' }}>
                   <Tag className="w-3 h-3" /> Etiket Ekle
                 </button>
               )}
@@ -446,20 +445,20 @@ export default function CustomersPage() {
                 <div className="flex items-center gap-1.5">
                   <select value={bulkSegmentValue} onChange={e => setBulkSegmentValue(e.target.value)}
                     className="px-2 py-1 rounded-lg text-[11px] outline-none"
-                    style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', color: '#eeeef4' }}>
+                    style={{ background: '#F3F4F6', border: '1px solid #D1D5DB', color: '#111827' }}>
                     {SEGMENT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                   <button onClick={handleBulkSegment} disabled={bulkProcessing} className="p-1 rounded-lg" style={{ color: '#22c97a' }}>
                     <Check className="w-3.5 h-3.5" />
                   </button>
-                  <button onClick={() => setShowBulkSegment(false)} className="p-1 rounded-lg" style={{ color: '#8080a0' }}>
+                  <button onClick={() => setShowBulkSegment(false)} className="p-1 rounded-lg" style={{ color: '#6B7280' }}>
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
               ) : (
                 <button onClick={() => { setShowBulkSegment(true); setShowBulkTag(false) }}
                   className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all"
-                  style={{ background: 'rgba(255,255,255,0.08)', color: '#eeeef4' }}>
+                  style={{ background: '#F3F4F6', color: '#111827' }}>
                   <Users className="w-3 h-3" /> Segmente Taşı
                 </button>
               )}
@@ -468,7 +467,7 @@ export default function CustomersPage() {
                 onClick={() => handleExport([...selectedIds])}
                 disabled={exporting}
                 className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all"
-                style={{ background: 'rgba(255,255,255,0.08)', color: '#eeeef4' }}>
+                style={{ background: '#F3F4F6', color: '#111827' }}>
                 <Download className="w-3 h-3" /> Dışa Aktar
               </button>
 
@@ -479,7 +478,7 @@ export default function CustomersPage() {
               </button>
 
               <button onClick={() => { setSelectedIds(new Set()); setShowBulkTag(false); setShowBulkSegment(false) }}
-                className="p-1 rounded-lg" style={{ color: '#44445a' }}>
+                className="p-1 rounded-lg" style={{ color: '#6B7280' }}>
                 <X className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -487,16 +486,16 @@ export default function CustomersPage() {
 
           {/* ── Search + filters ── */}
           <div className="px-5 py-2.5 flex items-center gap-2.5 flex-wrap shrink-0"
-            style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+            style={{ borderBottom: '1px solid #E5E7EB', borderTop: '1px solid #E5E7EB' }}>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3" style={{ color: '#44445a' }} />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3" style={{ color: '#6B7280' }} />
               <input type="text" value={searchInput} onChange={e => setSearchInput(e.target.value)}
                 placeholder="Müşteri ara (e-posta, isim, telefon...)"
                 className="pl-8 pr-3 py-1.5 text-[12px] rounded-xl outline-none w-64"
-                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#eeeef4' }} />
+                style={{ background: '#F3F4F6', border: '1px solid #E5E7EB', color: '#111827' }} />
             </div>
             <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-semibold"
-              style={{ background: 'rgba(255,255,255,0.03)', color: '#44445a', border: '1px solid rgba(255,255,255,0.06)' }}>
+              style={{ background: '#F9FAFB', color: '#6B7280', border: '1px solid #E5E7EB' }}>
               <Filter className="w-3 h-3" /> Filtrele
             </button>
             <span className="ml-auto text-[10px] font-mono" style={{ color: '#33334a' }}>
@@ -506,18 +505,18 @@ export default function CustomersPage() {
 
           {/* ── Tabs ── */}
           <div className="px-5 flex items-center gap-0.5 shrink-0 overflow-x-auto no-scrollbar"
-            style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+            style={{ borderBottom: '1px solid #E5E7EB' }}>
             {TABS.map(tab => (
               <button key={tab.key} onClick={() => handleTabChange(tab.key)}
                 className="flex items-center gap-2 px-3.5 py-2.5 text-[12px] font-semibold whitespace-nowrap transition-all border-b-2"
                 style={activeTab === tab.key
-                  ? { color: '#eeeef4', borderColor: '#4470ff' }
-                  : { color: '#44445a', borderColor: 'transparent' }}>
+                  ? { color: '#111827', borderColor: '#4470ff' }
+                  : { color: '#6B7280', borderColor: 'transparent' }}>
                 {tab.label}
                 <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
                   style={activeTab === tab.key
                     ? { background: 'rgba(68,112,255,0.15)', color: '#99b4ff' }
-                    : { background: 'rgba(255,255,255,0.04)', color: '#44445a' }}>
+                    : { background: '#F3F4F6', color: '#6B7280' }}>
                   {formatNumber(tab.count)}
                 </span>
               </button>
@@ -529,12 +528,12 @@ export default function CustomersPage() {
             <div className="p-4 space-y-2">
               {loading ? (
                 [...Array(5)].map((_, i) => (
-                  <div key={i} className="rounded-2xl p-4 animate-pulse" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div key={i} className="rounded-2xl p-4 animate-pulse" style={{ background: '#F9FAFB', border: '1px solid #E5E7EB' }}>
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full" style={{ background: 'rgba(255,255,255,0.06)' }} />
+                      <div className="w-10 h-10 rounded-full" style={{ background: '#F3F4F6' }} />
                       <div className="flex-1 space-y-1.5">
-                        <div className="h-3.5 rounded-md w-1/2" style={{ background: 'rgba(255,255,255,0.06)' }} />
-                        <div className="h-2.5 rounded-md w-3/4" style={{ background: 'rgba(255,255,255,0.04)' }} />
+                        <div className="h-3.5 rounded-md w-1/2" style={{ background: '#F3F4F6' }} />
+                        <div className="h-2.5 rounded-md w-3/4" style={{ background: '#F3F4F6' }} />
                       </div>
                     </div>
                   </div>
@@ -542,7 +541,7 @@ export default function CustomersPage() {
               ) : customers.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
                   <Users className="w-8 h-8" style={{ color: '#33334a' }} />
-                  <p className="text-[13px] font-semibold" style={{ color: '#44445a' }}>Müşteri bulunamadı</p>
+                  <p className="text-[13px] font-semibold" style={{ color: '#6B7280' }}>Müşteri bulunamadı</p>
                   <button onClick={() => setShowImport(true)} className="text-[12px] font-semibold" style={{ color: '#99b4ff' }}>+ Müşteri İçe Aktar</button>
                 </div>
               ) : customers.map(c => {
@@ -553,23 +552,23 @@ export default function CustomersPage() {
                 return (
                   <Link key={c.id} href={`/customers/${c.id}`}
                     className="flex items-center gap-3 rounded-2xl p-4 transition-all active:scale-[0.98] block"
-                    style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                    style={{ background: '#FFFFFF', border: '1px solid #E5E7EB' }}>
                     <div className="w-11 h-11 rounded-full flex items-center justify-center text-[12px] font-bold shrink-0"
                       style={{ background: `${seg.color}18`, border: `1px solid ${seg.color}30`, color: seg.color }}>
                       {initials}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2 mb-0.5">
-                        <p className="text-[13px] font-semibold truncate" style={{ color: '#eeeef4' }}>{c.name}</p>
+                        <p className="text-[13px] font-semibold truncate" style={{ color: '#111827' }}>{c.name}</p>
                         <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold shrink-0"
                           style={{ background: seg.badgeBg, color: seg.badgeText }}>
                           <SegIcon className="w-2.5 h-2.5" />{seg.label}
                         </div>
                       </div>
-                      <p className="text-[11px] truncate" style={{ color: '#44445a' }}>{c.email}</p>
+                      <p className="text-[11px] truncate" style={{ color: '#6B7280' }}>{c.email}</p>
                       <div className="flex items-center gap-3 mt-1.5">
                         <span className="text-[11px] font-bold" style={{ color: '#22c97a' }}>{formatCurrency(c.totalSpent)}</span>
-                        <span className="text-[11px]" style={{ color: '#44445a' }}>{c.totalOrders} sipariş</span>
+                        <span className="text-[11px]" style={{ color: '#6B7280' }}>{c.totalOrders} sipariş</span>
                         <span className="flex items-center gap-1 text-[10px]" style={{ color: isActive ? '#22c97a' : '#e84545' }}>
                           <span className="w-1.5 h-1.5 rounded-full" style={{ background: isActive ? '#22c97a' : '#e84545' }} />
                           {isActive ? 'Aktif' : 'Pasif'}
@@ -592,13 +591,13 @@ export default function CustomersPage() {
             ) : customers.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 gap-3">
                 <Users className="w-8 h-8" style={{ color: '#33334a' }} />
-                <p className="text-[13px] font-semibold" style={{ color: '#44445a' }}>Müşteri bulunamadı</p>
+                <p className="text-[13px] font-semibold" style={{ color: '#6B7280' }}>Müşteri bulunamadı</p>
                 <button onClick={() => setShowImport(true)} className="text-[12px] font-semibold" style={{ color: '#99b4ff' }}>+ Müşteri İçe Aktar</button>
               </div>
             ) : (
               <table className="w-full">
                 <thead>
-                  <tr style={{ background: 'rgba(0,0,0,0.15)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                  <tr style={{ background: '#F9FAFB', borderBottom: '1px solid #E5E7EB' }}>
                     <th className="px-4 py-2.5 w-8">
                       <input type="checkbox"
                         checked={allPageSelected}
@@ -610,7 +609,7 @@ export default function CustomersPage() {
                     </th>
                     {['MÜŞTERİ', 'KAYIT TARİHİ', 'SON SİPARİŞ', 'TOPLAM HARCAMA', 'SİPARİŞ SAYISI', 'SEGMENT', 'DURUM', 'İŞLEMLER'].map(col => (
                       <th key={col} className="text-left px-4 py-2.5 text-[9px] font-semibold tracking-wider whitespace-nowrap"
-                        style={{ color: '#3e3e54' }}>{col}</th>
+                        style={{ color: '#9CA3AF' }}>{col}</th>
                     ))}
                   </tr>
                 </thead>
@@ -624,8 +623,8 @@ export default function CustomersPage() {
                     return (
                       <tr key={c.id}
                         className="transition-all cursor-default"
-                        style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', background: isSelected ? 'rgba(68,112,255,0.05)' : 'transparent' }}
-                        onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'rgba(255,255,255,0.02)' }}
+                        style={{ borderBottom: '1px solid #F3F4F6', background: isSelected ? 'rgba(68,112,255,0.05)' : 'transparent' }}
+                        onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = '#F9FAFB' }}
                         onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent' }}>
                         <td className="px-4 py-3">
                           <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(c.id)}
@@ -640,22 +639,22 @@ export default function CustomersPage() {
                               {initials}
                             </div>
                             <div>
-                              <p className="text-[12px] font-semibold" style={{ color: '#eeeef4' }}>{c.name}</p>
-                              <p className="text-[10px]" style={{ color: '#44445a' }}>{c.email}</p>
-                              {c.phone && <p className="text-[10px]" style={{ color: '#3e3e54' }}>{c.phone}</p>}
+                              <p className="text-[12px] font-semibold" style={{ color: '#111827' }}>{c.name}</p>
+                              <p className="text-[10px]" style={{ color: '#6B7280' }}>{c.email}</p>
+                              {c.phone && <p className="text-[10px]" style={{ color: '#9CA3AF' }}>{c.phone}</p>}
                             </div>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-[11px]" style={{ color: '#8080a0', fontFamily: 'monospace' }}>
+                        <td className="px-4 py-3 text-[11px]" style={{ color: '#6B7280', fontFamily: 'monospace' }}>
                           {c.createdAt ? new Date(c.createdAt).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
                         </td>
-                        <td className="px-4 py-3 text-[11px]" style={{ color: '#8080a0', fontFamily: 'monospace' }}>
+                        <td className="px-4 py-3 text-[11px]" style={{ color: '#6B7280', fontFamily: 'monospace' }}>
                           {c.lastOrder ? new Date(c.lastOrder).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
                         </td>
                         <td className="px-4 py-3 text-[12px] font-bold" style={{ color: '#22c97a', fontFamily: 'monospace' }}>
                           {formatCurrency(c.totalSpent)}
                         </td>
-                        <td className="px-4 py-3 text-[11px]" style={{ color: '#8080a0', fontFamily: 'monospace' }}>{c.totalOrders}</td>
+                        <td className="px-4 py-3 text-[11px]" style={{ color: '#6B7280', fontFamily: 'monospace' }}>{c.totalOrders}</td>
                         <td className="px-4 py-3">
                           <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold"
                             style={{ background: seg.badgeBg, color: seg.badgeText }}>
@@ -674,14 +673,14 @@ export default function CustomersPage() {
                         <td className="px-4 py-3">
                           <div className="relative">
                             <button onClick={e => { e.stopPropagation(); setOpenMenuId(openMenuId === c.id ? null : c.id) }}
-                              className="p-1.5 rounded-lg transition-all" style={{ color: '#44445a' }}
-                              onMouseEnter={e2 => (e2.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
+                              className="p-1.5 rounded-lg transition-all" style={{ color: '#6B7280' }}
+                              onMouseEnter={e2 => (e2.currentTarget.style.background = '#F3F4F6')}
                               onMouseLeave={e2 => (e2.currentTarget.style.background = 'transparent')}>
                               <MoreHorizontal className="w-3.5 h-3.5" />
                             </button>
                             {openMenuId === c.id && (
                               <div className="absolute right-0 top-7 z-30 w-40 rounded-xl shadow-2xl overflow-hidden"
-                                style={{ background: '#141420', border: '1px solid rgba(255,255,255,0.1)' }}>
+                                style={{ background: '#FFFFFF', border: '1px solid #D1D5DB' }}>
                                 {[
                                   { label: 'Profil Gör', icon: ChevronRight, href: `/customers/${c.id}` },
                                   { label: 'E-posta Gönder', icon: Mail, href: '/ai-studio?type=email' },
@@ -691,8 +690,8 @@ export default function CustomersPage() {
                                   return (
                                     <Link key={action.label} href={action.href}
                                       className="flex items-center gap-2 px-3 py-2.5 text-[11px] transition-colors"
-                                      style={{ color: '#eeeef4' }}
-                                      onMouseEnter={e2 => (e2.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+                                      style={{ color: '#111827' }}
+                                      onMouseEnter={e2 => (e2.currentTarget.style.background = '#F3F4F6')}
                                       onMouseLeave={e2 => (e2.currentTarget.style.background = 'transparent')}>
                                       <ActionIcon className="w-3 h-3" /> {action.label}
                                     </Link>
@@ -712,7 +711,7 @@ export default function CustomersPage() {
             {/* Pagination */}
             {totalPages > 1 && (
               <div className="flex items-center justify-between px-5 py-3 shrink-0"
-                style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                style={{ borderTop: '1px solid #E5E7EB' }}>
                 <span className="text-[11px]" style={{ color: '#33334a' }}>
                   {Math.min((page - 1) * PAGE_SIZE + 1, total)}–{Math.min(page * PAGE_SIZE, total)} / {total} müşteri
                 </span>
@@ -721,18 +720,18 @@ export default function CustomersPage() {
                     onClick={() => setPage(p => Math.max(1, p - 1))}
                     disabled={page === 1}
                     className="w-7 h-7 rounded-lg flex items-center justify-center transition-all disabled:opacity-30"
-                    style={{ background: 'rgba(255,255,255,0.04)', color: '#8080a0', border: '1px solid rgba(255,255,255,0.07)' }}>
+                    style={{ background: '#F3F4F6', color: '#6B7280', border: '1px solid #E5E7EB' }}>
                     <ChevronLeft className="w-3.5 h-3.5" />
                   </button>
                   {pageNumbers().map((p, i) =>
                     p === '…' ? (
-                      <span key={`ellipsis-${i}`} className="w-7 text-center text-[11px]" style={{ color: '#44445a' }}>…</span>
+                      <span key={`ellipsis-${i}`} className="w-7 text-center text-[11px]" style={{ color: '#6B7280' }}>…</span>
                     ) : (
                       <button key={p} onClick={() => setPage(p as number)}
                         className="w-7 h-7 rounded-lg text-[11px] font-semibold transition-all"
                         style={p === page
                           ? { background: '#4470ff', color: '#fff' }
-                          : { background: 'rgba(255,255,255,0.04)', color: '#8080a0', border: '1px solid rgba(255,255,255,0.07)' }}>
+                          : { background: '#F3F4F6', color: '#6B7280', border: '1px solid #E5E7EB' }}>
                         {p}
                       </button>
                     )
@@ -741,7 +740,7 @@ export default function CustomersPage() {
                     onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                     disabled={page === totalPages}
                     className="w-7 h-7 rounded-lg flex items-center justify-center transition-all disabled:opacity-30"
-                    style={{ background: 'rgba(255,255,255,0.04)', color: '#8080a0', border: '1px solid rgba(255,255,255,0.07)' }}>
+                    style={{ background: '#F3F4F6', color: '#6B7280', border: '1px solid #E5E7EB' }}>
                     <ChevronRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -749,79 +748,11 @@ export default function CustomersPage() {
               </div>
             )}
             {totalPages <= 1 && customers.length > 0 && (
-              <div className="px-5 py-2.5 shrink-0" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+              <div className="px-5 py-2.5 shrink-0" style={{ borderTop: '1px solid #E5E7EB' }}>
                 <span className="text-[11px]" style={{ color: '#33334a' }}>{total} müşteri</span>
               </div>
             )}
           </div>
-        </div>
-
-        {/* ── AI Müşteri Asistanı panel ── */}
-        <div className="hidden lg:flex w-[300px] shrink-0 flex-col border-l overflow-hidden"
-          style={{ background: '#0d0d1a', borderColor: 'rgba(255,255,255,0.06)' }}>
-          <div className="flex items-center justify-between px-4 py-3.5 shrink-0"
-            style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-            <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0"
-                style={{ background: 'rgba(159,122,250,0.15)', border: '1px solid rgba(159,122,250,0.25)' }}>
-                <Sparkles className="w-3.5 h-3.5 text-violet-400" />
-              </div>
-              <div className="flex items-center gap-1.5">
-                <p className="text-[13px] font-semibold" style={{ color: '#eeeef4' }}>AI Müşteri Asistanı</p>
-                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md" style={{ background: 'rgba(68,112,255,0.15)', color: '#99b4ff' }}>Beta</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="p-4 flex-1 overflow-auto space-y-3">
-            {kpiTotal === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10 gap-2">
-                <Sparkles className="w-6 h-6" style={{ color: '#33334a' }} />
-                <p className="text-[12px] text-center" style={{ color: '#44445a' }}>Yeterli veri birikince AI önerileri burada görünecek.</p>
-              </div>
-            ) : (
-              <>
-                {kpiVip > 0 && (
-                  <div className="p-3.5 rounded-xl" style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)' }}>
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(245,158,11,0.18)' }}>
-                        <Crown className="w-3 h-3" style={{ color: '#f59e0b' }} />
-                      </div>
-                      <p className="text-[11px] font-bold" style={{ color: '#f59e0b' }}>Yüksek Değerli Müşteriler</p>
-                    </div>
-                    <p className="text-[11px] leading-relaxed mb-2" style={{ color: '#8080a0' }}>
-                      {kpiVip} VIP müşteriniz var. Onlara özel kampanya oluşturun.
-                    </p>
-                    <Link href="/segments" className="text-[10px] font-bold px-2 py-0.5 rounded-lg flex items-center gap-1 w-fit"
-                      style={{ background: 'rgba(245,158,11,0.18)', color: '#f59e0b' }}>
-                      VIP Segmenti Gör <ChevronRight className="w-2.5 h-2.5" />
-                    </Link>
-                  </div>
-                )}
-                {kpiAtRisk > 0 && (
-                  <div className="p-3.5 rounded-xl" style={{ background: 'rgba(232,69,69,0.08)', border: '1px solid rgba(232,69,69,0.2)' }}>
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(232,69,69,0.18)' }}>
-                        <AlertTriangle className="w-3 h-3" style={{ color: '#e84545' }} />
-                      </div>
-                      <p className="text-[11px] font-bold" style={{ color: '#e84545' }}>Riskli Müşteriler</p>
-                    </div>
-                    <p className="text-[11px] leading-relaxed mb-2" style={{ color: '#8080a0' }}>
-                      {kpiAtRisk} müşteri 60+ gündür alışveriş yapmadı. Win-back kampanyası deneyin.
-                    </p>
-                    <Link href="/ai-studio" className="text-[10px] font-bold px-2 py-0.5 rounded-lg flex items-center gap-1 w-fit"
-                      style={{ background: 'rgba(232,69,69,0.18)', color: '#e84545' }}>
-                      Winback Kampanyası <ChevronRight className="w-2.5 h-2.5" />
-                    </Link>
-                  </div>
-                )}
-                {kpiVip === 0 && kpiAtRisk === 0 && (
-                  <p className="text-[11px] text-center py-4" style={{ color: '#44445a' }}>Yeterli veri birikince AI önerileri burada görünecek.</p>
-                )}
-              </>
-            )}
-          </div>
-        </div>
       </div>
     </AppShell>
   )

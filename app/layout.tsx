@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import Providers from '@/components/Providers'
+import { ThemeProvider } from '@/components/providers/ThemeProvider'
 
 export const metadata: Metadata = {
   title: 'Marksio — AI Pazarlama Otomasyonu',
@@ -23,7 +24,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" />
       </head>
       <body style={{ overflowX: 'hidden' }}>
-        <Providers>{children}</Providers>
+        <ThemeProvider>
+          <Providers>{children}</Providers>
+        </ThemeProvider>
       </body>
     </html>
   )

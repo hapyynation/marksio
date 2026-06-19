@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useCallback, useEffect, useState } from 'react'
 import {
@@ -7,7 +7,7 @@ import {
   ShoppingCart, UserPlus, Package, Clock, Tag, Settings2,
   Eye, CreditCard, Gift, BarChart3,
   Pencil, Trash2, Loader2, AlertCircle, History,
-  ArrowUpRight, Timer, Copy, Sparkles, Crown,
+  Timer, Copy, Crown,
   MessageCircle, Layers,
 } from 'lucide-react'
 import Link from 'next/link'
@@ -68,13 +68,6 @@ const ICON_MAP: Record<string, React.ElementType> = {
   ShoppingCart, UserPlus, Package, Clock, Tag, Settings2,
   Eye, CreditCard, Gift, Crown, MessageCircle, Layers,
 }
-
-// Suggestions that live in the AI panel — no revenue numbers, just context
-const AI_SUGGESTIONS = [
-  { icon: ShoppingCart, color: '#e84545', bg: 'rgba(232,69,69,0.08)', title: 'Ürün Stok Azalma Takibi', text: 'Stok azalan ürünler için otomatik bildirim akışı oluşturun.', trigger: 'custom_event' },
-  { icon: Tag, color: '#4470ff', bg: 'rgba(68,112,255,0.08)', title: 'İlk Alışveriş İndirimi', text: 'İlk kez alışveriş yapacaklara özel indirim akışı kurun.', trigger: 'new_customer' },
-  { icon: Clock, color: '#22c97a', bg: 'rgba(34,201,122,0.08)', title: 'Sadakat Puanı Hatırlatma', text: 'Puanları bitmek üzere olan müşterilere hatırlatma gönderin.', trigger: 'custom_event' },
-]
 
 /* ─────────────────────────────────────────────────────────────
    UTILS
@@ -172,7 +165,7 @@ function AutoCard({ a, onToggle, onDelete, onClone }: {
                 %{successRate}
               </span>
             </div>
-            <div className="h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.07)' }}>
+            <div className="h-1 rounded-full overflow-hidden" style={{ background: '#E5E7EB' }}>
               <div className="h-full rounded-full transition-all duration-500" style={{
                 width: `${successRate}%`,
                 background: successRate! >= 80 ? '#22c97a' : successRate! >= 50 ? '#f0a020' : '#e84545',
@@ -266,7 +259,6 @@ export default function AutomationsPage() {
   const [error,       setError]       = useState('')
   const [activatingTpl,  setActivatingTpl]  = useState<string | null>(null)
   const [updatingId,     setUpdatingId]     = useState<string | null>(null)
-  const [creatingSuggestion, setCreatingSuggestion] = useState<number | null>(null)
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null)
   const [planLimit, setPlanLimit] = useState<PlanLimitData | null>(null)
 
@@ -352,29 +344,6 @@ export default function AutomationsPage() {
     if (res.ok) load()
   }
 
-  const createSuggestedAutomation = async (name: string, trigger: string, idx: number) => {
-    setCreatingSuggestion(idx)
-    try {
-      const res = await fetch('/api/automations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, trigger, status: 'draft' }),
-      })
-      const data = await res.json()
-      if (res.ok) {
-        router.push(`/automations/${data.id}/builder`)
-      } else if (res.status === 403 && data.error === 'PLAN_LIMIT_REACHED') {
-        setPlanLimit(data as PlanLimitData)
-      } else {
-        showToast(data.error ?? 'Oluşturulamadı', false)
-      }
-    } catch {
-      showToast('Bağlantı hatası', false)
-    } finally {
-      setCreatingSuggestion(null)
-    }
-  }
-
   function downloadCSV() {
     if (automations.length === 0) return
     const headers = ['Ad', 'Durum', 'Tetikleyici', 'Toplam Run', 'Başarılı', 'Hatalı', 'Dönüşüm Oranı', 'Gelir', 'Son Çalışma']
@@ -417,21 +386,6 @@ export default function AutomationsPage() {
   const totalCompleted = automations.reduce((s, a) => s + (a.runStats?.completed ?? 0), 0)
   const totalRevenue   = automations.reduce((s, a) => s + a.revenue, 0)
 
-  /* ── AI Panel computed values ───────────────────────────── */
-  // Low performers: active automations with >10 sends and <5% conversion
-  const lowPerformers = automations
-    .filter(a => a.status === 'active' && a.sent > 10)
-    .map(a => ({ ...a, rate: a.sent > 0 ? (a.converted / a.sent) * 100 : 0 }))
-    .filter(a => a.rate < 5)
-    .sort((a, b) => a.rate - b.rate)
-    .slice(0, 3)
-
-  // Missing automations: templates whose trigger isn't covered by any existing automation
-  const coveredTriggers = new Set(automations.map(a => a.trigger))
-  const missingTemplates = templates
-    .filter(t => !coveredTriggers.has(t.trigger))
-    .slice(0, 3)
-
   return (
     <AppShell>
       <PlanLimitModal data={planLimit} onClose={() => setPlanLimit(null)} />
@@ -452,17 +406,17 @@ export default function AutomationsPage() {
 
       {/* ── Top bar ── */}
       <div className="sticky top-0 z-20 flex items-center justify-between px-4 md:px-6 h-14 shrink-0"
-        style={{ background: 'rgba(8,8,15,0.95)', backdropFilter: 'blur(24px)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+        style={{ background: 'rgba(255,255,255,0.97)', backdropFilter: 'blur(24px)', borderBottom: '1px solid #E5E7EB' }}>
         <div>
-          <h1 className="text-[15px] md:text-[16px] font-bold" style={{ color: '#eeeef4' }}>Otomasyonlar</h1>
-          <p className="text-[11px] hidden sm:block" style={{ color: '#44445a' }}>Akıllı müşteri yolculukları oluşturun, yönetin ve performanslarını artırın.</p>
+          <h1 className="text-[15px] md:text-[16px] font-bold" style={{ color: '#111827' }}>Otomasyonlar</h1>
+          <p className="text-[11px] hidden sm:block" style={{ color: '#6B7280' }}>Akıllı müşteri yolculukları oluşturun, yönetin ve performanslarını artırın.</p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={downloadCSV}
             disabled={automations.length === 0}
             className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold transition-all disabled:opacity-40"
-            style={{ background: 'rgba(255,255,255,0.04)', color: '#8080a0', border: '1px solid rgba(255,255,255,0.08)' }}>
+            style={{ background: '#F3F4F6', color: '#6B7280', border: '1px solid #E5E7EB' }}>
             <Download className="w-3.5 h-3.5" /> Raporu İndir
           </button>
           <Link href="/automations/new"
@@ -473,9 +427,7 @@ export default function AutomationsPage() {
         </div>
       </div>
 
-      <div className="flex flex-1 min-h-0 overflow-hidden">
-        {/* ── Main content ── */}
-        <div className="flex-1 overflow-auto p-5 space-y-5">
+      <div className="flex-1 overflow-auto p-5 space-y-5">
 
           {/* ── KPI Cards ── */}
           <div className="grid grid-cols-2 xl:grid-cols-3 gap-3">
@@ -490,22 +442,17 @@ export default function AutomationsPage() {
               const KIcon = k.icon
               return (
                 <div key={k.label} className="rounded-2xl p-4 relative overflow-hidden cursor-default transition-all"
-                  style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)' }}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
-                  onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.025)')}>
+                  style={{ background: '#FFFFFF', border: '1px solid #E5E7EB' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = '#F3F4F6')}
+                  onMouseLeave={e => (e.currentTarget.style.background = '#FFFFFF')}>
                   <div className="absolute top-0 left-4 right-4 h-px" style={{ background: `linear-gradient(90deg,transparent,${k.color}44,transparent)` }} />
                   <div className="flex items-center justify-between mb-3">
-                    <p className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: '#44445a' }}>{k.label}</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: '#6B7280' }}>{k.label}</p>
                     <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: k.bg }}>
                       <KIcon className="w-3.5 h-3.5" style={{ color: k.color }} />
                     </div>
                   </div>
-                  <p className="text-[22px] font-bold leading-none mb-2" style={{ color: '#eeeef4', letterSpacing: '-0.02em' }}>{k.value}</p>
-                  <div className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-md text-emerald-400"
-                    style={{ background: 'rgba(34,201,122,0.08)' }}>
-                    <ArrowUpRight className="w-3 h-3" />
-                    Gerçek veri
-                  </div>
+                  <p className="text-[22px] font-bold leading-none" style={{ color: '#111827', letterSpacing: '-0.02em' }}>{k.value}</p>
                 </div>
               )
             })}
@@ -515,10 +462,10 @@ export default function AutomationsPage() {
           <div>
             <div className="flex items-center justify-between mb-3">
               <div>
-                <h2 className="text-[14px] font-bold" style={{ color: '#eeeef4' }}>Hazır Otomasyon Şablonları</h2>
-                <p className="text-[11px] mt-0.5" style={{ color: '#44445a' }}>İhtiyacınıza uygun şablonu seçin ve builder'da özelleştirip aktifleştirin.</p>
+                <h2 className="text-[14px] font-bold" style={{ color: '#111827' }}>Hazır Otomasyon Şablonları</h2>
+                <p className="text-[11px] mt-0.5" style={{ color: '#6B7280' }}>İhtiyacınıza uygun şablonu seçin ve builder'da özelleştirip aktifleştirin.</p>
               </div>
-              <span className="text-[11px] font-mono" style={{ color: '#44445a' }}>{templates.length} şablon</span>
+              <span className="text-[11px] font-mono" style={{ color: '#6B7280' }}>{templates.length} şablon</span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
               {templates.map(tpl => {
@@ -527,9 +474,9 @@ export default function AutomationsPage() {
                 const isActivating = activatingTpl === tpl.id
                 return (
                   <div key={tpl.id} className="rounded-2xl p-4 cursor-default transition-all relative overflow-hidden"
-                    style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)' }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.borderColor = `${tpl.color}25` }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.025)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)' }}>
+                    style={{ background: '#FFFFFF', border: '1px solid #E5E7EB' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = '#F3F4F6'; e.currentTarget.style.borderColor = `${tpl.color}25` }}
+                    onMouseLeave={e => { e.currentTarget.style.background = '#FFFFFF'; e.currentTarget.style.borderColor = '#E5E7EB' }}>
                     <div className="absolute top-0 left-0 right-0 h-px" style={{ background: `linear-gradient(90deg,transparent,${tpl.color}44,transparent)` }} />
                     {tpl.pro && (
                       <span className="absolute top-3 right-3 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
@@ -544,19 +491,19 @@ export default function AutomationsPage() {
                         <TplIcon className="w-4 h-4" style={{ color: tpl.color }} />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-[12px] font-semibold truncate" style={{ color: '#eeeef4' }}>{tpl.name}</p>
-                        <p className="text-[10px]" style={{ color: '#44445a' }}>{tpl.description}</p>
+                        <p className="text-[12px] font-semibold truncate" style={{ color: '#111827' }}>{tpl.name}</p>
+                        <p className="text-[10px]" style={{ color: '#6B7280' }}>{tpl.description}</p>
                       </div>
                     </div>
                     <div className="flex items-center justify-between mb-3">
                       <div>
                         {/* Labeled as industry estimate — not real store revenue */}
-                        <p className="text-[10px]" style={{ color: '#44445a' }}>Tahmini Potansiyel</p>
-                        <p className="text-[11px] font-semibold" style={{ color: '#8080a0' }}>{tpl.expectedRevenue} <span className="text-[9px] opacity-60">(sektör ort.)</span></p>
+                        <p className="text-[10px]" style={{ color: '#6B7280' }}>Tahmini Potansiyel</p>
+                        <p className="text-[11px] font-semibold" style={{ color: '#6B7280' }}>{tpl.expectedRevenue} <span className="text-[9px] opacity-60">(sektör ort.)</span></p>
                       </div>
                       <div className="text-right">
-                        <p className="text-[10px]" style={{ color: '#44445a' }}>Kurulum Süresi</p>
-                        <p className="text-[11px] font-semibold" style={{ color: '#8080a0' }}>{tpl.setupTime}</p>
+                        <p className="text-[10px]" style={{ color: '#6B7280' }}>Kurulum Süresi</p>
+                        <p className="text-[11px] font-semibold" style={{ color: '#6B7280' }}>{tpl.setupTime}</p>
                       </div>
                     </div>
                     <button
@@ -576,22 +523,22 @@ export default function AutomationsPage() {
           {/* ── Active automations table ── */}
           <div>
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-3">
-              <h2 className="text-[14px] font-bold shrink-0" style={{ color: '#eeeef4' }}>Aktif Otomasyonlar</h2>
-              <div className="flex items-center p-0.5 gap-0.5 rounded-xl overflow-x-auto no-scrollbar" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <h2 className="text-[14px] font-bold shrink-0" style={{ color: '#111827' }}>Aktif Otomasyonlar</h2>
+              <div className="flex items-center p-0.5 gap-0.5 rounded-xl overflow-x-auto no-scrollbar" style={{ background: '#F3F4F6', border: '1px solid #E5E7EB' }}>
                 {(['all','active','paused','draft'] as FilterKey[]).map(f => (
                   <button key={f} onClick={() => setFilter(f)}
                     className="px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all shrink-0 whitespace-nowrap"
-                    style={filter === f ? { background: 'rgba(255,255,255,0.08)', color: '#eeeef4' } : { color: '#44445a' }}>
+                    style={filter === f ? { background: '#FFFFFF', color: '#2563EB', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' } : { color: '#6B7280' }}>
                     {f === 'all' ? 'Tümü' : STATUS_CFG[f]?.label ?? f}
                   </button>
                 ))}
               </div>
               <div className="relative sm:ml-auto">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3" style={{ color: '#44445a' }} />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3" style={{ color: '#6B7280' }} />
                 <input value={search} onChange={e => setSearch(e.target.value)}
                   placeholder="Otomasyon ara..."
                   className="pl-8 pr-3 py-1.5 text-[12px] rounded-xl outline-none w-full sm:w-48"
-                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#eeeef4' }} />
+                  style={{ background: '#F3F4F6', border: '1px solid #E5E7EB', color: '#111827' }} />
               </div>
             </div>
 
@@ -603,14 +550,14 @@ export default function AutomationsPage() {
               </div>
             ) : filtered.length === 0 && automations.length === 0 ? (
               <div className="rounded-2xl p-12 flex flex-col items-center text-center gap-5"
-                style={{ background: 'rgba(255,255,255,0.02)', border: '1.5px dashed rgba(255,255,255,0.08)' }}>
+                style={{ background: '#FFFFFF', border: '1.5px dashed #D1D5DB' }}>
                 <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
                   style={{ background: 'rgba(68,112,255,0.08)', border: '1.5px dashed rgba(68,112,255,0.25)' }}>
                   <Zap className="w-6 h-6" style={{ color: '#99b4ff' }} />
                 </div>
                 <div>
-                  <h3 className="text-[14px] font-bold mb-1.5" style={{ color: '#eeeef4' }}>İlk otomasyonunuzu oluşturun</h3>
-                  <p className="text-[12px] max-w-xs mx-auto leading-relaxed" style={{ color: '#44445a' }}>
+                  <h3 className="text-[14px] font-bold mb-1.5" style={{ color: '#111827' }}>İlk otomasyonunuzu oluşturun</h3>
+                  <p className="text-[12px] max-w-xs mx-auto leading-relaxed" style={{ color: '#6B7280' }}>
                     Yukarıdaki şablonlardan birini seçin veya sıfırdan bir otomasyon oluşturun.
                   </p>
                 </div>
@@ -620,32 +567,32 @@ export default function AutomationsPage() {
                 </Link>
               </div>
             ) : filtered.length === 0 ? (
-              <div className="rounded-2xl p-8 text-center" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)' }}>
-                <p className="text-[13px]" style={{ color: '#44445a' }}>Filtreyle eşleşen otomasyon bulunamadı</p>
+              <div className="rounded-2xl p-8 text-center" style={{ background: '#FFFFFF', border: '1px solid #E5E7EB' }}>
+                <p className="text-[13px]" style={{ color: '#6B7280' }}>Filtreyle eşleşen otomasyon bulunamadı</p>
               </div>
             ) : (
-              <div className="rounded-2xl" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)' }}>
+              <div className="rounded-2xl" style={{ background: '#FFFFFF', border: '1px solid #E5E7EB' }}>
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr style={{ background: 'rgba(0,0,0,0.15)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                    <tr style={{ background: '#F9FAFB', borderBottom: '1px solid #E5E7EB' }}>
                       {['OTOMASYON ADI', 'DURUM', 'TETİKLEYİCİ', 'ÇALIŞMA (30G)', 'DÖNÜŞÜM ORANI', 'KAZANILAN GELİR', 'SON ÇALIŞMA', ''].map(col => (
                         <th key={col} className="text-left px-4 py-2.5 text-[9px] font-semibold tracking-wider whitespace-nowrap"
-                          style={{ color: '#3e3e54' }}>{col}</th>
+                          style={{ color: '#9CA3AF' }}>{col}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {filtered.map((a, i) => {
                       const st = STATUS_CFG[a.status] ?? STATUS_CFG.draft
-                      const meta = TRIGGER_META[a.trigger] ?? { label: a.trigger || '—', icon: Zap, color: '#8080a0' }
+                      const meta = TRIGGER_META[a.trigger] ?? { label: a.trigger || '—', icon: Zap, color: '#6B7280' }
                       const MetaIcon = meta.icon
                       const conv = a.sent > 0 ? ((a.converted / a.sent) * 100).toFixed(1) : null
                       const isUpdating = updatingId === a.id
                       return (
                         <tr key={a.id} className="transition-all cursor-default"
-                          style={{ borderBottom: i < filtered.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}
-                          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.02)')}
+                          style={{ borderBottom: i < filtered.length - 1 ? '1px solid #F3F4F6' : 'none' }}
+                          onMouseEnter={e => (e.currentTarget.style.background = '#F9FAFB')}
                           onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-2.5">
@@ -653,8 +600,8 @@ export default function AutomationsPage() {
                                 <MetaIcon className="w-3.5 h-3.5" style={{ color: meta.color }} />
                               </div>
                               <div>
-                                <p className="text-[12px] font-semibold" style={{ color: '#eeeef4' }}>{a.name}</p>
-                                <p className="text-[10px]" style={{ color: '#44445a' }}>{meta.label}</p>
+                                <p className="text-[12px] font-semibold" style={{ color: '#111827' }}>{a.name}</p>
+                                <p className="text-[10px]" style={{ color: '#6B7280' }}>{meta.label}</p>
                               </div>
                             </div>
                           </td>
@@ -665,29 +612,29 @@ export default function AutomationsPage() {
                                   ? { background: 'rgba(34,201,122,0.1)', color: '#22c97a', border: '1px solid rgba(34,201,122,0.2)' }
                                   : a.status === 'paused'
                                     ? { background: 'rgba(240,160,32,0.1)', color: '#f0a020', border: '1px solid rgba(240,160,32,0.2)' }
-                                    : { background: 'rgba(255,255,255,0.04)', color: '#8080a0', border: '1px solid rgba(255,255,255,0.08)' }
+                                    : { background: '#F3F4F6', color: '#6B7280', border: '1px solid #E5E7EB' }
                               }>
                               <span className={cn('w-1.5 h-1.5 rounded-full', st.dot)} />
                               {st.label}
                             </div>
                           </td>
                           <td className="px-4 py-3">
-                            <div className="flex items-center gap-1.5 text-[11px]" style={{ color: '#8080a0' }}>
+                            <div className="flex items-center gap-1.5 text-[11px]" style={{ color: '#6B7280' }}>
                               <MetaIcon className="w-3 h-3" /> {meta.label}
                             </div>
                           </td>
-                          <td className="px-4 py-3 text-[11px] font-semibold" style={{ color: '#eeeef4', fontFamily: 'monospace' }}>
+                          <td className="px-4 py-3 text-[11px] font-semibold" style={{ color: '#111827', fontFamily: 'monospace' }}>
                             {formatNumber(a.runStats?.total ?? 0)}
                           </td>
                           <td className="px-4 py-3">
                             {conv ? (
                               <span className="text-[11px] font-semibold" style={{ color: '#22c97a', fontFamily: 'monospace' }}>%{conv}</span>
-                            ) : <span style={{ color: '#33334a' }}>—</span>}
+                            ) : <span style={{ color: '#D1D5DB' }}>—</span>}
                           </td>
                           <td className="px-4 py-3 text-[12px] font-bold" style={{ color: '#22c97a', fontFamily: 'monospace' }}>
                             {a.revenue > 0 ? formatCurrency(a.revenue) : '—'}
                           </td>
-                          <td className="px-4 py-3 text-[11px]" style={{ color: '#8080a0' }}>
+                          <td className="px-4 py-3 text-[11px]" style={{ color: '#6B7280' }}>
                             {relativeTime(a.runStats?.lastRun ?? null)}
                           </td>
                           <td className="px-4 py-3">
@@ -719,114 +666,8 @@ export default function AutomationsPage() {
               </div>
             )}
           </div>
-        </div>
-
-        {/* ── AI Automation Manager panel — desktop only ── */}
-        <div className="hidden lg:flex w-[300px] shrink-0 flex-col border-l overflow-hidden"
-          style={{ background: '#0d0d1a', borderColor: 'rgba(255,255,255,0.06)' }}>
-          <div className="flex items-center justify-between px-4 py-3.5 shrink-0"
-            style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-            <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0"
-                style={{ background: 'rgba(159,122,250,0.15)', border: '1px solid rgba(159,122,250,0.25)' }}>
-                <Sparkles className="w-3.5 h-3.5 text-violet-400" />
-              </div>
-              <div className="flex items-center gap-1.5">
-                <p className="text-[13px] font-semibold" style={{ color: '#eeeef4' }}>AI Automation Manager</p>
-                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md" style={{ background: 'rgba(34,201,122,0.15)', color: '#22c97a' }}>Beta</span>
-              </div>
-            </div>
-            {AI_SUGGESTIONS.length > 0 && (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-                style={{ background: 'rgba(255,165,0,0.1)', color: '#f0a020', border: '1px solid rgba(240,160,32,0.2)' }}>
-                {AI_SUGGESTIONS.length} öneri
-              </span>
-            )}
-          </div>
-
-          <div className="p-4 flex-1 overflow-auto space-y-3">
-            {/* Suggested automations — no fake revenue */}
-            <p className="text-[11px] font-semibold" style={{ color: '#44445a' }}>Yeni Otomasyon Önerileri</p>
-            {AI_SUGGESTIONS.map((s, i) => {
-              const SIcon = s.icon
-              const isCreating = creatingSuggestion === i
-              return (
-                <div key={i} className="p-3.5 rounded-xl cursor-default"
-                  style={{ background: s.bg, border: `1px solid ${s.color}20` }}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${s.color}18` }}>
-                      <SIcon className="w-3.5 h-3.5" style={{ color: s.color }} />
-                    </div>
-                    <p className="text-[11px] font-bold" style={{ color: s.color }}>{s.title}</p>
-                  </div>
-                  <p className="text-[11px] leading-relaxed mb-2.5" style={{ color: '#8080a0' }}>{s.text}</p>
-                  <button
-                    onClick={() => createSuggestedAutomation(s.title, s.trigger, i)}
-                    disabled={isCreating}
-                    className="text-[10px] font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 transition-all disabled:opacity-60"
-                    style={{ background: `${s.color}18`, color: s.color }}>
-                    {isCreating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
-                    {isCreating ? 'Oluşturuluyor...' : 'Oluştur'}
-                  </button>
-                </div>
-              )
-            })}
-
-            {/* Low performers — real data, shown only when real low performers exist */}
-            {lowPerformers.length > 0 && (
-              <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 12 }}>
-                <p className="text-[11px] font-semibold mb-2.5" style={{ color: '#44445a' }}>Düşük Performans Uyarıları</p>
-                {lowPerformers.map((a) => (
-                  <div key={a.id} className="flex items-start justify-between gap-2 p-3 rounded-xl mb-2"
-                    style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                    <div className="min-w-0">
-                      <p className="text-[11px] font-semibold truncate" style={{ color: '#eeeef4' }}>{a.name}</p>
-                      <p className="text-[10px]" style={{ color: '#8080a0' }}>
-                        Dönüşüm oranı %{a.rate.toFixed(1)} ile düşük.
-                      </p>
-                    </div>
-                    <Link href={`/automations/${a.id}/builder`}
-                      className="text-[10px] font-semibold shrink-0 px-2 py-0.5 rounded-lg whitespace-nowrap"
-                      style={{ background: 'rgba(68,112,255,0.1)', color: '#99b4ff' }}>
-                      Düzenle
-                    </Link>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Missing automations — dynamically computed from templates vs existing */}
-          {missingTemplates.length > 0 && (
-            <div className="p-4 shrink-0" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-[11px] font-semibold" style={{ color: '#eeeef4' }}>Eksik Otomasyonlar</p>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-                  style={{ background: 'rgba(240,160,32,0.1)', color: '#f0a020' }}>
-                  {missingTemplates.length} eksik
-                </span>
-              </div>
-              <div className="space-y-1.5">
-                {missingTemplates.map(tpl => (
-                  <button
-                    key={tpl.id}
-                    onClick={() => activateTemplate(tpl.id)}
-                    disabled={activatingTpl === tpl.id}
-                    className="w-full text-left flex items-center justify-between px-2.5 py-2 rounded-xl transition-all disabled:opacity-60"
-                    style={{ background: 'rgba(68,112,255,0.06)', border: '1px solid rgba(68,112,255,0.12)' }}>
-                    <span className="text-[11px] truncate" style={{ color: '#99b4ff' }}>{tpl.name}</span>
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-lg shrink-0 ml-2 flex items-center gap-1"
-                      style={{ background: 'rgba(68,112,255,0.15)', color: '#99b4ff' }}>
-                      {activatingTpl === tpl.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
-                      Oluştur
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
       </div>
     </AppShell>
   )
 }
+
