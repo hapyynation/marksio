@@ -236,12 +236,22 @@ export default function ConnectionPage() {
               </div>
 
               {numberStatus === 'existing' && (
-                <div style={{ background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 9, padding: '14px 16px' }}>
-                  <div style={{ display: 'flex', gap: 10 }}>
-                    <AlertTriangle size={15} style={{ color: '#EA580C', flexShrink: 0, marginTop: 1 }} />
-                    <div style={{ fontSize: 12, color: '#7C2D12', lineHeight: 1.6 }}>
-                      <strong>Önemli uyarı:</strong> Bu numarayı Marksio'ya bağlamak için telefonunuzdaki WhatsApp Business uygulamasından bu numarayı <strong>silmeniz</strong> gerekecek. Bu işlem geri alınamaz — numaranızdaki tüm mesaj geçmişi kaybolur. Devam etmeden önce önemli sohbetlerinizi yedekleyin.<br /><br />
-                      <strong>Öneri:</strong> Mevcut numaranızı WhatsApp Business uygulamasında kullanmaya devam etmek istiyorsanız, Marksio için ayrı bir telefon numarası (yeni SIM) kullanmanızı öneririz.
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div style={{ background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 9, padding: '14px 16px' }}>
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <AlertTriangle size={15} style={{ color: '#EA580C', flexShrink: 0, marginTop: 1 }} />
+                      <div style={{ fontSize: 12, color: '#7C2D12', lineHeight: 1.6 }}>
+                        <strong>Önemli uyarı:</strong> Bu numarayı Marksio'ya bağlamak için telefonunuzdaki WhatsApp Business uygulamasından bu numarayı <strong>silmeniz</strong> gerekecek. Bu işlem geri alınamaz — numaranızdaki tüm mesaj geçmişi kaybolur. Devam etmeden önce önemli sohbetlerinizi yedekleyin.<br /><br />
+                        <strong>Öneri:</strong> Mevcut numaranızı WhatsApp Business uygulamasında kullanmaya devam etmek istiyorsanız, Marksio için ayrı bir telefon numarası (yeni SIM) kullanmanızı öneririz.
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 9, padding: '14px 16px' }}>
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <Info size={15} style={{ color: '#2563EB', flexShrink: 0, marginTop: 1 }} />
+                      <div style={{ fontSize: 12, color: '#1E40AF', lineHeight: 1.6 }}>
+                        <strong>Endişelenmeyin — kontrolü kaybetmiyorsunuz.</strong> Numaranızı Marksio'ya bağladıktan sonra Marksio&apos;nun Inbox ekranından, telefonunuzdaki WhatsApp uygulamasında yaptığınız gibi gelen tüm mesajları görüp istediğiniz an kendiniz yanıtlayabilirsiniz. AI&apos;dan istediğiniz zaman devralıp manuel yazabilirsiniz. Sadece kullandığınız arayüz değişiyor (telefon uygulaması yerine Marksio paneli) — kontrolünüz değişmiyor.
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -284,7 +294,7 @@ export default function ConnectionPage() {
                 <>Oluşturulduktan sonra sol menüden <strong>WhatsApp → API Kurulumu</strong> (API Setup) bölümüne gidin</>,
               ]} />
               <WarnBox>Uygulama adında "WhatsApp", "Facebook", "Meta", "Instagram" gibi markalı kelimeler Meta tarafından reddedilir. İşletmenizin adını kullanın.</WarnBox>
-              <ScreenshotSlot step="meta-app-creation" alt="Meta Developer Console'da uygulama oluşturma" src="/whatsapp/guide/meta-app-creation.png"  theme="light"/>
+              <ScreenshotSlot step="meta-app-creation" alt="Meta Developer Console'da uygulama oluşturma" src="/whatsapp/guide/meta-app-creation.png" caption="Meta for Developers'da 'Uygulama Oluştur' adımı" theme="light" />
               <NavBtns onBack={() => setStep(3)} onNext={() => setStep(5)} />
             </div>
           )}
@@ -308,7 +318,7 @@ export default function ConnectionPage() {
                   <strong>Hatırlatma:</strong> Bu numarayı WhatsApp Business uygulamasında kullanıyorsanız, numarayı buraya eklemeden önce uygulamadan silmeniz gerekiyor.
                 </WarnBox>
               )}
-              <ScreenshotSlot step="meta-add-phone" alt="Meta panelinde telefon numarası ekleme" src="/whatsapp/guide/meta-add-phone.png"  theme="light"/>
+              <ScreenshotSlot step="meta-add-phone" alt="Meta panelinde telefon numarası ekleme" src="/whatsapp/guide/meta-add-phone.png" caption="Telefon numaranızı ekleme ve SMS/sesli kodla doğrulama" theme="light" />
               <NavBtns onBack={() => setStep(4)} onNext={() => setStep(6)} />
             </div>
           )}
@@ -366,7 +376,7 @@ export default function ConnectionPage() {
                 </div>
               </Field>
 
-              <ScreenshotSlot step="meta-api-setup" alt="Meta API Setup sayfasında WABA ID ve Phone Number ID konumları" src="/whatsapp/guide/meta-api-setup.png" aspectRatio="16/9"  theme="light"/>
+              <ScreenshotSlot step="meta-api-setup" alt="Meta API Setup sayfasında WABA ID ve Phone Number ID konumları" src="/whatsapp/guide/meta-api-setup.png" caption="API Setup sayfasında WABA ID ve Phone Number ID'yi bulma" aspectRatio="16/9" theme="light" />
 
               <div style={{ display: 'flex', gap: 10, paddingTop: 4 }}>
                 <button onClick={() => setStep(5)} style={{ background: '#F3F4F6', border: '1px solid #E5E7EB', borderRadius: 8, padding: '10px 18px', fontSize: 13, fontWeight: 500, cursor: 'pointer', color: '#374151', display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -413,7 +423,7 @@ export default function ConnectionPage() {
                 <><strong>messages</strong> alanını subscribe edin (Webhooks Fields bölümünden)</>,
                 <><strong>Verify and Save</strong>'e tıklayın</>,
               ]} />
-              <ScreenshotSlot step="webhook-setup" alt="Meta panelinde Webhook URL ve Verify Token alanları" src="/whatsapp/guide/webhook-setup.png" aspectRatio="16/9"  theme="light"/>
+              <ScreenshotSlot step="webhook-setup" alt="Meta panelinde Webhook URL ve Verify Token alanları" src="/whatsapp/guide/webhook-setup.png" caption="Webhook URL ve doğrulama token'ını Meta panelinde girme" aspectRatio="16/9" theme="light" />
               <NavBtns onBack={() => setStep(6)} onNext={() => setStep(8)} nextLabel="Webhook Kuruldu, Devam Et" />
             </div>
           )}
@@ -444,7 +454,7 @@ export default function ConnectionPage() {
                 Uygulama yayına girdikten sonra "Canlı / Live" statüsüne geçer. Bunu doğrulamak için App Dashboard üstünde yeşil "Canlı" etiketini görmeli ya da Status alanının "Development" yerine "Live" yazmasını beklemelisiniz.
               </InfoBox>
 
-              <ScreenshotSlot step="meta-publish" alt="Meta Developer Console'da uygulamayı yayınlama sayfası" src="/whatsapp/guide/meta-publish.png" aspectRatio="16/9"  theme="light"/>
+              <ScreenshotSlot step="meta-publish" alt="Meta Developer Console'da uygulamayı yayınlama sayfası" src="/whatsapp/guide/meta-publish.png" caption="Uygulamayı Geliştirme modundan Yayında moduna geçirme" aspectRatio="16/9" theme="light" />
               <NavBtns onBack={() => setStep(7)} onNext={goToSuccess} nextLabel="Yayınlandı, Tamamla" />
             </div>
           )}
