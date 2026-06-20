@@ -2,9 +2,9 @@
 
 import { useState } from 'react'
 import ScreenshotSlot from '@/components/whatsapp/ScreenshotSlot'
-import { Check, ChevronRight, ArrowLeft, Copy, Eye, EyeOff, Loader2, AlertTriangle, CheckCircle2 } from 'lucide-react'
+import { Check, ChevronRight, ArrowLeft, Copy, Eye, EyeOff, Loader2, AlertTriangle, CheckCircle2, Info } from 'lucide-react'
 
-type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7
+type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
 
 interface FormValues {
   wabaId: string
@@ -13,25 +13,21 @@ interface FormValues {
   appSecret: string
 }
 
-const STEPS = ['Giriş', 'Meta App', 'Hesap ID', 'Token', 'Bilgiler', 'Webhook', 'Tamamlandı'] as const
+const STEPS = ['Giriş', 'Numara', 'İşletme', 'Uygulama', 'Numara Ekle', 'Bilgiler', 'Webhook', 'Yayınla', 'Tamamlandı'] as const
 const WEBHOOK_URL = 'https://app.marksio.com/api/webhooks/whatsapp'
 
-const inpStyle: React.CSSProperties = {
-  width: '100%',
-  background: '#F9FAFB',
-  border: '1px solid #E5E7EB',
-  borderRadius: 8,
-  padding: '10px 14px',
-  fontSize: 13,
-  color: '#111827',
-  outline: 'none',
+const inp: React.CSSProperties = {
+  width: '100%', background: '#F9FAFB', border: '1px solid #E5E7EB',
+  borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#111827', outline: 'none',
 }
+const helperStyle: React.CSSProperties = { fontSize: 11, color: '#6B7280', margin: '5px 0 0', lineHeight: 1.5 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, helper, children }: { label: string; helper?: string; children: React.ReactNode }) {
   return (
     <div>
       <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 6 }}>{label}</label>
       {children}
+      {helper && <p style={helperStyle}>{helper}</p>}
     </div>
   )
 }
@@ -40,16 +36,58 @@ function StepDot({ num, current }: { num: number; current: Step }) {
   const done = current > num
   const active = current === num
   return (
-    <div
-      style={{
-        width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: 11, fontWeight: 700, flexShrink: 0,
-        background: done ? '#16A34A' : active ? '#2563EB' : '#F3F4F6',
-        color: done || active ? '#fff' : '#9CA3AF',
-        border: active ? '2px solid #2563EB' : done ? '2px solid #16A34A' : '2px solid #E5E7EB',
-      }}
-    >
-      {done ? <Check size={13} /> : num}
+    <div style={{
+      width: 26, height: 26, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontSize: 11, fontWeight: 700, flexShrink: 0,
+      background: done ? '#16A34A' : active ? '#2563EB' : '#F3F4F6',
+      color: done || active ? '#fff' : '#9CA3AF',
+      border: active ? '2px solid #2563EB' : done ? '2px solid #16A34A' : '2px solid #E5E7EB',
+    }}>
+      {done ? <Check size={12} /> : num}
+    </div>
+  )
+}
+
+function NavBtns({ onBack, onNext, nextLabel = 'İleri', nextDisabled = false }: { onBack: () => void; onNext: () => void; nextLabel?: string; nextDisabled?: boolean }) {
+  return (
+    <div style={{ display: 'flex', gap: 10, paddingTop: 4 }}>
+      <button onClick={onBack} style={{ background: '#F3F4F6', border: '1px solid #E5E7EB', borderRadius: 8, padding: '10px 18px', fontSize: 13, fontWeight: 500, cursor: 'pointer', color: '#374151', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <ArrowLeft size={13} /> Geri
+      </button>
+      <button onClick={onNext} disabled={nextDisabled} style={{ background: '#2563EB', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 20px', fontSize: 13, fontWeight: 600, cursor: nextDisabled ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6, opacity: nextDisabled ? 0.5 : 1 }}>
+        {nextLabel} <ChevronRight size={14} />
+      </button>
+    </div>
+  )
+}
+
+function InfoBox({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 8, padding: '11px 14px', display: 'flex', gap: 10 }}>
+      <Info size={14} style={{ color: '#2563EB', flexShrink: 0, marginTop: 1 }} />
+      <div style={{ fontSize: 12, color: '#1E40AF', lineHeight: 1.6 }}>{children}</div>
+    </div>
+  )
+}
+
+function WarnBox({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{ background: '#FEF3C7', border: '1px solid #FDE68A', borderRadius: 8, padding: '11px 14px', display: 'flex', gap: 10 }}>
+      <AlertTriangle size={14} style={{ color: '#D97706', flexShrink: 0, marginTop: 1 }} />
+      <div style={{ fontSize: 12, color: '#92400E', lineHeight: 1.6 }}>{children}</div>
+    </div>
+  )
+}
+
+function Steps({ label, items }: { label?: string; items: React.ReactNode[] }) {
+  return (
+    <div>
+      {label && <p style={{ fontSize: 12, fontWeight: 600, color: '#374151', margin: '0 0 8px' }}>{label}</p>}
+      <ol style={{ paddingLeft: 18, margin: 0, display: 'flex', flexDirection: 'column', gap: 7 }}>
+        {items.map((item, i) => (
+          <li key={i} style={{ fontSize: 13, color: '#374151', lineHeight: 1.5 }}>{item}</li>
+        ))}
+      </ol>
     </div>
   )
 }
@@ -61,9 +99,11 @@ export default function ConnectionPage() {
   const [showSecret, setShowSecret] = useState(false)
   const [testing, setTesting] = useState(false)
   const [testError, setTestError] = useState<string | null>(null)
+  const [subscribeWarning, setSubscribeWarning] = useState<string | null>(null)
   const [webhookToken, setWebhookToken] = useState('')
   const [syncStatus, setSyncStatus] = useState<'syncing' | 'done' | 'error'>('syncing')
   const [copied, setCopied] = useState<string | null>(null)
+  const [numberStatus, setNumberStatus] = useState<'fresh' | 'existing' | null>(null)
 
   const f = (field: keyof FormValues) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(p => ({ ...p, [field]: e.target.value }))
@@ -77,6 +117,7 @@ export default function ConnectionPage() {
   async function handleTest() {
     setTesting(true)
     setTestError(null)
+    setSubscribeWarning(null)
     try {
       const res = await fetch('/api/whatsapp/accounts', {
         method: 'POST',
@@ -90,7 +131,10 @@ export default function ConnectionPage() {
       }
       const d = await res.json()
       setWebhookToken(d.webhookVerifyToken ?? '')
-      setStep(6)
+      if (d.subscribed === false && d.subscribeError) {
+        setSubscribeWarning(d.subscribeError)
+      }
+      setStep(7)
     } catch {
       setTestError('Sunucuya ulaşılamadı. İnternet bağlantınızı kontrol edin.')
     } finally {
@@ -99,12 +143,15 @@ export default function ConnectionPage() {
   }
 
   function goToSuccess() {
-    setStep(7)
+    setStep(9)
     setSyncStatus('syncing')
     fetch('/api/whatsapp/templates/sync', { method: 'POST' })
       .then(r => setSyncStatus(r.ok ? 'done' : 'error'))
       .catch(() => setSyncStatus('error'))
   }
+
+  const card: React.CSSProperties = { background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 12, padding: 28, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }
+  const totalSteps = STEPS.length
 
   return (
     <div style={{ minHeight: '100vh', background: '#F9FAFB' }}>
@@ -120,35 +167,35 @@ export default function ConnectionPage() {
         </div>
 
         {/* Step indicator */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0, marginBottom: 32, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0, marginBottom: 28, flexWrap: 'wrap' }}>
           {STEPS.map((label, i) => (
             <div key={label} style={{ display: 'flex', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                 <StepDot num={i + 1} current={step} />
-                <span style={{ fontSize: 11, color: step === i + 1 ? '#2563EB' : step > i + 1 ? '#16A34A' : '#9CA3AF', fontWeight: step === i + 1 ? 600 : 400, display: 'none' }} className="sm:inline">
+                <span style={{ fontSize: 10, color: step === i + 1 ? '#2563EB' : step > i + 1 ? '#16A34A' : '#9CA3AF', fontWeight: step === i + 1 ? 600 : 400, display: 'none' }} className="sm:inline">
                   {label}
                 </span>
               </div>
               {i < STEPS.length - 1 && (
-                <div style={{ width: 24, height: 1, background: step > i + 1 ? '#16A34A' : '#E5E7EB', margin: '0 4px' }} />
+                <div style={{ width: 18, height: 1, background: step > i + 1 ? '#16A34A' : '#E5E7EB', margin: '0 3px' }} />
               )}
             </div>
           ))}
         </div>
 
         {/* Progress bar */}
-        <div style={{ height: 3, background: '#E5E7EB', borderRadius: 4, marginBottom: 32, overflow: 'hidden' }}>
-          <div style={{ height: '100%', width: `${((step - 1) / 6) * 100}%`, background: 'linear-gradient(90deg, #2563EB, #16A34A)', transition: 'width 0.4s ease', borderRadius: 4 }} />
+        <div style={{ height: 3, background: '#E5E7EB', borderRadius: 4, marginBottom: 28, overflow: 'hidden' }}>
+          <div style={{ height: '100%', width: `${((step - 1) / (totalSteps - 1)) * 100}%`, background: 'linear-gradient(90deg, #2563EB, #16A34A)', transition: 'width 0.4s ease', borderRadius: 4 }} />
         </div>
 
         {/* Content card */}
-        <div style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 12, padding: 28, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+        <div style={card}>
 
-          {/* Step 1: Giriş */}
+          {/* ── Adım 1: Giriş ── */}
           {step === 1 && (
             <div style={{ textAlign: 'center' }}>
               <div style={{ marginBottom: 20, overflow: 'hidden', borderRadius: 10 }}>
-                <ScreenshotSlot step="onboarding-intro" alt="WhatsApp Business API bağlantı illüstrasyonu" src="/whatsapp/onboarding-intro.png" aspectRatio="16/7" />
+                <ScreenshotSlot step="onboarding-intro" alt="WhatsApp Business API bağlantı illüstrasyonu" src="/whatsapp/onboarding-intro.png" aspectRatio="16/7"  theme="light"/>
               </div>
               <h2 style={{ fontSize: 18, fontWeight: 700, color: '#111827', margin: '0 0 8px' }}>WhatsApp Business hesabını bağla</h2>
               <p style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.6, margin: '0 0 24px' }}>
@@ -161,89 +208,117 @@ export default function ConnectionPage() {
             </div>
           )}
 
-          {/* Step 2: Meta App */}
+          {/* ── Adım 2: Numara Durumu ── */}
           {step === 2 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
               <div>
-                <h2 style={{ fontSize: 16, fontWeight: 700, color: '#111827', margin: '0 0 6px' }}>Meta for Developers'da App Oluşturun</h2>
-                <p style={{ fontSize: 12, color: '#6B7280', margin: 0 }}>Yeni bir Meta Business uygulaması oluşturup WhatsApp ürününü ekleyin.</p>
+                <h2 style={{ fontSize: 16, fontWeight: 700, color: '#111827', margin: '0 0 6px' }}>Bağlayacağınız Numara Hakkında</h2>
+                <p style={{ fontSize: 12, color: '#6B7280', margin: 0 }}>Devam etmeden önce bir bilgi vermemiz gerekiyor.</p>
               </div>
-              <ol style={{ paddingLeft: 18, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {[
-                  <><a href="https://developers.facebook.com" target="_blank" rel="noreferrer" style={{ color: '#2563EB' }}>developers.facebook.com</a> adresine gidin</>,
-                  <><strong>My Apps → Create App</strong> seçin</>,
-                  <><strong>Business</strong> tipini seçin</>,
-                  <>App'e bir ad verin ve oluşturun</>,
-                  <>Sol menüden <strong>WhatsApp → Getting Started</strong>'a tıklayın</>,
-                ].map((item, i) => (
-                  <li key={i} style={{ fontSize: 13, color: '#374151', lineHeight: 1.5 }}>{item}</li>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {([
+                  { val: 'fresh' as const, label: 'Hayır, bu numara hiçbir yerde WhatsApp\'ta kayıtlı değil (yeni numara)' },
+                  { val: 'existing' as const, label: 'Evet, bu numarayı telefonumda WhatsApp Business uygulamasında kullanıyorum' },
+                ] as const).map(opt => (
+                  <label key={opt.val} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, background: numberStatus === opt.val ? '#EFF6FF' : '#F9FAFB', border: `2px solid ${numberStatus === opt.val ? '#2563EB' : '#E5E7EB'}`, borderRadius: 9, padding: '13px 14px', cursor: 'pointer' }}>
+                    <input
+                      type="radio"
+                      name="numberStatus"
+                      value={opt.val}
+                      checked={numberStatus === opt.val}
+                      onChange={() => setNumberStatus(opt.val)}
+                      style={{ marginTop: 2, flexShrink: 0, accentColor: '#2563EB' }}
+                    />
+                    <span style={{ fontSize: 13, color: '#111827', lineHeight: 1.5 }}>{opt.label}</span>
+                  </label>
                 ))}
-              </ol>
-              <ScreenshotSlot step="meta-app-creation" alt="Meta for Developers'da App oluşturma ekranı" src="/whatsapp/meta-app-creation.png" aspectRatio="16/9" />
-              <NavBtns onBack={() => setStep(1)} onNext={() => setStep(3)} />
+              </div>
+
+              {numberStatus === 'existing' && (
+                <div style={{ background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 9, padding: '14px 16px' }}>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <AlertTriangle size={15} style={{ color: '#EA580C', flexShrink: 0, marginTop: 1 }} />
+                    <div style={{ fontSize: 12, color: '#7C2D12', lineHeight: 1.6 }}>
+                      <strong>Önemli uyarı:</strong> Bu numarayı Marksio'ya bağlamak için telefonunuzdaki WhatsApp Business uygulamasından bu numarayı <strong>silmeniz</strong> gerekecek. Bu işlem geri alınamaz — numaranızdaki tüm mesaj geçmişi kaybolur. Devam etmeden önce önemli sohbetlerinizi yedekleyin.<br /><br />
+                      <strong>Öneri:</strong> Mevcut numaranızı WhatsApp Business uygulamasında kullanmaya devam etmek istiyorsanız, Marksio için ayrı bir telefon numarası (yeni SIM) kullanmanızı öneririz.
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <NavBtns onBack={() => setStep(1)} onNext={() => setStep(3)} nextDisabled={numberStatus === null} />
             </div>
           )}
 
-          {/* Step 3: WABA ID */}
+          {/* ── Adım 3: Meta İşletme Hesabı ── */}
           {step === 3 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
               <div>
-                <h2 style={{ fontSize: 16, fontWeight: 700, color: '#111827', margin: '0 0 6px' }}>WABA ID ve Phone Number ID'yi Bulun</h2>
-                <p style={{ fontSize: 12, color: '#6B7280', margin: 0 }}>Bu iki ID bağlantı formunda kullanılacak.</p>
+                <h2 style={{ fontSize: 16, fontWeight: 700, color: '#111827', margin: '0 0 6px' }}>Meta İşletme Hesabı Oluşturun</h2>
+                <p style={{ fontSize: 12, color: '#6B7280', margin: 0 }}>WhatsApp Cloud API için Meta Business Manager hesabı gerekli.</p>
               </div>
-              <ol style={{ paddingLeft: 18, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {[
-                  <>Meta App'inizde <strong>WhatsApp → API Setup</strong>'a gidin</>,
-                  <><strong>WhatsApp Business Account ID (WABA ID)</strong>'yi kopyalayın</>,
-                  <>Telefon numaranızın altındaki <strong>Phone Number ID</strong>'yi kopyalayın</>,
-                  <>Bu iki değeri bir sonraki formda kullanacaksınız</>,
-                ].map((item, i) => (
-                  <li key={i} style={{ fontSize: 13, color: '#374151', lineHeight: 1.5 }}>{item}</li>
-                ))}
-              </ol>
-              <ScreenshotSlot step="waba-phone-id" alt="WABA ID ve Phone Number ID'nin Meta panelindeki konumu" src="/whatsapp/waba-phone-id.png" aspectRatio="16/9" />
+              <Steps items={[
+                <><a href="https://business.facebook.com/overview" target="_blank" rel="noreferrer" style={{ color: '#2563EB' }}>business.facebook.com/overview</a> adresine gidin</>,
+                <><strong>Hesap Oluştur</strong> deyip işletme bilgilerinizi girin</>,
+                <>Zaten bir işletme hesabınız varsa bu adımı atlayın — sonraki adıma geçin</>,
+              ]} />
+              <InfoBox>Zaten bir Meta Business Manager hesabınız varsa (örn. Facebook reklamları için kullanıyorsanız) yeni bir hesap oluşturmanıza gerek yok.</InfoBox>
+              <ScreenshotSlot step="meta-business-account" alt="Meta Business Manager hesap oluşturma" src="/whatsapp/guide/meta-business-account.png"  theme="light"/>
               <NavBtns onBack={() => setStep(2)} onNext={() => setStep(4)} />
             </div>
           )}
 
-          {/* Step 4: System User Token */}
+          {/* ── Adım 4: Meta Uygulaması ── */}
           {step === 4 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
               <div>
-                <h2 style={{ fontSize: 16, fontWeight: 700, color: '#111827', margin: '0 0 6px' }}>Kalıcı System User Token Oluşturun</h2>
-                <p style={{ fontSize: 12, color: '#6B7280', margin: 0 }}>Geçici token kullanmayın; birkaç saat içinde sona erer ve bağlantınız kopar.</p>
+                <h2 style={{ fontSize: 16, fontWeight: 700, color: '#111827', margin: '0 0 6px' }}>Meta Uygulaması Oluşturun</h2>
+                <p style={{ fontSize: 12, color: '#6B7280', margin: 0 }}>WhatsApp API'ye erişmek için bir Meta uygulaması gerekli.</p>
               </div>
-
-              <div style={{ background: '#FEF3C7', border: '1px solid #FDE68A', borderRadius: 8, padding: '12px 14px', display: 'flex', gap: 10 }}>
-                <AlertTriangle size={15} style={{ color: '#D97706', flexShrink: 0, marginTop: 1 }} />
-                <div style={{ fontSize: 12, color: '#92400E', lineHeight: 1.5 }}>
-                  <strong>Önemli:</strong> Geçici kullanıcı token'ı değil, <strong>kalıcı System User token'ı</strong> kullanın.
-                  Token süresini <strong>Never</strong> olarak ayarlayın.
-                </div>
-              </div>
-
-              <ol style={{ paddingLeft: 18, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {[
-                  <><a href="https://business.facebook.com/settings" target="_blank" rel="noreferrer" style={{ color: '#2563EB' }}>business.facebook.com/settings</a> → <strong>Users → System Users</strong></>,
-                  <><strong>Add System User</strong> ile admin kullanıcı oluşturun</>,
-                  <><strong>Generate New Token</strong> → App'inizi seçin</>,
-                  <>İzinler: <strong>whatsapp_business_messaging, whatsapp_business_management</strong></>,
-                  <>Token süresini <strong>Never</strong> yapın</>,
-                ].map((item, i) => (
-                  <li key={i} style={{ fontSize: 13, color: '#374151', lineHeight: 1.5 }}>{item}</li>
-                ))}
-              </ol>
-              <ScreenshotSlot step="system-user-token" alt="Meta Business Manager'da System User Token oluşturma" src="/whatsapp/system-user-token.png" aspectRatio="16/9" />
+              <Steps items={[
+                <><a href="https://developers.facebook.com/apps" target="_blank" rel="noreferrer" style={{ color: '#2563EB' }}>developers.facebook.com/apps</a> → <strong>Uygulama Oluştur</strong></>,
+                <><strong>İşletme</strong> türünü seçin</>,
+                <>Uygulama adı girin — <strong style={{ color: '#DC2626' }}>"WhatsApp" kelimesini kullanmayın</strong>, Meta reddeder. Örn: "Mağaza Adınız İletişim"</>,
+                <>Kullanım senaryosu olarak <strong>"WhatsApp üzerinden müşterilerinizle bağlantı kurun"</strong> seçin</>,
+                <>Oluşturulduktan sonra sol menüden <strong>WhatsApp → API Kurulumu</strong> (API Setup) bölümüne gidin</>,
+              ]} />
+              <WarnBox>Uygulama adında "WhatsApp", "Facebook", "Meta", "Instagram" gibi markalı kelimeler Meta tarafından reddedilir. İşletmenizin adını kullanın.</WarnBox>
+              <ScreenshotSlot step="meta-app-creation" alt="Meta Developer Console'da uygulama oluşturma" src="/whatsapp/guide/meta-app-creation.png"  theme="light"/>
               <NavBtns onBack={() => setStep(3)} onNext={() => setStep(5)} />
             </div>
           )}
 
-          {/* Step 5: Form */}
+          {/* ── Adım 5: Numara Ekleme ── */}
           {step === 5 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+              <div>
+                <h2 style={{ fontSize: 16, fontWeight: 700, color: '#111827', margin: '0 0 6px' }}>WhatsApp Numaranızı Ekleyin</h2>
+                <p style={{ fontSize: 12, color: '#6B7280', margin: 0 }}>Gerçek işletme numaranızı Meta uygulamanıza tanıtın.</p>
+              </div>
+              <Steps items={[
+                <>Meta uygulamanızda <strong>WhatsApp → API Kurulumu</strong> bölümüne gidin</>,
+                <><strong>"Adım 2: Üretim Kurulumu" / "Add Phone Number"</strong> seçeneğine tıklayın</>,
+                <>Kendi gerçek WhatsApp numaranızı girin (ülke kodu dahil, örn. <code style={{ background: '#F3F4F6', padding: '1px 4px', borderRadius: 3, fontSize: 12 }}>+905XXXXXXXXX</code>)</>,
+                <>Size gönderilen SMS veya sesli aramayla gelen <strong>doğrulama kodunu</strong> girin</>,
+                <>Numara onaylandıktan sonra API Setup sayfasına geri dönün</>,
+              ]} />
+              {numberStatus === 'existing' && (
+                <WarnBox>
+                  <strong>Hatırlatma:</strong> Bu numarayı WhatsApp Business uygulamasında kullanıyorsanız, numarayı buraya eklemeden önce uygulamadan silmeniz gerekiyor.
+                </WarnBox>
+              )}
+              <ScreenshotSlot step="meta-add-phone" alt="Meta panelinde telefon numarası ekleme" src="/whatsapp/guide/meta-add-phone.png"  theme="light"/>
+              <NavBtns onBack={() => setStep(4)} onNext={() => setStep(6)} />
+            </div>
+          )}
+
+          {/* ── Adım 6: Form (4 Bilgi) ── */}
+          {step === 6 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
                 <h2 style={{ fontSize: 16, fontWeight: 700, color: '#111827', margin: '0 0 4px' }}>API Bilgilerini Girin</h2>
-                <p style={{ fontSize: 12, color: '#6B7280', margin: 0 }}>Önceki adımlarda topladığınız bilgileri aşağıya girin.</p>
+                <p style={{ fontSize: 12, color: '#6B7280', margin: 0 }}>Bu 4 bilgiyi Meta panelinden toplayıp aşağıya girin.</p>
               </div>
 
               {testError && (
@@ -253,36 +328,53 @@ export default function ConnectionPage() {
                 </div>
               )}
 
-              <Field label="WhatsApp Business Account ID (WABA ID)">
-                <input value={form.wabaId} onChange={f('wabaId')} placeholder="1234567890987654" style={inpStyle} />
+              <Field
+                label="WhatsApp Business Account ID (WABA ID)"
+                helper='Meta panelinde "WhatsApp Business Account ID" veya "WhatsApp İşletme Hesabı Kimliği" olarak görünür. Phone Number ID ile karıştırmayın — ikisi farklı sayılardır, aynı sayfada yan yana durur.'
+              >
+                <input value={form.wabaId} onChange={f('wabaId')} placeholder="Örn: 1198936349970112" style={inp} />
               </Field>
-              <Field label="Phone Number ID">
-                <input value={form.phoneNumberId} onChange={f('phoneNumberId')} placeholder="9876543210123456" style={inpStyle} />
+
+              <Field
+                label="Phone Number ID"
+                helper='Meta panelinde "Phone number ID" veya "Telefon Numarası Kimliği" olarak görünür. WABA ID ile karıştırmayın.'
+              >
+                <input value={form.phoneNumberId} onChange={f('phoneNumberId')} placeholder="Örn: 922241300886400" style={inp} />
               </Field>
-              <Field label="System User Access Token">
+
+              <Field
+                label="Access Token — Sistem Kullanıcısı Jetonu"
+                helper='Çok uzun bir metin (200+ karakter), "EAG..." ile başlar. API Setup sayfasındaki GEÇİCİ token değil — Business Settings → Sistem Kullanıcıları üzerinden "Süresiz/Never" süreli kalıcı token oluşturun.'
+              >
                 <div style={{ position: 'relative' }}>
-                  <input type={showToken ? 'text' : 'password'} value={form.accessToken} onChange={f('accessToken')} placeholder="EAABcde..." style={{ ...inpStyle, paddingRight: 40 }} />
+                  <input type={showToken ? 'text' : 'password'} value={form.accessToken} onChange={f('accessToken')} placeholder="EAABcde... (200+ karakter)" style={{ ...inp, paddingRight: 40 }} />
                   <button onClick={() => setShowToken(p => !p)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF' }}>
                     {showToken ? <EyeOff size={14} /> : <Eye size={14} />}
                   </button>
                 </div>
               </Field>
-              <Field label="App Secret">
+
+              <Field
+                label="App Secret — Uygulama Sırrı"
+                helper='Kısa bir metin (~32 karakter). Uygulama Ayarları → Temel (Basic) sayfasında "Uygulama Sırrı / App Secret" → Göster butonuyla kopyalayın. Access Token ile karıştırmayın.'
+              >
                 <div style={{ position: 'relative' }}>
-                  <input type={showSecret ? 'text' : 'password'} value={form.appSecret} onChange={f('appSecret')} placeholder="Webhook imza doğrulaması için" style={{ ...inpStyle, paddingRight: 40 }} />
+                  <input type={showSecret ? 'text' : 'password'} value={form.appSecret} onChange={f('appSecret')} placeholder="~32 karakter" style={{ ...inp, paddingRight: 40 }} />
                   <button onClick={() => setShowSecret(p => !p)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF' }}>
                     {showSecret ? <EyeOff size={14} /> : <Eye size={14} />}
                   </button>
                 </div>
               </Field>
 
+              <ScreenshotSlot step="meta-api-setup" alt="Meta API Setup sayfasında WABA ID ve Phone Number ID konumları" src="/whatsapp/guide/meta-api-setup.png" aspectRatio="16/9"  theme="light"/>
+
               <div style={{ display: 'flex', gap: 10, paddingTop: 4 }}>
-                <button onClick={() => setStep(4)} style={{ background: '#F3F4F6', border: '1px solid #E5E7EB', borderRadius: 8, padding: '10px 18px', fontSize: 13, fontWeight: 500, cursor: 'pointer', color: '#374151', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <button onClick={() => setStep(5)} style={{ background: '#F3F4F6', border: '1px solid #E5E7EB', borderRadius: 8, padding: '10px 18px', fontSize: 13, fontWeight: 500, cursor: 'pointer', color: '#374151', display: 'flex', alignItems: 'center', gap: 6 }}>
                   <ArrowLeft size={13} /> Geri
                 </button>
                 <button
                   onClick={handleTest}
-                  disabled={testing || !form.wabaId.trim() || !form.phoneNumberId.trim() || !form.accessToken.trim()}
+                  disabled={testing || !form.wabaId.trim() || !form.phoneNumberId.trim() || !form.accessToken.trim() || !form.appSecret.trim()}
                   style={{ background: '#16A34A', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 20px', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, opacity: testing ? 0.7 : 1 }}
                 >
                   {testing ? <Loader2 size={13} className="animate-spin" /> : null}
@@ -292,15 +384,19 @@ export default function ConnectionPage() {
             </div>
           )}
 
-          {/* Step 6: Webhook */}
-          {step === 6 && (
+          {/* ── Adım 7: Webhook ── */}
+          {step === 7 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
               <div>
                 <h2 style={{ fontSize: 16, fontWeight: 700, color: '#111827', margin: '0 0 6px' }}>Webhook'u Ayarlayın</h2>
-                <p style={{ fontSize: 12, color: '#6B7280', margin: 0 }}>Meta App'inizin webhook ayarlarına bu URL ve token'ı girin.</p>
+                <p style={{ fontSize: 12, color: '#6B7280', margin: 0 }}>Meta uygulamanızın webhook ayarlarına bu URL ve doğrulama token'ını girin.</p>
               </div>
 
-              {[{ label: 'Webhook URL', value: WEBHOOK_URL, key: 'url' }, { label: 'Verify Token', value: webhookToken || 'Yükleniyor…', key: 'token' }].map(item => (
+              {subscribeWarning && (
+                <WarnBox><strong>Uyarı:</strong> {subscribeWarning}</WarnBox>
+              )}
+
+              {([{ label: 'Webhook URL', value: WEBHOOK_URL, key: 'url' }, { label: 'Verify Token (Doğrulama Kodu)', value: webhookToken || 'Yükleniyor…', key: 'token' }]).map(item => (
                 <Field key={item.key} label={item.label}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 8, padding: '10px 14px' }}>
                     <span style={{ flex: 1, fontSize: 12, fontFamily: 'monospace', color: '#111827', overflowX: 'auto', whiteSpace: 'nowrap' }}>{item.value}</span>
@@ -311,26 +407,53 @@ export default function ConnectionPage() {
                 </Field>
               ))}
 
-              <ol style={{ paddingLeft: 18, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {[
-                  <>Meta App → <strong>WhatsApp → Configuration → Webhook</strong>'e gidin</>,
-                  <>Yukarıdaki <strong>Webhook URL</strong>'i ve <strong>Verify Token</strong>'ı yapıştırın</>,
-                  <><strong>messages</strong> alanını subscribe edin</>,
-                  <><strong>Verify and Save</strong>'e tıklayın</>,
-                ].map((item, i) => (
-                  <li key={i} style={{ fontSize: 13, color: '#374151', lineHeight: 1.5 }}>{item}</li>
-                ))}
-              </ol>
-              <ScreenshotSlot step="webhook-setup" alt="Meta panelinde Webhook URL ve Verify Token alanlarının konumu" src="/whatsapp/webhook-setup.png" aspectRatio="16/9" />
-              <NavBtns onBack={() => setStep(5)} onNext={goToSuccess} nextLabel="Tamamla" />
+              <Steps items={[
+                <>Meta App → <strong>WhatsApp → Yapılandırma → Webhook</strong> bölümüne gidin</>,
+                <>Yukarıdaki <strong>Webhook URL</strong>'i ve <strong>Verify Token</strong>'ı yapıştırın</>,
+                <><strong>messages</strong> alanını subscribe edin (Webhooks Fields bölümünden)</>,
+                <><strong>Verify and Save</strong>'e tıklayın</>,
+              ]} />
+              <ScreenshotSlot step="webhook-setup" alt="Meta panelinde Webhook URL ve Verify Token alanları" src="/whatsapp/guide/webhook-setup.png" aspectRatio="16/9"  theme="light"/>
+              <NavBtns onBack={() => setStep(6)} onNext={() => setStep(8)} nextLabel="Webhook Kuruldu, Devam Et" />
             </div>
           )}
 
-          {/* Step 7: Başarı */}
-          {step === 7 && (
+          {/* ── Adım 8: Yayınlama ── */}
+          {step === 8 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+              <div>
+                <h2 style={{ fontSize: 16, fontWeight: 700, color: '#111827', margin: '0 0 6px' }}>Uygulamayı Yayınlayın</h2>
+                <p style={{ fontSize: 12, color: '#6B7280', margin: 0 }}>Bu adım atlanırsa gerçek müşteri mesajları sisteme hiç ulaşmaz.</p>
+              </div>
+
+              <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 9, padding: '14px 16px', display: 'flex', gap: 10 }}>
+                <AlertTriangle size={15} style={{ color: '#DC2626', flexShrink: 0, marginTop: 1 }} />
+                <div style={{ fontSize: 12, color: '#7F1D1D', lineHeight: 1.6 }}>
+                  <strong>Kritik adım:</strong> Uygulamanız hâlâ "Geliştirme / Development" modundaysa yalnızca test numaraları mesaj alabilir. Gerçek müşterilerden gelen mesajlar sisteme <strong>ulaşmaz</strong>.
+                </div>
+              </div>
+
+              <Steps items={[
+                <>Meta App panosunda sol menüden <strong>"Yayın" (App Review / Go Live)</strong> sekmesine gidin</>,
+                <>Gizlilik politikası URL'i girin — kendi mağazanızın gizlilik politikası sayfası. <a href="/privacy" target="_blank" style={{ color: '#2563EB' }}>Marksio gizlilik sayfamızı</a> kullanabilirsiniz ya da Shopify/mağaza panelinizden kendinizinkini alın</>,
+                <><strong>"Yayınla / Submit for Review"</strong> butonuna basın</>,
+                <>Yayın onayı genellikle <strong>birkaç dakika ile birkaç saat</strong> arasında alınır. Acil durumlarda Meta destek hattını arayabilirsiniz</>,
+              ]} />
+
+              <InfoBox>
+                Uygulama yayına girdikten sonra "Canlı / Live" statüsüne geçer. Bunu doğrulamak için App Dashboard üstünde yeşil "Canlı" etiketini görmeli ya da Status alanının "Development" yerine "Live" yazmasını beklemelisiniz.
+              </InfoBox>
+
+              <ScreenshotSlot step="meta-publish" alt="Meta Developer Console'da uygulamayı yayınlama sayfası" src="/whatsapp/guide/meta-publish.png" aspectRatio="16/9"  theme="light"/>
+              <NavBtns onBack={() => setStep(7)} onNext={goToSuccess} nextLabel="Yayınlandı, Tamamla" />
+            </div>
+          )}
+
+          {/* ── Adım 9: Başarı ── */}
+          {step === 9 && (
             <div style={{ textAlign: 'center' }}>
               <div style={{ marginBottom: 20, overflow: 'hidden', borderRadius: 10 }}>
-                <ScreenshotSlot step="onboarding-success" alt="WhatsApp bağlantısı başarılı" src="/whatsapp/onboarding-success.png" aspectRatio="16/7" />
+                <ScreenshotSlot step="onboarding-success" alt="WhatsApp bağlantısı başarılı" src="/whatsapp/onboarding-success.png" aspectRatio="16/7"  theme="light"/>
               </div>
               <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#DCFCE7', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
                 <CheckCircle2 size={22} style={{ color: '#16A34A' }} />
@@ -364,22 +487,9 @@ export default function ConnectionPage() {
 
         {/* Step label below */}
         <p style={{ textAlign: 'center', fontSize: 12, color: '#9CA3AF', margin: '12px 0 0' }}>
-          Adım {step} / {STEPS.length} — {STEPS[step - 1]}
+          Adım {step} / {totalSteps} — {STEPS[step - 1]}
         </p>
       </div>
-    </div>
-  )
-}
-
-function NavBtns({ onBack, onNext, nextLabel = 'İleri' }: { onBack: () => void; onNext: () => void; nextLabel?: string }) {
-  return (
-    <div style={{ display: 'flex', gap: 10, paddingTop: 4 }}>
-      <button onClick={onBack} style={{ background: '#F3F4F6', border: '1px solid #E5E7EB', borderRadius: 8, padding: '10px 18px', fontSize: 13, fontWeight: 500, cursor: 'pointer', color: '#374151', display: 'flex', alignItems: 'center', gap: 6 }}>
-        <ArrowLeft size={13} /> Geri
-      </button>
-      <button onClick={onNext} style={{ background: '#2563EB', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 20px', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
-        {nextLabel} <ChevronRight size={14} />
-      </button>
     </div>
   )
 }

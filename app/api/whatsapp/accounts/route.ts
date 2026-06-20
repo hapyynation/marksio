@@ -129,5 +129,21 @@ export async function POST(req: NextRequest) {
     body: JSON.stringify({ accountId: account.id }),
   }).catch(() => null)
 
-  return NextResponse.json(account, { status: 201 })
+  // WABA'yı bu uygulamaya abone et (gelen mesajları almak için zorunlu)
+  const subscribeRes = await fetch(
+    `${META_API}/${wabaId}/subscribed_apps`,
+    { method: 'POST', headers: { Authorization: `Bearer ${accessToken}` } }
+  ).catch(() => null)
+
+  if (!subscribeRes?.ok) {
+    const subscribeErr = subscribeRes ? await subscribeRes.json().catch(() => ({})) : {}
+    console.error('[WhatsApp Subscribe] Hata:', subscribeErr)
+    return NextResponse.json(
+      { ...account, subscribed: false, subscribeError: 'Bağlantı kuruldu ama mesaj alma yetkisi etkinleştirilemedi. Webhook ayarladıktan sonra tekrar deneyin.' },
+      { status: 201 }
+    )
+  }
+
+  console.log('[WhatsApp Subscribe] Başarılı — wabaId:', wabaId)
+  return NextResponse.json({ ...account, subscribed: true }, { status: 201 })
 }
