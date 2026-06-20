@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { Loader2, Plus, Trash2, Edit2, Check, X, Crown, ChevronRight, Save } from 'lucide-react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { Loader2, Plus, Trash2, Edit2, Check, X, Crown, ChevronRight, Save, WifiOff } from 'lucide-react'
 
 interface FAQ {
   id: string
@@ -12,7 +12,6 @@ interface FAQ {
 interface AssistantSettings {
   enabled: boolean
   tone: 'samimi' | 'resmi' | 'kisa'
-  storeDataAccess: boolean
   knowledgeText: string
   faqs: FAQ[]
 }
@@ -20,12 +19,8 @@ interface AssistantSettings {
 const DEFAULT_SETTINGS: AssistantSettings = {
   enabled: false,
   tone: 'samimi',
-  storeDataAccess: true,
   knowledgeText: '',
-  faqs: [
-    { id: '1', question: 'Kargo süresi ne kadar?', answer: '2-3 iş günü içinde teslim edilir.' },
-    { id: '2', question: 'İade nasıl yapılır?', answer: '14 gün içinde iade yapabilirsiniz. İletişim formundan bize ulaşın.' },
-  ],
+  faqs: [],
 }
 
 const TONE_OPTIONS = [
@@ -33,6 +28,19 @@ const TONE_OPTIONS = [
   { value: 'resmi' as const, label: 'Resmi', desc: 'Profesyonel, kibar, kurumsal dil' },
   { value: 'kisa' as const, label: 'Kısa ve Net', desc: 'Özlü, doğrudan, hızlı cevaplar' },
 ]
+
+// UI ton değeri → API ton değeri
+const TONE_TO_API: Record<string, string> = {
+  samimi: 'FRIENDLY',
+  resmi: 'FORMAL',
+  kisa: 'PROFESSIONAL',
+}
+// API ton değeri → UI ton değeri
+const TONE_FROM_API: Record<string, 'samimi' | 'resmi' | 'kisa'> = {
+  FRIENDLY: 'samimi',
+  FORMAL: 'resmi',
+  PROFESSIONAL: 'kisa',
+}
 
 function Toggle({ checked, onChange, label, desc }: { checked: boolean; onChange: (v: boolean) => void; label: string; desc?: string }) {
   return (
@@ -106,7 +114,7 @@ function FAQModal({ faq, onSave, onClose }: { faq: Partial<FAQ> | null; onSave: 
         <div style={{ padding: '14px 20px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <button onClick={onClose} style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 16px', fontSize: 13, cursor: 'pointer', color: 'var(--text-2)' }}>İptal</button>
           <button
-            onClick={() => { if (q.trim() && a.trim()) { onSave({ id: faq?.id ?? Date.now().toString(), question: q.trim(), answer: a.trim() }) } }}
+            onClick={() => { if (q.trim() && a.trim()) { onSave({ id: faq?.id ?? `local-${Date.now()}`, question: q.trim(), answer: a.trim() }) } }}
             disabled={!q.trim() || !a.trim()}
             style={{ background: '#16A34A', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, opacity: !q.trim() || !a.trim() ? 0.5 : 1 }}
           >
@@ -118,30 +126,58 @@ function FAQModal({ faq, onSave, onClose }: { faq: Partial<FAQ> | null; onSave: 
   )
 }
 
-// Mock plan check — TODO: replace with real user plan from /api/auth/me or /api/user/plan
-const MOCK_IS_PRO = true
-
 export default function AIAssistantPage() {
-  const [isPro] = useState(MOCK_IS_PRO)
+  const [accountId, setAccountId] = useState<string | null>(null)
+  const [isPro, setIsPro] = useState(true)
+  const [notConnected, setNotConnected] = useState(false)
   const [settings, setSettings] = useState<AssistantSettings>(DEFAULT_SETTINGS)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [faqModal, setFaqModal] = useState<{ faq: Partial<FAQ> | null } | null>(null)
+
+  // Track which FAQ IDs exist in DB (vs local-only new ones)
+  const persistedFaqIds = useRef<Set<string>>(new Set())
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      // TODO: remove mock fallback once /api/whatsapp/assistant is live
-      const res = await fetch('/api/whatsapp/assistant')
+      // 1. WhatsApp hesabını bul
+      const healthRes = await fetch('/api/whatsapp/health')
+      if (!healthRes.ok) { setNotConnected(true); return }
+      const healthData = await healthRes.json() as { health?: { accountId?: string } }
+      const aid = healthData.health?.accountId
+      if (!aid) { setNotConnected(true); return }
+      setAccountId(aid)
+
+      // 2. Asistan konfigürasyonunu yükle
+      const res = await fetch(`/api/whatsapp/assistant/${aid}`)
+      if (res.status === 403) { setIsPro(false); return }
+      setIsPro(true)
+
       if (res.ok) {
-        const d = await res.json()
-        setSettings(d.settings ?? DEFAULT_SETTINGS)
-      } else {
-        setSettings(DEFAULT_SETTINGS)
+        const d = await res.json() as {
+          config?: {
+            enabled?: boolean
+            tone?: string
+            customKnowledge?: string | null
+            faqs?: Array<{ id: string; question: string; answer: string }>
+          } | null
+        }
+        const config = d.config
+        if (config) {
+          const faqs = config.faqs ?? []
+          persistedFaqIds.current = new Set(faqs.map(f => f.id))
+          setSettings({
+            enabled: config.enabled ?? false,
+            tone: TONE_FROM_API[config.tone ?? ''] ?? 'samimi',
+            knowledgeText: config.customKnowledge ?? '',
+            faqs,
+          })
+        }
       }
     } catch {
-      // TODO: remove mock fallback once /api/whatsapp/assistant is live
       setSettings(DEFAULT_SETTINGS)
     } finally { setLoading(false) }
   }, [])
@@ -149,17 +185,81 @@ export default function AIAssistantPage() {
   useEffect(() => { load() }, [load])
 
   async function handleSave() {
+    if (!accountId) return
     setSaving(true)
+    setSaveError(null)
     try {
-      // TODO: remove mock fallback once PUT /api/whatsapp/assistant/:accountId is live
-      await fetch('/api/whatsapp/assistant', {
+      // Ana konfigürasyonu kaydet
+      const configRes = await fetch(`/api/whatsapp/assistant/${accountId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(settings),
+        body: JSON.stringify({
+          enabled: settings.enabled,
+          tone: TONE_TO_API[settings.tone] ?? 'PROFESSIONAL',
+          customKnowledge: settings.knowledgeText,
+        }),
       })
+      if (!configRes.ok) {
+        const d = await configRes.json() as { error?: string }
+        setSaveError(d.error ?? 'Kayıt başarısız.')
+        return
+      }
+
+      // FAQ senkronizasyonu
+      const currentFaqs = settings.faqs
+      const persisted = persistedFaqIds.current
+
+      // Silinen kalıcı FAQ'ları sil
+      for (const id of persisted) {
+        if (!currentFaqs.find(f => f.id === id)) {
+          await fetch(`/api/whatsapp/assistant/faq/${id}`, { method: 'DELETE' }).catch(() => null)
+        }
+      }
+
+      // Yeni ve güncellenen FAQ'ları işle
+      const idRemaps: Record<string, string> = {}
+      for (const faq of currentFaqs) {
+        if (persisted.has(faq.id)) {
+          // Mevcut → güncelle
+          await fetch(`/api/whatsapp/assistant/faq/${faq.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ question: faq.question, answer: faq.answer }),
+          }).catch(() => null)
+        } else {
+          // Yeni → oluştur
+          const r = await fetch(`/api/whatsapp/assistant/${accountId}/faq`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ question: faq.question, answer: faq.answer }),
+          }).catch(() => null)
+          if (r?.ok) {
+            const data = await r.json() as { faq?: { id: string } }
+            if (data.faq?.id) idRemaps[faq.id] = data.faq.id
+          }
+        }
+      }
+
+      // Yeni DB ID'lerini state'e uygula ve persistedFaqIds güncelle
+      const newPersistedIds = new Set<string>()
+      for (const faq of currentFaqs) {
+        const dbId = idRemaps[faq.id] ?? faq.id
+        if (persisted.has(faq.id) || idRemaps[faq.id]) newPersistedIds.add(dbId)
+      }
+      persistedFaqIds.current = newPersistedIds
+
+      if (Object.keys(idRemaps).length > 0) {
+        setSettings(s => ({
+          ...s,
+          faqs: s.faqs.map(f => idRemaps[f.id] ? { ...f, id: idRemaps[f.id] } : f),
+        }))
+      }
+
       setSaved(true)
       setTimeout(() => setSaved(false), 2500)
-    } catch { /* ignore */ } finally { setSaving(false) }
+    } catch {
+      setSaveError('Beklenmeyen bir hata oluştu.')
+    } finally { setSaving(false) }
   }
 
   function handleFAQSave(faq: FAQ) {
@@ -182,7 +282,23 @@ export default function AIAssistantPage() {
   }
   const sectionTitle: React.CSSProperties = { fontSize: 13, fontWeight: 700, color: 'var(--text-1)', margin: '0 0 14px' }
 
-  // Upsell screen for non-Pro users
+  if (loading) {
+    return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '80px' }}><Loader2 size={20} className="animate-spin" style={{ color: '#16A34A' }} /></div>
+  }
+
+  if (notConnected) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 24px', gap: 12 }}>
+        <WifiOff size={36} style={{ color: 'var(--text-3)' }} />
+        <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-1)', margin: 0 }}>WhatsApp bağlı değil</p>
+        <p style={{ fontSize: 13, color: 'var(--text-2)', margin: 0 }}>AI Asistanı kullanmak için önce WhatsApp hesabınızı bağlayın</p>
+        <a href="/whatsapp/connection" style={{ background: '#16A34A', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 20px', fontSize: 13, fontWeight: 600, textDecoration: 'none', marginTop: 4 }}>
+          Bağlantı Kur
+        </a>
+      </div>
+    )
+  }
+
   if (!isPro) {
     return (
       <div style={{ padding: '40px 32px', maxWidth: 560, margin: '0 auto' }}>
@@ -190,7 +306,7 @@ export default function AIAssistantPage() {
           <div style={{ width: 52, height: 52, borderRadius: 12, background: 'var(--violet-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
             <Crown size={24} style={{ color: 'var(--violet)' }} />
           </div>
-          <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-1)', margin: '0 0 8px' }}>AI Asistan Pro Plana Özel</h2>
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-1)', margin: '0 0 8px' }}>AI Asistan Growth Planına Özel</h2>
           <p style={{ fontSize: 13, color: 'var(--text-2)', margin: '0 0 20px', lineHeight: 1.6 }}>
             WhatsApp AI Asistan ile müşterilerinize 7/24 otomatik yanıt verin, satışlarınızı artırın.
           </p>
@@ -206,15 +322,11 @@ export default function AIAssistantPage() {
             ))}
           </ul>
           <a href="/plans" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'var(--violet)', color: '#fff', borderRadius: 8, padding: '10px 22px', fontSize: 13, fontWeight: 700, textDecoration: 'none' }}>
-            Pro&apos;ya Yükselt <ChevronRight size={14} />
+            Growth&apos;a Yükselt <ChevronRight size={14} />
           </a>
         </div>
       </div>
     )
-  }
-
-  if (loading) {
-    return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '80px' }}><Loader2 size={20} className="animate-spin" style={{ color: '#16A34A' }} /></div>
   }
 
   return (
@@ -235,6 +347,12 @@ export default function AIAssistantPage() {
           {saving ? 'Kaydediliyor…' : saved ? 'Kaydedildi' : 'Kaydet'}
         </button>
       </div>
+
+      {saveError && (
+        <div style={{ marginBottom: 12, background: 'var(--red-soft)', border: '1px solid var(--red)', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: 'var(--red)' }}>
+          {saveError}
+        </div>
+      )}
 
       {/* Enable toggle */}
       <div style={cardStyle}>
@@ -265,23 +383,6 @@ export default function AIAssistantPage() {
             </button>
           ))}
         </div>
-      </div>
-
-      {/* Store data access */}
-      <div style={cardStyle}>
-        <Toggle
-          checked={settings.storeDataAccess}
-          onChange={v => setSettings(s => ({ ...s, storeDataAccess: v }))}
-          label="Mağaza Verisine Erişim"
-          desc="Açıkken asistan sipariş, ürün ve müşteri bilgilerine erişerek daha doğru yanıtlar verebilir"
-        />
-        {!settings.storeDataAccess && (
-          <div style={{ marginTop: 12, padding: '10px 12px', background: 'var(--amber-soft)', border: '1px solid var(--amber)', borderRadius: 8 }}>
-            <p style={{ fontSize: 12, color: 'var(--amber)', margin: 0 }}>
-              Kapalıyken asistan yalnızca SSS ve bilgi metnine göre yanıt verir.
-            </p>
-          </div>
-        )}
       </div>
 
       {/* FAQ */}
@@ -320,23 +421,6 @@ export default function AIAssistantPage() {
           }}
         />
         <p style={{ fontSize: 11, color: 'var(--text-3)', margin: '6px 0 0' }}>{settings.knowledgeText.length} karakter</p>
-      </div>
-
-      {/* Next steps suggestions */}
-      <div style={{ ...cardStyle, background: 'var(--blue-soft)', borderColor: 'var(--blue)' }}>
-        <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--blue)', margin: '0 0 10px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Planlanan İyileştirmeler</p>
-        <ul style={{ padding: 0, margin: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {[
-            'Asistanın yanıt veremediği soruları gösteren "öğrenme paneli"',
-            'İnsan devraldığında (Inbox > Manuel Mod) asistanın otomatik durması',
-            'Ayarları kaydetmeden önce yanıt önizleme (test modu)',
-            'Çok dilli mağazalar için yanıt dili ayarı',
-          ].map((item, i) => (
-            <li key={i} style={{ display: 'flex', gap: 8, fontSize: 12, color: 'var(--blue)' }}>
-              <span style={{ flexShrink: 0 }}>·</span> {item}
-            </li>
-          ))}
-        </ul>
       </div>
 
       {/* FAQ modal */}
