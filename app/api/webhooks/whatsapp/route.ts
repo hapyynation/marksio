@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { decrypt, verifyHmacSha256 } from '@/lib/encryption'
 import Groq from 'groq-sdk'
-import { getStoreContextForAssistant } from '@/lib/whatsapp-assistant/store-context'
 
 // Durum sıralaması — geriye düşmeyi önlemek için
 const STATUS_ORDER: Record<string, number> = {
@@ -203,6 +202,8 @@ const TONE_MAP: Record<string, string> = {
 }
 
 async function triggerAiAssistant(conversationId: string) {
+  const t0 = Date.now()
+
   const conv = await prisma.whatsappConversation.findUnique({
     where: { id: conversationId },
     include: {
@@ -224,31 +225,43 @@ async function triggerAiAssistant(conversationId: string) {
     },
   })
 
+  const t1 = Date.now()
+  console.log(`[AI Timing] Conv+mesajlar DB: ${t1 - t0}ms`)
+
   if (!conv) return
   if (conv.status === 'HUMAN_TAKEOVER' || conv.status === 'CLOSED') return
 
   const config = conv.account.assistantConfig
   if (!config?.enabled) return
 
+  // Tek sorguda plan + mağaza bilgisi — önceden iki ayrı query vardı
   const user = await prisma.user.findUnique({
     where: { id: conv.account.userId },
-    select: { plan: true },
+    select: { plan: true, storeName: true, currency: true },
   })
+
+  const t2 = Date.now()
+  console.log(`[AI Timing] User+mağaza DB: ${t2 - t1}ms`)
+
   if (!['growth', 'agency'].includes(user?.plan ?? '')) return
 
+  const storeLines: string[] = []
+  if (user?.storeName) storeLines.push(`Mağaza adı: ${user.storeName}`)
+  if (user?.currency) storeLines.push(`Para birimi: ${user.currency}`)
+  const storeContext = storeLines.join('\n')
+
   const history = [...conv.messages].reverse()
-  const storeContext = await getStoreContextForAssistant(conv.account.userId)
 
   const faqSection = config.faqs.length > 0
-    ? 'Sık Sorulan Sorular:\n' + config.faqs.map(f => `S: ${f.question}\nC: ${f.answer}`).join('\n---\n')
+    ? 'SIKÇA SORULAN SORULAR:\n' + config.faqs.map(f => `S: ${f.question}\nC: ${f.answer}`).join('\n---\n')
     : ''
 
   const systemPrompt = [
     `Sen ${config.businessName ?? 'bu işletmenin'} WhatsApp AI müşteri asistanısın.`,
     TONE_MAP[config.tone] ?? TONE_MAP.PROFESSIONAL,
-    'Kısa ve net yanıtlar ver. Gereksiz uzun açıklamalar yapma.',
-    storeContext ? `\nMağaza Bilgileri:\n${storeContext}` : '',
-    config.customKnowledge ? `\nÖzel Bilgi:\n${config.customKnowledge}` : '',
+    'ÖNEMLI KURALLAR:\n- Müşteri tek mesajda birden fazla soru sorarsa HER SORUYA ayrı ayrı ve eksiksiz yanıt ver, hiçbirini atlama.\n- Yanıtların kısa ve WhatsApp\'a uygun olsun.\n- Bilmediğin bir şeyi tahmin etme; "bu konuda emin değilim, sizi ilgili biriyle buluşturayım" gibi yanıt ver.',
+    storeContext ? `\nMAĞAZA BİLGİLERİ:\n${storeContext}` : '',
+    config.customKnowledge ? `\nÖZEL BİLGİ:\n${config.customKnowledge}` : '',
     faqSection ? `\n${faqSection}` : '',
   ].filter(Boolean).join('\n')
 
@@ -268,7 +281,7 @@ async function triggerAiAssistant(conversationId: string) {
     const completion = await groq.chat.completions.create({
       model: 'llama-3.3-70b-versatile',
       messages: chatMessages,
-      max_tokens: 300,
+      max_tokens: 600,
       temperature: 0.7,
     })
     reply = completion.choices[0]?.message?.content?.trim() ?? undefined
@@ -276,6 +289,9 @@ async function triggerAiAssistant(conversationId: string) {
     console.error('[AI Assistant] Groq hatası:', err)
     reply = config.fallbackMessage ?? undefined
   }
+
+  const t3 = Date.now()
+  console.log(`[AI Timing] Groq çağrısı: ${t3 - t2}ms`)
 
   if (!reply) return
 
@@ -313,6 +329,10 @@ async function triggerAiAssistant(conversationId: string) {
       })
     }
   }
+
+  const t4 = Date.now()
+  console.log(`[AI Timing] Meta gönderme: ${t4 - t3}ms`)
+  console.log(`[AI Timing] TOPLAM: ${t4 - t0}ms`)
 
   await prisma.whatsappMessage.create({
     data: {
