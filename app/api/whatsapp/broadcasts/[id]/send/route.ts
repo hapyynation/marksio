@@ -177,6 +177,12 @@ export async function sendBatch(
     } else {
       const errData = metaRes ? await metaRes.json().catch(() => ({})) : {}
       const reason = (errData as { error?: { message?: string } })?.error?.message ?? 'Bilinmeyen hata'
+      console.error('[WhatsApp Broadcast] Meta API hatası:', {
+        status: metaRes?.status,
+        error: (errData as { error?: unknown })?.error,
+        phoneNumber,
+        broadcastId,
+      })
 
       if (msgRecord) {
         await prisma.whatsappMessage.update({

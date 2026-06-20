@@ -46,6 +46,7 @@ export async function GET() {
   })
 
   const health = {
+    accountId: account.id,
     connectionStatus: account.status === 'CONNECTED' ? 'connected' : 'error',
     phoneNumber: account.displayName ?? account.phoneNumberId,
     displayName: account.displayName ?? null,

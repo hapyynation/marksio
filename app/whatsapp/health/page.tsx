@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Loader2, RefreshCw, AlertTriangle, CheckCircle2, WifiOff } from 'lucide-react'
+import { Loader2, RefreshCw, AlertTriangle, CheckCircle2, WifiOff, Key, Eye, EyeOff } from 'lucide-react'
 
 interface HealthData {
+  accountId: string
   connectionStatus: string
   phoneNumber: string | null
   displayName: string | null
@@ -72,6 +73,12 @@ export default function HealthPage() {
   const [health, setHealth] = useState<HealthData | null>(null)
   const [loading, setLoading] = useState(true)
   const [reconnecting, setReconnecting] = useState(false)
+  const [showTokenForm, setShowTokenForm] = useState(false)
+  const [newToken, setNewToken] = useState('')
+  const [showToken, setShowToken] = useState(false)
+  const [tokenSaving, setTokenSaving] = useState(false)
+  const [tokenError, setTokenError] = useState<string | null>(null)
+  const [tokenSuccess, setTokenSuccess] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -92,6 +99,33 @@ export default function HealthPage() {
       await fetch('/api/whatsapp/disconnect', { method: 'POST' })
       window.location.href = '/whatsapp/connection'
     } catch { /* ignore */ } finally { setReconnecting(false) }
+  }
+
+  async function handleTokenUpdate() {
+    if (!health?.accountId || !newToken.trim()) return
+    setTokenSaving(true)
+    setTokenError(null)
+    setTokenSuccess(false)
+    try {
+      const res = await fetch(`/api/whatsapp/accounts/${health.accountId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accessToken: newToken.trim() }),
+      })
+      if (res.ok) {
+        setTokenSuccess(true)
+        setNewToken('')
+        setShowTokenForm(false)
+        await load()
+      } else {
+        const d = await res.json() as { error?: string }
+        setTokenError(d.error ?? 'Token güncellenemedi.')
+      }
+    } catch {
+      setTokenError('Sunucuya ulaşılamadı.')
+    } finally {
+      setTokenSaving(false)
+    }
   }
 
   if (loading) {
@@ -207,6 +241,68 @@ export default function HealthPage() {
               <p style={{ fontSize: 12, color: '#92400E', margin: 0 }}>
                 Webhook&apos;ta sorun olabilir. Meta panelinden webhook URL&apos;ini kontrol edin veya bağlantıyı yenileyin.
               </p>
+            </div>
+          )}
+        </div>
+
+        {/* Token güncelle */}
+        <div style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 10, padding: '18px 22px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: showTokenForm ? 14 : 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Key size={14} style={{ color: '#6B7280' }} />
+              <p style={{ fontSize: 13, fontWeight: 600, color: '#111827', margin: 0 }}>Erişim Token&apos;ı</p>
+            </div>
+            <button
+              onClick={() => { setShowTokenForm(p => !p); setTokenError(null); setTokenSuccess(false) }}
+              style={{ background: '#F3F4F6', border: '1px solid #E5E7EB', borderRadius: 7, padding: '6px 14px', fontSize: 12, fontWeight: 500, cursor: 'pointer', color: '#374151' }}
+            >
+              {showTokenForm ? 'İptal' : 'Token Güncelle'}
+            </button>
+          </div>
+
+          {tokenSuccess && !showTokenForm && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10 }}>
+              <CheckCircle2 size={13} style={{ color: '#16A34A' }} />
+              <span style={{ fontSize: 12, color: '#16A34A', fontWeight: 500 }}>Token başarıyla güncellendi.</span>
+            </div>
+          )}
+
+          {showTokenForm && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <p style={{ fontSize: 12, color: '#6B7280', margin: 0 }}>
+                Meta Business Manager&apos;dan yeni bir System User Token oluşturup buraya yapıştırın. Token önce Meta API&apos;ye karşı doğrulanır.
+              </p>
+              <div style={{ position: 'relative' }}>
+                <input
+                  type={showToken ? 'text' : 'password'}
+                  value={newToken}
+                  onChange={e => setNewToken(e.target.value)}
+                  placeholder="EAABcde..."
+                  style={{ width: '100%', background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 8, padding: '9px 40px 9px 12px', fontSize: 13, color: '#111827', outline: 'none', boxSizing: 'border-box' }}
+                />
+                <button
+                  onClick={() => setShowToken(p => !p)}
+                  style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', padding: 0 }}
+                >
+                  {showToken ? <EyeOff size={14} /> : <Eye size={14} />}
+                </button>
+              </div>
+              {tokenError && (
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, background: '#FEE2E2', border: '1px solid #FECACA', borderRadius: 7, padding: '8px 12px' }}>
+                  <AlertTriangle size={13} style={{ color: '#DC2626', marginTop: 1, flexShrink: 0 }} />
+                  <span style={{ fontSize: 12, color: '#991B1B' }}>{tokenError}</span>
+                </div>
+              )}
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  onClick={handleTokenUpdate}
+                  disabled={tokenSaving || !newToken.trim()}
+                  style={{ background: '#2563EB', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 18px', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, opacity: (tokenSaving || !newToken.trim()) ? 0.6 : 1 }}
+                >
+                  {tokenSaving ? <Loader2 size={13} className="animate-spin" /> : <Key size={13} />}
+                  {tokenSaving ? 'Kaydediliyor…' : 'Kaydet'}
+                </button>
+              </div>
             </div>
           )}
         </div>

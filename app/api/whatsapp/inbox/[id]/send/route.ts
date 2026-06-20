@@ -43,11 +43,25 @@ export async function POST(
       type: 'text',
       text: { body: message.trim() },
     }),
-  }).catch(() => null)
+  }).catch((err) => {
+    console.error('[WhatsApp Send] Ağ hatası:', err)
+    return null
+  })
 
-  const metaMessageId = metaRes?.ok
-    ? ((await metaRes.json().catch(() => ({}))) as { messages?: Array<{ id?: string }> }).messages?.[0]?.id ?? null
-    : null
+  type MetaResult = { messages?: Array<{ id?: string }>; error?: { message?: string; code?: number; type?: string } }
+  let metaMessageId: string | null = null
+  if (metaRes) {
+    const metaResult = await metaRes.json().catch(() => ({})) as MetaResult
+    if (metaRes.ok) {
+      metaMessageId = metaResult.messages?.[0]?.id ?? null
+    } else {
+      console.error('[WhatsApp Send] Meta API hatası:', {
+        status: metaRes.status,
+        error: metaResult.error,
+        phoneNumberId: conv.account.phoneNumberId,
+      })
+    }
+  }
 
   await prisma.whatsappMessage.create({
     data: {
