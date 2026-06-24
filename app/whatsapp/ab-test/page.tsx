@@ -23,15 +23,15 @@ interface Template {
 const STATUS_CONFIG: Record<string, { label: string; bg: string; color: string }> = {
   RUNNING:   { label: 'Devam Ediyor', bg: '#DBEAFE', color: '#2563EB' },
   COMPLETED: { label: 'Tamamlandı',   bg: '#DCFCE7', color: '#16A34A' },
-  DRAFT:     { label: 'Taslak',       bg: '#F3F4F6', color: '#6B7280' },
+  DRAFT:     { label: 'Taslak',       bg: '#F3F4F6', color: 'var(--text-2)' },
 }
 
 function StatChip({ icon, value, label, color = '#6B7280' }: { icon: string; value: string | number; label: string; color?: string }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 20, padding: '4px 12px' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 20, padding: '4px 12px' }}>
       <span className="material-symbols-outlined" style={{ fontSize: 14, color }}>{icon}</span>
-      <span style={{ fontSize: 12, fontWeight: 700, color: '#111827' }}>{value}</span>
-      <span style={{ fontSize: 11, color: '#6B7280' }}>{label}</span>
+      <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-1)' }}>{value}</span>
+      <span style={{ fontSize: 11, color: 'var(--text-2)' }}>{label}</span>
     </div>
   )
 }
@@ -55,19 +55,19 @@ function VariantCard({ label, data, isWinner }: { label: 'A' | 'B'; data: ABTest
       </div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
         <span style={{ fontSize: 22, fontWeight: 800, color: isWinner ? '#16A34A' : '#111827' }}>{data.readRate > 0 ? `${data.readRate.toFixed(1)}%` : '—'}</span>
-        {data.readRate > 0 && <span style={{ fontSize: 11, color: '#6B7280' }}>okunma oranı</span>}
+        {data.readRate > 0 && <span style={{ fontSize: 11, color: 'var(--text-2)' }}>okunma oranı</span>}
       </div>
       <div style={{ marginTop: 8, height: 5, background: '#E5E7EB', borderRadius: 4, overflow: 'hidden' }}>
         <div style={{ height: '100%', width: `${data.readRate}%`, background: isWinner ? '#16A34A' : '#2563EB', borderRadius: 4, transition: 'width 0.8s ease' }} />
       </div>
-      <p style={{ fontSize: 11, color: '#9CA3AF', marginTop: 4 }}>%{data.traffic} trafik</p>
+      <p style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>%{data.traffic} trafik</p>
     </div>
   )
 }
 
 const inpStyle: React.CSSProperties = {
-  width: '100%', background: '#F9FAFB', border: '1px solid #E5E7EB',
-  borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#111827', outline: 'none',
+  width: '100%', background: 'var(--bg)', border: '1px solid var(--border)',
+  borderRadius: 8, padding: '10px 14px', fontSize: 13, color: 'var(--text-1)', outline: 'none',
 }
 
 export default function ABTestPage() {
@@ -122,8 +122,8 @@ export default function ABTestPage() {
 
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, color: '#111827', margin: '0 0 4px' }}>A/B Testler</h1>
-          <p style={{ fontSize: 13, color: '#6B7280', margin: 0 }}>Şablon varyantlarını karşılaştırarak en iyisini bulun</p>
+          <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-1)', margin: '0 0 4px' }}>A/B Testler</h1>
+          <p style={{ fontSize: 13, color: 'var(--text-2)', margin: 0 }}>Şablon varyantlarını karşılaştırarak en iyisini bulun</p>
         </div>
         <button
           onClick={() => setShowCreate(true)}
@@ -142,17 +142,17 @@ export default function ABTestPage() {
       {loading ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {Array.from({ length: 2 }).map((_, i) => (
-            <div key={i} style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 10, padding: 20, height: 160 }}>
+            <div key={i} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 20, height: 160 }}>
               <div style={{ height: 14, background: '#F3F4F6', borderRadius: 4, width: 200, marginBottom: 12 }} />
               <div style={{ height: 10, background: '#F3F4F6', borderRadius: 4, width: 120 }} />
             </div>
           ))}
         </div>
       ) : tests.length === 0 ? (
-        <div style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 10, padding: '48px 24px', textAlign: 'center' }}>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '48px 24px', textAlign: 'center' }}>
           <span className="material-symbols-outlined" style={{ fontSize: 36, color: '#D1D5DB', display: 'block', marginBottom: 10 }}>science</span>
           <p style={{ fontSize: 14, fontWeight: 600, color: '#374151', margin: '0 0 4px' }}>Henüz A/B testi yok</p>
-          <p style={{ fontSize: 13, color: '#6B7280', margin: '0 0 16px' }}>Farklı şablon varyantlarını test ederek dönüşüm oranınızı artırın</p>
+          <p style={{ fontSize: 13, color: 'var(--text-2)', margin: '0 0 16px' }}>Farklı şablon varyantlarını test ederek dönüşüm oranınızı artırın</p>
           <button onClick={() => setShowCreate(true)} style={{ background: '#16A34A', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             <Plus size={13} /> İlk Testi Oluştur
           </button>
@@ -162,14 +162,14 @@ export default function ABTestPage() {
           {tests.map(test => {
             const stsCfg = STATUS_CONFIG[test.status]
             return (
-              <div key={test.id} style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 10, padding: '16px 20px' }}>
+              <div key={test.id} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '16px 20px' }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14, gap: 10 }}>
                   <div>
-                    <h3 style={{ fontSize: 14, fontWeight: 700, color: '#111827', margin: '0 0 4px' }}>{test.name}</h3>
+                    <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-1)', margin: '0 0 4px' }}>{test.name}</h3>
                     <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
                       <span style={{ background: stsCfg.bg, color: stsCfg.color, fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 6 }}>{stsCfg.label}</span>
-                      {test.audienceSize > 0 && <span style={{ fontSize: 12, color: '#6B7280' }}>{test.audienceSize.toLocaleString('tr')} kişi</span>}
-                      <span style={{ fontSize: 12, color: '#9CA3AF' }}>{new Date(test.createdAt).toLocaleDateString('tr-TR', { day: '2-digit', month: 'short' })}</span>
+                      {test.audienceSize > 0 && <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{test.audienceSize.toLocaleString('tr')} kişi</span>}
+                      <span style={{ fontSize: 12, color: 'var(--text-3)' }}>{new Date(test.createdAt).toLocaleDateString('tr-TR', { day: '2-digit', month: 'short' })}</span>
                     </div>
                   </div>
                 </div>
@@ -185,10 +185,10 @@ export default function ABTestPage() {
 
       {showCreate && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 20 }}>
-          <div style={{ background: '#FFFFFF', borderRadius: 12, width: '100%', maxWidth: 460, boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}>
+          <div style={{ background: 'var(--surface)', borderRadius: 12, width: '100%', maxWidth: 460, boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}>
             <div style={{ padding: '18px 22px', borderBottom: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <h2 style={{ fontSize: 15, fontWeight: 700, color: '#111827', margin: 0 }}>Yeni A/B Testi</h2>
-              <button onClick={() => setShowCreate(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF' }}><X size={18} /></button>
+              <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-1)', margin: 0 }}>Yeni A/B Testi</h2>
+              <button onClick={() => setShowCreate(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)' }}><X size={18} /></button>
             </div>
             <div style={{ padding: 22, display: 'flex', flexDirection: 'column', gap: 14 }}>
               <label style={{ display: 'block' }}>
@@ -212,7 +212,7 @@ export default function ABTestPage() {
                 </label>
               </div>
               {templates.length === 0 && (
-                <p style={{ fontSize: 11, color: '#9CA3AF', margin: 0 }}>Onaylı şablon bulunamadı. Şablonlar sayfasından senkronize edin.</p>
+                <p style={{ fontSize: 11, color: 'var(--text-3)', margin: 0 }}>Onaylı şablon bulunamadı. Şablonlar sayfasından senkronize edin.</p>
               )}
               <label style={{ display: 'block' }}>
                 <span style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>
@@ -222,7 +222,7 @@ export default function ABTestPage() {
               </label>
             </div>
             <div style={{ padding: '14px 22px', borderTop: '1px solid #E5E7EB', display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-              <button onClick={() => setShowCreate(false)} style={{ background: '#F3F4F6', border: '1px solid #E5E7EB', borderRadius: 8, padding: '9px 16px', fontSize: 13, fontWeight: 500, cursor: 'pointer', color: '#374151' }}>İptal</button>
+              <button onClick={() => setShowCreate(false)} style={{ background: '#F3F4F6', border: '1px solid var(--border)', borderRadius: 8, padding: '9px 16px', fontSize: 13, fontWeight: 500, cursor: 'pointer', color: '#374151' }}>İptal</button>
               <button onClick={handleCreate} disabled={creating || !cName || !cTemplateA || !cTemplateB} style={{ background: '#16A34A', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, opacity: !cName || !cTemplateA || !cTemplateB ? 0.5 : 1 }}>
                 {creating ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
                 {creating ? 'Oluşturuluyor…' : 'Testi Başlat'}

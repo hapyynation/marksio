@@ -40,7 +40,7 @@ const TRIGGER_META: Record<string, { label: string; icon: React.ElementType; col
 const STATUS_CFG: Record<string, { label: string; dot: string; badge: string }> = {
   active:  { label: 'Aktif',        dot: 'bg-emerald-400 animate-pulse', badge: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
   paused:  { label: 'Duraklatıldı', dot: 'bg-amber-400',                 badge: 'bg-amber-500/10 text-amber-400 border-amber-500/20'       },
-  draft:   { label: 'Taslak',       dot: 'bg-[#8080a0]',                 badge: 'bg-slate-100 text-slate-500 border-slate-200'       },
+  draft:   { label: 'Taslak',       dot: 'bg-[var(--text-3)]',                 badge: 'bg-[var(--surface-2)] text-[var(--text-2)] border-[var(--border)]'       },
 }
 
 type FilterKey = 'all' | 'active' | 'paused' | 'draft'
@@ -130,7 +130,7 @@ function AutoCard({ a, onToggle, onDelete, onClone }: {
           <div className="flex items-start gap-3 min-w-0 flex-1">
             <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
               style={{ background: `${meta.color}18`, border: `1px solid ${meta.color}25` }}>
-              <Icon size={17} style={{ color: a.status === 'active' ? meta.color : '#8080a0' }} />
+              <Icon size={17} style={{ color: a.status === 'active' ? meta.color : 'var(--text-3)' }} />
             </div>
             <div className="min-w-0">
               <h3 className="text-sm font-semibold truncate" style={{ color: 'var(--text-1)' }}>{a.name}</h3>
@@ -203,12 +203,12 @@ function AutoCard({ a, onToggle, onDelete, onClone }: {
               <Pencil size={10} /> Düzenle
             </Link>
             <Link href={`/automations/${a.id}/runs`}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all hover:bg-slate-100"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all hover:bg-[var(--surface-2)]"
               style={{ color: 'var(--text-2)' }}>
               <History size={10} /> Geçmiş
             </Link>
             <button onClick={async () => { setCloning(true); await onClone(); setCloning(false) }} disabled={cloning}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all hover:bg-slate-100"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all hover:bg-[var(--surface-2)]"
               style={{ color: 'var(--text-2)' }}>
               {cloning ? <Loader2 size={10} className="animate-spin" /> : <Copy size={10} />} Klonla
             </button>
@@ -408,15 +408,15 @@ export default function AutomationsPage() {
       <div className="sticky top-0 z-20 flex items-center justify-between px-4 md:px-6 h-14 shrink-0"
         style={{ background: 'rgba(255,255,255,0.97)', backdropFilter: 'blur(24px)', borderBottom: '1px solid #E5E7EB' }}>
         <div>
-          <h1 className="text-[15px] md:text-[16px] font-bold" style={{ color: '#111827' }}>Otomasyonlar</h1>
-          <p className="text-[11px] hidden sm:block" style={{ color: '#6B7280' }}>Akıllı müşteri yolculukları oluşturun, yönetin ve performanslarını artırın.</p>
+          <h1 className="text-[15px] md:text-[16px] font-bold" style={{ color: 'var(--text-1)' }}>Otomasyonlar</h1>
+          <p className="text-[11px] hidden sm:block" style={{ color: 'var(--text-2)' }}>Akıllı müşteri yolculukları oluşturun, yönetin ve performanslarını artırın.</p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={downloadCSV}
             disabled={automations.length === 0}
             className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold transition-all disabled:opacity-40"
-            style={{ background: '#F3F4F6', color: '#6B7280', border: '1px solid #E5E7EB' }}>
+            style={{ background: '#F3F4F6', color: 'var(--text-2)', border: '1px solid var(--border)' }}>
             <Download className="w-3.5 h-3.5" /> Raporu İndir
           </button>
           <Link href="/automations/new"
@@ -442,17 +442,17 @@ export default function AutomationsPage() {
               const KIcon = k.icon
               return (
                 <div key={k.label} className="rounded-2xl p-4 relative overflow-hidden cursor-default transition-all"
-                  style={{ background: '#FFFFFF', border: '1px solid #E5E7EB' }}
+                  style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
                   onMouseEnter={e => (e.currentTarget.style.background = '#F3F4F6')}
-                  onMouseLeave={e => (e.currentTarget.style.background = '#FFFFFF')}>
+                  onMouseLeave={e => (e.currentTarget.style.background = 'var(--surface)')}>
                   <div className="absolute top-0 left-4 right-4 h-px" style={{ background: `linear-gradient(90deg,transparent,${k.color}44,transparent)` }} />
                   <div className="flex items-center justify-between mb-3">
-                    <p className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: '#6B7280' }}>{k.label}</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'var(--text-2)' }}>{k.label}</p>
                     <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: k.bg }}>
                       <KIcon className="w-3.5 h-3.5" style={{ color: k.color }} />
                     </div>
                   </div>
-                  <p className="text-[22px] font-bold leading-none" style={{ color: '#111827', letterSpacing: '-0.02em' }}>{k.value}</p>
+                  <p className="text-[22px] font-bold leading-none" style={{ color: 'var(--text-1)', letterSpacing: '-0.02em' }}>{k.value}</p>
                 </div>
               )
             })}
@@ -462,10 +462,10 @@ export default function AutomationsPage() {
           <div>
             <div className="flex items-center justify-between mb-3">
               <div>
-                <h2 className="text-[14px] font-bold" style={{ color: '#111827' }}>Hazır Otomasyon Şablonları</h2>
-                <p className="text-[11px] mt-0.5" style={{ color: '#6B7280' }}>İhtiyacınıza uygun şablonu seçin ve builder'da özelleştirip aktifleştirin.</p>
+                <h2 className="text-[14px] font-bold" style={{ color: 'var(--text-1)' }}>Hazır Otomasyon Şablonları</h2>
+                <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-2)' }}>İhtiyacınıza uygun şablonu seçin ve builder'da özelleştirip aktifleştirin.</p>
               </div>
-              <span className="text-[11px] font-mono" style={{ color: '#6B7280' }}>{templates.length} şablon</span>
+              <span className="text-[11px] font-mono" style={{ color: 'var(--text-2)' }}>{templates.length} şablon</span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
               {templates.map(tpl => {
@@ -474,9 +474,9 @@ export default function AutomationsPage() {
                 const isActivating = activatingTpl === tpl.id
                 return (
                   <div key={tpl.id} className="rounded-2xl p-4 cursor-default transition-all relative overflow-hidden"
-                    style={{ background: '#FFFFFF', border: '1px solid #E5E7EB' }}
+                    style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
                     onMouseEnter={e => { e.currentTarget.style.background = '#F3F4F6'; e.currentTarget.style.borderColor = `${tpl.color}25` }}
-                    onMouseLeave={e => { e.currentTarget.style.background = '#FFFFFF'; e.currentTarget.style.borderColor = '#E5E7EB' }}>
+                    onMouseLeave={e => { e.currentTarget.style.background = 'var(--surface)'; e.currentTarget.style.borderColor = 'var(--border)' }}>
                     <div className="absolute top-0 left-0 right-0 h-px" style={{ background: `linear-gradient(90deg,transparent,${tpl.color}44,transparent)` }} />
                     {tpl.pro && (
                       <span className="absolute top-3 right-3 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
@@ -491,19 +491,19 @@ export default function AutomationsPage() {
                         <TplIcon className="w-4 h-4" style={{ color: tpl.color }} />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-[12px] font-semibold truncate" style={{ color: '#111827' }}>{tpl.name}</p>
-                        <p className="text-[10px]" style={{ color: '#6B7280' }}>{tpl.description}</p>
+                        <p className="text-[12px] font-semibold truncate" style={{ color: 'var(--text-1)' }}>{tpl.name}</p>
+                        <p className="text-[10px]" style={{ color: 'var(--text-2)' }}>{tpl.description}</p>
                       </div>
                     </div>
                     <div className="flex items-center justify-between mb-3">
                       <div>
                         {/* Labeled as industry estimate — not real store revenue */}
-                        <p className="text-[10px]" style={{ color: '#6B7280' }}>Tahmini Potansiyel</p>
-                        <p className="text-[11px] font-semibold" style={{ color: '#6B7280' }}>{tpl.expectedRevenue} <span className="text-[9px] opacity-60">(sektör ort.)</span></p>
+                        <p className="text-[10px]" style={{ color: 'var(--text-2)' }}>Tahmini Potansiyel</p>
+                        <p className="text-[11px] font-semibold" style={{ color: 'var(--text-2)' }}>{tpl.expectedRevenue} <span className="text-[9px] opacity-60">(sektör ort.)</span></p>
                       </div>
                       <div className="text-right">
-                        <p className="text-[10px]" style={{ color: '#6B7280' }}>Kurulum Süresi</p>
-                        <p className="text-[11px] font-semibold" style={{ color: '#6B7280' }}>{tpl.setupTime}</p>
+                        <p className="text-[10px]" style={{ color: 'var(--text-2)' }}>Kurulum Süresi</p>
+                        <p className="text-[11px] font-semibold" style={{ color: 'var(--text-2)' }}>{tpl.setupTime}</p>
                       </div>
                     </div>
                     <button
@@ -523,22 +523,22 @@ export default function AutomationsPage() {
           {/* ── Active automations table ── */}
           <div>
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-3">
-              <h2 className="text-[14px] font-bold shrink-0" style={{ color: '#111827' }}>Aktif Otomasyonlar</h2>
-              <div className="flex items-center p-0.5 gap-0.5 rounded-xl overflow-x-auto no-scrollbar" style={{ background: '#F3F4F6', border: '1px solid #E5E7EB' }}>
+              <h2 className="text-[14px] font-bold shrink-0" style={{ color: 'var(--text-1)' }}>Aktif Otomasyonlar</h2>
+              <div className="flex items-center p-0.5 gap-0.5 rounded-xl overflow-x-auto no-scrollbar" style={{ background: '#F3F4F6', border: '1px solid var(--border)' }}>
                 {(['all','active','paused','draft'] as FilterKey[]).map(f => (
                   <button key={f} onClick={() => setFilter(f)}
                     className="px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all shrink-0 whitespace-nowrap"
-                    style={filter === f ? { background: '#FFFFFF', color: '#2563EB', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' } : { color: '#6B7280' }}>
+                    style={filter === f ? { background: 'var(--surface)', color: '#2563EB', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' } : { color: 'var(--text-2)' }}>
                     {f === 'all' ? 'Tümü' : STATUS_CFG[f]?.label ?? f}
                   </button>
                 ))}
               </div>
               <div className="relative sm:ml-auto">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3" style={{ color: '#6B7280' }} />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3" style={{ color: 'var(--text-2)' }} />
                 <input value={search} onChange={e => setSearch(e.target.value)}
                   placeholder="Otomasyon ara..."
                   className="pl-8 pr-3 py-1.5 text-[12px] rounded-xl outline-none w-full sm:w-48"
-                  style={{ background: '#F3F4F6', border: '1px solid #E5E7EB', color: '#111827' }} />
+                  style={{ background: '#F3F4F6', border: '1px solid var(--border)', color: 'var(--text-1)' }} />
               </div>
             </div>
 
@@ -550,14 +550,14 @@ export default function AutomationsPage() {
               </div>
             ) : filtered.length === 0 && automations.length === 0 ? (
               <div className="rounded-2xl p-12 flex flex-col items-center text-center gap-5"
-                style={{ background: '#FFFFFF', border: '1.5px dashed #D1D5DB' }}>
+                style={{ background: 'var(--surface)', border: '1.5px dashed var(--border-2)' }}>
                 <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
                   style={{ background: 'rgba(68,112,255,0.08)', border: '1.5px dashed rgba(68,112,255,0.25)' }}>
                   <Zap className="w-6 h-6" style={{ color: '#99b4ff' }} />
                 </div>
                 <div>
-                  <h3 className="text-[14px] font-bold mb-1.5" style={{ color: '#111827' }}>İlk otomasyonunuzu oluşturun</h3>
-                  <p className="text-[12px] max-w-xs mx-auto leading-relaxed" style={{ color: '#6B7280' }}>
+                  <h3 className="text-[14px] font-bold mb-1.5" style={{ color: 'var(--text-1)' }}>İlk otomasyonunuzu oluşturun</h3>
+                  <p className="text-[12px] max-w-xs mx-auto leading-relaxed" style={{ color: 'var(--text-2)' }}>
                     Yukarıdaki şablonlardan birini seçin veya sıfırdan bir otomasyon oluşturun.
                   </p>
                 </div>
@@ -567,25 +567,25 @@ export default function AutomationsPage() {
                 </Link>
               </div>
             ) : filtered.length === 0 ? (
-              <div className="rounded-2xl p-8 text-center" style={{ background: '#FFFFFF', border: '1px solid #E5E7EB' }}>
-                <p className="text-[13px]" style={{ color: '#6B7280' }}>Filtreyle eşleşen otomasyon bulunamadı</p>
+              <div className="rounded-2xl p-8 text-center" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <p className="text-[13px]" style={{ color: 'var(--text-2)' }}>Filtreyle eşleşen otomasyon bulunamadı</p>
               </div>
             ) : (
-              <div className="rounded-2xl" style={{ background: '#FFFFFF', border: '1px solid #E5E7EB' }}>
+              <div className="rounded-2xl" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr style={{ background: '#F9FAFB', borderBottom: '1px solid #E5E7EB' }}>
+                    <tr style={{ background: 'var(--bg)', borderBottom: '1px solid #E5E7EB' }}>
                       {['OTOMASYON ADI', 'DURUM', 'TETİKLEYİCİ', 'ÇALIŞMA (30G)', 'DÖNÜŞÜM ORANI', 'KAZANILAN GELİR', 'SON ÇALIŞMA', ''].map(col => (
                         <th key={col} className="text-left px-4 py-2.5 text-[9px] font-semibold tracking-wider whitespace-nowrap"
-                          style={{ color: '#9CA3AF' }}>{col}</th>
+                          style={{ color: 'var(--text-3)' }}>{col}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {filtered.map((a, i) => {
                       const st = STATUS_CFG[a.status] ?? STATUS_CFG.draft
-                      const meta = TRIGGER_META[a.trigger] ?? { label: a.trigger || '—', icon: Zap, color: '#6B7280' }
+                      const meta = TRIGGER_META[a.trigger] ?? { label: a.trigger || '—', icon: Zap, color: 'var(--text-2)' }
                       const MetaIcon = meta.icon
                       const conv = a.sent > 0 ? ((a.converted / a.sent) * 100).toFixed(1) : null
                       const isUpdating = updatingId === a.id
@@ -600,8 +600,8 @@ export default function AutomationsPage() {
                                 <MetaIcon className="w-3.5 h-3.5" style={{ color: meta.color }} />
                               </div>
                               <div>
-                                <p className="text-[12px] font-semibold" style={{ color: '#111827' }}>{a.name}</p>
-                                <p className="text-[10px]" style={{ color: '#6B7280' }}>{meta.label}</p>
+                                <p className="text-[12px] font-semibold" style={{ color: 'var(--text-1)' }}>{a.name}</p>
+                                <p className="text-[10px]" style={{ color: 'var(--text-2)' }}>{meta.label}</p>
                               </div>
                             </div>
                           </td>
@@ -612,18 +612,18 @@ export default function AutomationsPage() {
                                   ? { background: 'rgba(34,201,122,0.1)', color: '#22c97a', border: '1px solid rgba(34,201,122,0.2)' }
                                   : a.status === 'paused'
                                     ? { background: 'rgba(240,160,32,0.1)', color: '#f0a020', border: '1px solid rgba(240,160,32,0.2)' }
-                                    : { background: '#F3F4F6', color: '#6B7280', border: '1px solid #E5E7EB' }
+                                    : { background: '#F3F4F6', color: 'var(--text-2)', border: '1px solid var(--border)' }
                               }>
                               <span className={cn('w-1.5 h-1.5 rounded-full', st.dot)} />
                               {st.label}
                             </div>
                           </td>
                           <td className="px-4 py-3">
-                            <div className="flex items-center gap-1.5 text-[11px]" style={{ color: '#6B7280' }}>
+                            <div className="flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--text-2)' }}>
                               <MetaIcon className="w-3 h-3" /> {meta.label}
                             </div>
                           </td>
-                          <td className="px-4 py-3 text-[11px] font-semibold" style={{ color: '#111827', fontFamily: 'monospace' }}>
+                          <td className="px-4 py-3 text-[11px] font-semibold" style={{ color: 'var(--text-1)', fontFamily: 'monospace' }}>
                             {formatNumber(a.runStats?.total ?? 0)}
                           </td>
                           <td className="px-4 py-3">
@@ -634,7 +634,7 @@ export default function AutomationsPage() {
                           <td className="px-4 py-3 text-[12px] font-bold" style={{ color: '#22c97a', fontFamily: 'monospace' }}>
                             {a.revenue > 0 ? formatCurrency(a.revenue) : '—'}
                           </td>
-                          <td className="px-4 py-3 text-[11px]" style={{ color: '#6B7280' }}>
+                          <td className="px-4 py-3 text-[11px]" style={{ color: 'var(--text-2)' }}>
                             {relativeTime(a.runStats?.lastRun ?? null)}
                           </td>
                           <td className="px-4 py-3">

@@ -20,7 +20,7 @@ const segmentConfig: Record<Segment, { label: string; icon: React.ElementType; c
   loyal:    { label: 'Sadık',  icon: Users,         color: '#99b4ff', bg: 'rgba(153,180,255,0.12)', badgeText: '#99b4ff', badgeBg: 'rgba(153,180,255,0.12)' },
   at_risk:  { label: 'Riskli', icon: AlertTriangle, color: '#e84545', bg: 'rgba(232,69,69,0.12)',   badgeText: '#e84545', badgeBg: 'rgba(232,69,69,0.12)' },
   new:      { label: 'Yeni',   icon: UserPlus,      color: '#22c97a', bg: 'rgba(34,201,122,0.12)',  badgeText: '#22c97a', badgeBg: 'rgba(34,201,122,0.12)' },
-  inactive: { label: 'Pasif',  icon: Clock,         color: '#6B7280', bg: 'rgba(128,128,160,0.12)', badgeText: '#8080a0', badgeBg: 'rgba(128,128,160,0.12)' },
+  inactive: { label: 'Pasif',  icon: Clock,         color: 'var(--text-2)', bg: 'rgba(128,128,160,0.12)', badgeText: 'var(--text-3)', badgeBg: 'rgba(128,128,160,0.12)' },
 }
 
 const SEGMENT_OPTIONS = [
@@ -80,9 +80,9 @@ function ImportModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
         <div className="ds-modal-header">
           <div className="flex items-center gap-2">
             <Upload className="w-4 h-4" style={{ color: '#99b4ff' }} />
-            <h3 className="text-sm font-semibold" style={{ color: '#111827' }}>Müşteri İçe Aktar</h3>
+            <h3 className="text-sm font-semibold" style={{ color: 'var(--text-1)' }}>Müşteri İçe Aktar</h3>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg" style={{ color: '#6B7280' }}
+          <button onClick={onClose} className="p-1.5 rounded-lg" style={{ color: 'var(--text-2)' }}
             onMouseEnter={e => (e.currentTarget.style.background = '#F3F4F6')}
             onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
             <X className="w-4 h-4" />
@@ -97,13 +97,13 @@ function ImportModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
                 onDragOver={e => e.preventDefault()}
                 onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleFile(f) }}>
                 <Upload className="w-8 h-8 mx-auto mb-2" style={{ color: fileName ? '#4470ff' : '#9CA3AF' }} />
-                <p className="text-sm font-medium" style={{ color: '#111827' }}>{fileName || 'CSV veya TXT dosyası yükle'}</p>
-                <p className="text-xs mt-1" style={{ color: '#6B7280' }}>Tıklayın veya sürükleyip bırakın</p>
+                <p className="text-sm font-medium" style={{ color: 'var(--text-1)' }}>{fileName || 'CSV veya TXT dosyası yükle'}</p>
+                <p className="text-xs mt-1" style={{ color: 'var(--text-2)' }}>Tıklayın veya sürükleyip bırakın</p>
                 <input ref={fileRef} type="file" accept=".csv,.txt" className="hidden"
                   onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }} />
               </div>
               <div>
-                <p className="text-[11px] font-semibold mb-2" style={{ color: '#6B7280' }}>Ya da metni yapıştırın</p>
+                <p className="text-[11px] font-semibold mb-2" style={{ color: 'var(--text-2)' }}>Ya da metni yapıştırın</p>
                 <textarea value={text} onChange={e => setText(e.target.value)} className="ds-textarea"
                   placeholder="Ad, Email, Telefon (her satır bir müşteri)" rows={4} />
               </div>
@@ -112,8 +112,8 @@ function ImportModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
           ) : (
             <div className="text-center py-4">
               <CheckCircle className="w-12 h-12 mx-auto mb-3 text-emerald-400" />
-              <p className="text-base font-bold" style={{ color: '#111827' }}>İçe Aktarım Tamamlandı</p>
-              <p className="text-sm mt-1" style={{ color: '#6B7280' }}>
+              <p className="text-base font-bold" style={{ color: 'var(--text-1)' }}>İçe Aktarım Tamamlandı</p>
+              <p className="text-sm mt-1" style={{ color: 'var(--text-2)' }}>
                 <span className="font-bold text-emerald-400">{result.imported}</span> müşteri eklendi
                 {result.skipped > 0 && <span>, <span className="text-amber-400">{result.skipped}</span> atlandı</span>}
               </p>
@@ -141,19 +141,19 @@ function ImportModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
 function DeleteConfirmModal({ count, onConfirm, onClose }: { count: number; onConfirm: () => void; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={onClose}>
-      <div className="w-full max-w-sm rounded-2xl p-6 space-y-4" style={{ background: '#FFFFFF', border: '1px solid rgba(232,69,69,0.3)' }} onClick={e => e.stopPropagation()}>
+      <div className="w-full max-w-sm rounded-2xl p-6 space-y-4" style={{ background: 'var(--surface)', border: '1px solid rgba(232,69,69,0.3)' }} onClick={e => e.stopPropagation()}>
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(232,69,69,0.12)' }}>
             <Trash2 className="w-5 h-5" style={{ color: '#e84545' }} />
           </div>
           <div>
-            <p className="text-[14px] font-bold" style={{ color: '#111827' }}>{count} müşteri silinecek</p>
-            <p className="text-[11px]" style={{ color: '#6B7280' }}>Bu işlem geri alınamaz.</p>
+            <p className="text-[14px] font-bold" style={{ color: 'var(--text-1)' }}>{count} müşteri silinecek</p>
+            <p className="text-[11px]" style={{ color: 'var(--text-2)' }}>Bu işlem geri alınamaz.</p>
           </div>
         </div>
         <div className="flex gap-2 pt-2">
           <button onClick={onClose} className="flex-1 py-2 rounded-xl text-[12px] font-semibold"
-            style={{ background: '#F3F4F6', color: '#6B7280', border: '1px solid #E5E7EB' }}>
+            style={{ background: '#F3F4F6', color: 'var(--text-2)', border: '1px solid var(--border)' }}>
             İptal
           </button>
           <button onClick={onConfirm} className="flex-1 py-2 rounded-xl text-[12px] font-bold"
@@ -351,21 +351,21 @@ export default function CustomersPage() {
       <div className="flex items-center justify-between px-4 md:px-6 h-14 shrink-0 gap-2"
         style={{ borderBottom: '1px solid #E5E7EB', background: 'rgba(255,255,255,0.97)', backdropFilter: 'blur(24px)' }}>
         <div>
-          <h1 className="text-[15px] md:text-[16px] font-bold" style={{ color: '#111827' }}>Müşteriler</h1>
-          <p className="text-[11px] hidden sm:block" style={{ color: '#6B7280' }}>Müşterilerinizi segmentlere ayırın, davranışlarını analiz edin.</p>
+          <h1 className="text-[15px] md:text-[16px] font-bold" style={{ color: 'var(--text-1)' }}>Müşteriler</h1>
+          <p className="text-[11px] hidden sm:block" style={{ color: 'var(--text-2)' }}>Müşterilerinizi segmentlere ayırın, davranışlarını analiz edin.</p>
         </div>
         <div className="flex items-center gap-1.5">
           <button
             onClick={() => handleExport()}
             disabled={exporting}
             className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold transition-all disabled:opacity-50"
-            style={{ background: '#F3F4F6', color: '#6B7280', border: '1px solid #E5E7EB' }}>
+            style={{ background: '#F3F4F6', color: 'var(--text-2)', border: '1px solid var(--border)' }}>
             {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
             Dışa Aktar
           </button>
           <button onClick={() => setShowImport(true)}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-semibold min-h-[44px]"
-            style={{ background: '#F3F4F6', color: '#6B7280', border: '1px solid #E5E7EB' }}>
+            style={{ background: '#F3F4F6', color: 'var(--text-2)', border: '1px solid var(--border)' }}>
             <UserPlus className="w-4 h-4" /> <span className="hidden sm:inline">Müşteri Ekle</span>
           </button>
           <Link href="/segments"
@@ -391,15 +391,15 @@ export default function CustomersPage() {
               const Icon = kpi.icon
               return (
                 <div key={kpi.label} className="rounded-2xl p-4 relative overflow-hidden"
-                  style={{ background: '#FFFFFF', border: '1px solid #E5E7EB' }}>
+                  style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
                   <div className="absolute top-0 left-4 right-4 h-px" style={{ background: `linear-gradient(90deg,transparent,${kpi.color}44,transparent)` }} />
                   <div className="flex items-center justify-between mb-3">
-                    <p className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: '#6B7280' }}>{kpi.label}</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'var(--text-2)' }}>{kpi.label}</p>
                     <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${kpi.color}18` }}>
                       <Icon className="w-3.5 h-3.5" style={{ color: kpi.color }} />
                     </div>
                   </div>
-                  <p className="text-[22px] font-bold leading-none mb-2" style={{ color: '#111827', letterSpacing: '-0.02em' }}>{kpi.value}</p>
+                  <p className="text-[22px] font-bold leading-none mb-2" style={{ color: 'var(--text-1)', letterSpacing: '-0.02em' }}>{kpi.value}</p>
                 </div>
               )
             })}
@@ -422,20 +422,20 @@ export default function CustomersPage() {
                     onKeyDown={e => e.key === 'Enter' && handleBulkTag()}
                     placeholder="Etiket adı"
                     className="px-2.5 py-1 rounded-lg text-[11px] outline-none"
-                    style={{ background: '#F3F4F6', border: '1px solid #D1D5DB', color: '#111827', width: 120 }}
+                    style={{ background: '#F3F4F6', border: '1px solid #D1D5DB', color: 'var(--text-1)', width: 120 }}
                     autoFocus
                   />
                   <button onClick={handleBulkTag} disabled={bulkProcessing} className="p-1 rounded-lg" style={{ color: '#22c97a' }}>
                     <Check className="w-3.5 h-3.5" />
                   </button>
-                  <button onClick={() => { setShowBulkTag(false); setBulkTagInput('') }} className="p-1 rounded-lg" style={{ color: '#6B7280' }}>
+                  <button onClick={() => { setShowBulkTag(false); setBulkTagInput('') }} className="p-1 rounded-lg" style={{ color: 'var(--text-2)' }}>
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
               ) : (
                 <button onClick={() => { setShowBulkTag(true); setShowBulkSegment(false) }}
                   className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all"
-                  style={{ background: '#F3F4F6', color: '#111827' }}>
+                  style={{ background: '#F3F4F6', color: 'var(--text-1)' }}>
                   <Tag className="w-3 h-3" /> Etiket Ekle
                 </button>
               )}
@@ -445,20 +445,20 @@ export default function CustomersPage() {
                 <div className="flex items-center gap-1.5">
                   <select value={bulkSegmentValue} onChange={e => setBulkSegmentValue(e.target.value)}
                     className="px-2 py-1 rounded-lg text-[11px] outline-none"
-                    style={{ background: '#F3F4F6', border: '1px solid #D1D5DB', color: '#111827' }}>
+                    style={{ background: '#F3F4F6', border: '1px solid #D1D5DB', color: 'var(--text-1)' }}>
                     {SEGMENT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                   <button onClick={handleBulkSegment} disabled={bulkProcessing} className="p-1 rounded-lg" style={{ color: '#22c97a' }}>
                     <Check className="w-3.5 h-3.5" />
                   </button>
-                  <button onClick={() => setShowBulkSegment(false)} className="p-1 rounded-lg" style={{ color: '#6B7280' }}>
+                  <button onClick={() => setShowBulkSegment(false)} className="p-1 rounded-lg" style={{ color: 'var(--text-2)' }}>
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
               ) : (
                 <button onClick={() => { setShowBulkSegment(true); setShowBulkTag(false) }}
                   className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all"
-                  style={{ background: '#F3F4F6', color: '#111827' }}>
+                  style={{ background: '#F3F4F6', color: 'var(--text-1)' }}>
                   <Users className="w-3 h-3" /> Segmente Taşı
                 </button>
               )}
@@ -467,7 +467,7 @@ export default function CustomersPage() {
                 onClick={() => handleExport([...selectedIds])}
                 disabled={exporting}
                 className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all"
-                style={{ background: '#F3F4F6', color: '#111827' }}>
+                style={{ background: '#F3F4F6', color: 'var(--text-1)' }}>
                 <Download className="w-3 h-3" /> Dışa Aktar
               </button>
 
@@ -478,7 +478,7 @@ export default function CustomersPage() {
               </button>
 
               <button onClick={() => { setSelectedIds(new Set()); setShowBulkTag(false); setShowBulkSegment(false) }}
-                className="p-1 rounded-lg" style={{ color: '#6B7280' }}>
+                className="p-1 rounded-lg" style={{ color: 'var(--text-2)' }}>
                 <X className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -488,14 +488,14 @@ export default function CustomersPage() {
           <div className="px-5 py-2.5 flex items-center gap-2.5 flex-wrap shrink-0"
             style={{ borderBottom: '1px solid #E5E7EB', borderTop: '1px solid #E5E7EB' }}>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3" style={{ color: '#6B7280' }} />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3" style={{ color: 'var(--text-2)' }} />
               <input type="text" value={searchInput} onChange={e => setSearchInput(e.target.value)}
                 placeholder="Müşteri ara (e-posta, isim, telefon...)"
                 className="pl-8 pr-3 py-1.5 text-[12px] rounded-xl outline-none w-64"
-                style={{ background: '#F3F4F6', border: '1px solid #E5E7EB', color: '#111827' }} />
+                style={{ background: '#F3F4F6', border: '1px solid var(--border)', color: 'var(--text-1)' }} />
             </div>
             <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-semibold"
-              style={{ background: '#F9FAFB', color: '#6B7280', border: '1px solid #E5E7EB' }}>
+              style={{ background: 'var(--bg)', color: 'var(--text-2)', border: '1px solid var(--border)' }}>
               <Filter className="w-3 h-3" /> Filtrele
             </button>
             <span className="ml-auto text-[10px] font-mono" style={{ color: '#33334a' }}>
@@ -510,13 +510,13 @@ export default function CustomersPage() {
               <button key={tab.key} onClick={() => handleTabChange(tab.key)}
                 className="flex items-center gap-2 px-3.5 py-2.5 text-[12px] font-semibold whitespace-nowrap transition-all border-b-2"
                 style={activeTab === tab.key
-                  ? { color: '#111827', borderColor: '#4470ff' }
-                  : { color: '#6B7280', borderColor: 'transparent' }}>
+                  ? { color: 'var(--text-1)', borderColor: '#4470ff' }
+                  : { color: 'var(--text-2)', borderColor: 'transparent' }}>
                 {tab.label}
                 <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
                   style={activeTab === tab.key
                     ? { background: 'rgba(68,112,255,0.15)', color: '#99b4ff' }
-                    : { background: '#F3F4F6', color: '#6B7280' }}>
+                    : { background: '#F3F4F6', color: 'var(--text-2)' }}>
                   {formatNumber(tab.count)}
                 </span>
               </button>
@@ -528,7 +528,7 @@ export default function CustomersPage() {
             <div className="p-4 space-y-2">
               {loading ? (
                 [...Array(5)].map((_, i) => (
-                  <div key={i} className="rounded-2xl p-4 animate-pulse" style={{ background: '#F9FAFB', border: '1px solid #E5E7EB' }}>
+                  <div key={i} className="rounded-2xl p-4 animate-pulse" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full" style={{ background: '#F3F4F6' }} />
                       <div className="flex-1 space-y-1.5">
@@ -541,7 +541,7 @@ export default function CustomersPage() {
               ) : customers.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
                   <Users className="w-8 h-8" style={{ color: '#33334a' }} />
-                  <p className="text-[13px] font-semibold" style={{ color: '#6B7280' }}>Müşteri bulunamadı</p>
+                  <p className="text-[13px] font-semibold" style={{ color: 'var(--text-2)' }}>Müşteri bulunamadı</p>
                   <button onClick={() => setShowImport(true)} className="text-[12px] font-semibold" style={{ color: '#99b4ff' }}>+ Müşteri İçe Aktar</button>
                 </div>
               ) : customers.map(c => {
@@ -552,23 +552,23 @@ export default function CustomersPage() {
                 return (
                   <Link key={c.id} href={`/customers/${c.id}`}
                     className="flex items-center gap-3 rounded-2xl p-4 transition-all active:scale-[0.98] block"
-                    style={{ background: '#FFFFFF', border: '1px solid #E5E7EB' }}>
+                    style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
                     <div className="w-11 h-11 rounded-full flex items-center justify-center text-[12px] font-bold shrink-0"
                       style={{ background: `${seg.color}18`, border: `1px solid ${seg.color}30`, color: seg.color }}>
                       {initials}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2 mb-0.5">
-                        <p className="text-[13px] font-semibold truncate" style={{ color: '#111827' }}>{c.name}</p>
+                        <p className="text-[13px] font-semibold truncate" style={{ color: 'var(--text-1)' }}>{c.name}</p>
                         <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold shrink-0"
                           style={{ background: seg.badgeBg, color: seg.badgeText }}>
                           <SegIcon className="w-2.5 h-2.5" />{seg.label}
                         </div>
                       </div>
-                      <p className="text-[11px] truncate" style={{ color: '#6B7280' }}>{c.email}</p>
+                      <p className="text-[11px] truncate" style={{ color: 'var(--text-2)' }}>{c.email}</p>
                       <div className="flex items-center gap-3 mt-1.5">
                         <span className="text-[11px] font-bold" style={{ color: '#22c97a' }}>{formatCurrency(c.totalSpent)}</span>
-                        <span className="text-[11px]" style={{ color: '#6B7280' }}>{c.totalOrders} sipariş</span>
+                        <span className="text-[11px]" style={{ color: 'var(--text-2)' }}>{c.totalOrders} sipariş</span>
                         <span className="flex items-center gap-1 text-[10px]" style={{ color: isActive ? '#22c97a' : '#e84545' }}>
                           <span className="w-1.5 h-1.5 rounded-full" style={{ background: isActive ? '#22c97a' : '#e84545' }} />
                           {isActive ? 'Aktif' : 'Pasif'}
@@ -591,13 +591,13 @@ export default function CustomersPage() {
             ) : customers.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 gap-3">
                 <Users className="w-8 h-8" style={{ color: '#33334a' }} />
-                <p className="text-[13px] font-semibold" style={{ color: '#6B7280' }}>Müşteri bulunamadı</p>
+                <p className="text-[13px] font-semibold" style={{ color: 'var(--text-2)' }}>Müşteri bulunamadı</p>
                 <button onClick={() => setShowImport(true)} className="text-[12px] font-semibold" style={{ color: '#99b4ff' }}>+ Müşteri İçe Aktar</button>
               </div>
             ) : (
               <table className="w-full">
                 <thead>
-                  <tr style={{ background: '#F9FAFB', borderBottom: '1px solid #E5E7EB' }}>
+                  <tr style={{ background: 'var(--bg)', borderBottom: '1px solid #E5E7EB' }}>
                     <th className="px-4 py-2.5 w-8">
                       <input type="checkbox"
                         checked={allPageSelected}
@@ -609,7 +609,7 @@ export default function CustomersPage() {
                     </th>
                     {['MÜŞTERİ', 'KAYIT TARİHİ', 'SON SİPARİŞ', 'TOPLAM HARCAMA', 'SİPARİŞ SAYISI', 'SEGMENT', 'DURUM', 'İŞLEMLER'].map(col => (
                       <th key={col} className="text-left px-4 py-2.5 text-[9px] font-semibold tracking-wider whitespace-nowrap"
-                        style={{ color: '#9CA3AF' }}>{col}</th>
+                        style={{ color: 'var(--text-3)' }}>{col}</th>
                     ))}
                   </tr>
                 </thead>
@@ -639,22 +639,22 @@ export default function CustomersPage() {
                               {initials}
                             </div>
                             <div>
-                              <p className="text-[12px] font-semibold" style={{ color: '#111827' }}>{c.name}</p>
-                              <p className="text-[10px]" style={{ color: '#6B7280' }}>{c.email}</p>
-                              {c.phone && <p className="text-[10px]" style={{ color: '#9CA3AF' }}>{c.phone}</p>}
+                              <p className="text-[12px] font-semibold" style={{ color: 'var(--text-1)' }}>{c.name}</p>
+                              <p className="text-[10px]" style={{ color: 'var(--text-2)' }}>{c.email}</p>
+                              {c.phone && <p className="text-[10px]" style={{ color: 'var(--text-3)' }}>{c.phone}</p>}
                             </div>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-[11px]" style={{ color: '#6B7280', fontFamily: 'monospace' }}>
+                        <td className="px-4 py-3 text-[11px]" style={{ color: 'var(--text-2)', fontFamily: 'monospace' }}>
                           {c.createdAt ? new Date(c.createdAt).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
                         </td>
-                        <td className="px-4 py-3 text-[11px]" style={{ color: '#6B7280', fontFamily: 'monospace' }}>
+                        <td className="px-4 py-3 text-[11px]" style={{ color: 'var(--text-2)', fontFamily: 'monospace' }}>
                           {c.lastOrder ? new Date(c.lastOrder).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
                         </td>
                         <td className="px-4 py-3 text-[12px] font-bold" style={{ color: '#22c97a', fontFamily: 'monospace' }}>
                           {formatCurrency(c.totalSpent)}
                         </td>
-                        <td className="px-4 py-3 text-[11px]" style={{ color: '#6B7280', fontFamily: 'monospace' }}>{c.totalOrders}</td>
+                        <td className="px-4 py-3 text-[11px]" style={{ color: 'var(--text-2)', fontFamily: 'monospace' }}>{c.totalOrders}</td>
                         <td className="px-4 py-3">
                           <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold"
                             style={{ background: seg.badgeBg, color: seg.badgeText }}>
@@ -673,14 +673,14 @@ export default function CustomersPage() {
                         <td className="px-4 py-3">
                           <div className="relative">
                             <button onClick={e => { e.stopPropagation(); setOpenMenuId(openMenuId === c.id ? null : c.id) }}
-                              className="p-1.5 rounded-lg transition-all" style={{ color: '#6B7280' }}
+                              className="p-1.5 rounded-lg transition-all" style={{ color: 'var(--text-2)' }}
                               onMouseEnter={e2 => (e2.currentTarget.style.background = '#F3F4F6')}
                               onMouseLeave={e2 => (e2.currentTarget.style.background = 'transparent')}>
                               <MoreHorizontal className="w-3.5 h-3.5" />
                             </button>
                             {openMenuId === c.id && (
                               <div className="absolute right-0 top-7 z-30 w-40 rounded-xl shadow-2xl overflow-hidden"
-                                style={{ background: '#FFFFFF', border: '1px solid #D1D5DB' }}>
+                                style={{ background: 'var(--surface)', border: '1px solid #D1D5DB' }}>
                                 {[
                                   { label: 'Profil Gör', icon: ChevronRight, href: `/customers/${c.id}` },
                                   { label: 'E-posta Gönder', icon: Mail, href: '/ai-studio?type=email' },
@@ -690,7 +690,7 @@ export default function CustomersPage() {
                                   return (
                                     <Link key={action.label} href={action.href}
                                       className="flex items-center gap-2 px-3 py-2.5 text-[11px] transition-colors"
-                                      style={{ color: '#111827' }}
+                                      style={{ color: 'var(--text-1)' }}
                                       onMouseEnter={e2 => (e2.currentTarget.style.background = '#F3F4F6')}
                                       onMouseLeave={e2 => (e2.currentTarget.style.background = 'transparent')}>
                                       <ActionIcon className="w-3 h-3" /> {action.label}
@@ -720,18 +720,18 @@ export default function CustomersPage() {
                     onClick={() => setPage(p => Math.max(1, p - 1))}
                     disabled={page === 1}
                     className="w-7 h-7 rounded-lg flex items-center justify-center transition-all disabled:opacity-30"
-                    style={{ background: '#F3F4F6', color: '#6B7280', border: '1px solid #E5E7EB' }}>
+                    style={{ background: '#F3F4F6', color: 'var(--text-2)', border: '1px solid var(--border)' }}>
                     <ChevronLeft className="w-3.5 h-3.5" />
                   </button>
                   {pageNumbers().map((p, i) =>
                     p === '…' ? (
-                      <span key={`ellipsis-${i}`} className="w-7 text-center text-[11px]" style={{ color: '#6B7280' }}>…</span>
+                      <span key={`ellipsis-${i}`} className="w-7 text-center text-[11px]" style={{ color: 'var(--text-2)' }}>…</span>
                     ) : (
                       <button key={p} onClick={() => setPage(p as number)}
                         className="w-7 h-7 rounded-lg text-[11px] font-semibold transition-all"
                         style={p === page
                           ? { background: '#4470ff', color: '#fff' }
-                          : { background: '#F3F4F6', color: '#6B7280', border: '1px solid #E5E7EB' }}>
+                          : { background: '#F3F4F6', color: 'var(--text-2)', border: '1px solid var(--border)' }}>
                         {p}
                       </button>
                     )
@@ -740,7 +740,7 @@ export default function CustomersPage() {
                     onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                     disabled={page === totalPages}
                     className="w-7 h-7 rounded-lg flex items-center justify-center transition-all disabled:opacity-30"
-                    style={{ background: '#F3F4F6', color: '#6B7280', border: '1px solid #E5E7EB' }}>
+                    style={{ background: '#F3F4F6', color: 'var(--text-2)', border: '1px solid var(--border)' }}>
                     <ChevronRight className="w-3.5 h-3.5" />
                   </button>
                 </div>

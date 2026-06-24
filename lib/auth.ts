@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
-import { getToken } from 'next-auth/jwt'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth-options'
 import { prisma } from '@/lib/prisma'
 import { getEffectivePlan } from '@/lib/plan-limits'
 
@@ -35,48 +36,22 @@ function buildApiSession(user: {
   }
 }
 
-// NextAuth uses the cookie name as the JOSE encryption salt.
-// Both variants must be tried: VERCEL always uses __Secure- prefix (HTTPS),
-// but local dev and older sessions may use the plain name.
-const NEXTAUTH_COOKIE_VARIANTS = [
-  '__Secure-next-auth.session-token',
-  'next-auth.session-token',
-] as const
-
 export async function getApiSession(): Promise<ApiSession | null> {
-  // Strategy 1: Read NextAuth JWT directly from the request cookies.
-  // Using cookies() is more reliable than getServerSession in App Router route handlers
-  // because it directly accesses the Next.js request context without intermediate layers.
+  // Strategy 1: NextAuth credentials session (email/password logins)
+  // getServerSession uses NextAuth's internal machinery with the correct JOSE salt,
+  // which is more reliable than calling decode() directly.
   try {
-    const cookieStore = cookies()
-
-    for (const cookieName of NEXTAUTH_COOKIE_VARIANTS) {
-      const tokenValue = cookieStore.get(cookieName)?.value
-      if (!tokenValue) continue
-
-      // Construct a minimal fake request containing only this cookie so that
-      // getToken doesn't get confused by other cookies in the jar.
-      // Explicit cookieName ensures getToken uses the correct JOSE salt.
-      const token = await getToken({
-        req: {
-          headers: { cookie: `${cookieName}=${tokenValue}` },
-        } as Parameters<typeof getToken>[0]['req'],
-        secret: process.env.NEXTAUTH_SECRET!,
-        cookieName,
-        secureCookie: cookieName.startsWith('__Secure-'),
-      })
-
-      if (token?.email) {
-        const user = await prisma.user.findUnique({ where: { email: token.email as string } })
-        if (user) {
-          console.log(`[Auth] OK via NextAuth cookie: ${cookieName}`)
-          return buildApiSession(user)
-        }
-        console.error('[Auth] NextAuth token valid but user not in DB:', token.email)
+    const session = await getServerSession(authOptions)
+    if (session?.user?.email) {
+      const user = await prisma.user.findUnique({ where: { email: session.user.email as string } })
+      if (user) {
+        console.log('[Auth] OK via getServerSession:', user.email)
+        return buildApiSession(user)
       }
+      console.error('[Auth] NextAuth session valid but user not in DB:', session.user.email)
     }
   } catch (err) {
-    console.error('[Auth] NextAuth cookie strategy failed:', err)
+    console.error('[Auth] getServerSession failed:', err)
   }
 
   // Strategy 2: Supabase session (OTP / magic-link logins)
@@ -97,7 +72,6 @@ export async function getApiSession(): Promise<ApiSession | null> {
 
     if (error) {
       console.error('[Auth] Supabase getUser error:', error.message)
-      // getUser() makes a network call; fall back to local JWT decode (getSession).
       const { data: { session } } = await supabase.auth.getSession()
       if (session?.user?.email) {
         const user = await prisma.user.findUnique({ where: { email: session.user.email } })

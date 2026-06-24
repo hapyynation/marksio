@@ -19,7 +19,7 @@ interface Campaign {
 
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; dot: string }> = {
-  draft:     { label: 'Taslak',        color: '#6B7280', bg: '#F3F4F6',  dot: '#9CA3AF' },
+  draft:     { label: 'Taslak',        color: 'var(--text-2)', bg: '#F3F4F6',  dot: '#9CA3AF' },
   scheduled: { label: 'Planlandı',     color: 'var(--amber)', bg: '#FEF3C7', dot: '#D97706' },
   sending:   { label: 'Gönderiliyor',  color: 'var(--blue)',  bg: '#DBEAFE', dot: '#2563EB' },
   active:    { label: 'Gönderildi',    color: 'var(--green)', bg: '#DCFCE7', dot: '#16A34A' },
@@ -151,7 +151,7 @@ export default function BroadcastsPage() {
       {/* Campaign list */}
       <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
         {/* Table header */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px 120px 120px 100px', padding: '10px 18px', borderBottom: '1px solid var(--border)', background: '#F9FAFB' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px 120px 120px 100px', padding: '10px 18px', borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
           {['Kampanya', 'Gönderilen', 'Açılma', 'Tıklanma', 'Durum'].map(h => (
             <div key={h} style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</div>
           ))}

@@ -10,3 +10,4 @@ node_modules
 
 # Lead scraping output
 output/
+.gstack/

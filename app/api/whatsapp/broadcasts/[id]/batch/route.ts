@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { sendBatch } from '../send/route'
+import { sendBatch } from '@/lib/whatsapp-broadcast'
 
 export async function POST(
   req: NextRequest,
@@ -29,7 +29,7 @@ export async function POST(
     },
   })
 
-  if (!broadcast || broadcast.status === 'FAILED') {
+  if (!broadcast || broadcast.status === 'FAILED' || !broadcast.template) {
     return NextResponse.json({ ok: true })
   }
 

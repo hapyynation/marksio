@@ -128,7 +128,7 @@ export default function ABTestPage() {
           style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
           onClick={e => { if (e.target === e.currentTarget) setShowModal(false) }}
         >
-          <div style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 16, padding: '28px', width: '100%', maxWidth: 560, boxShadow: '0 8px 32px rgba(0,0,0,0.12)', maxHeight: '90vh', overflowY: 'auto' }}>
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, padding: '28px', width: '100%', maxWidth: 560, boxShadow: '0 8px 32px rgba(0,0,0,0.12)', maxHeight: '90vh', overflowY: 'auto' }}>
             <h3 style={{ color: 'var(--text-1)', fontWeight: 700, fontSize: 17, margin: '0 0 20px' }}>Yeni A/B Test Oluştur</h3>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -168,7 +168,7 @@ export default function ABTestPage() {
                     value={form.subjectA}
                     onChange={e => setForm(f => ({ ...f, subjectA: e.target.value }))}
                     placeholder="örn. Bu hafta %20 indirim fırsatı!"
-                    style={{ width: '100%', padding: '9px 12px', borderRadius: 7, background: '#F9FAFB', border: '1px solid var(--border)', color: 'var(--text-1)', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
+                    style={{ width: '100%', padding: '9px 12px', borderRadius: 7, background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text-1)', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
                   />
                 </div>
               </div>
@@ -184,7 +184,7 @@ export default function ABTestPage() {
                     value={form.subjectB}
                     onChange={e => setForm(f => ({ ...f, subjectB: e.target.value }))}
                     placeholder="örn. Sadece bugün geçerli büyük indirim"
-                    style={{ width: '100%', padding: '9px 12px', borderRadius: 7, background: '#F9FAFB', border: '1px solid var(--border)', color: 'var(--text-1)', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
+                    style={{ width: '100%', padding: '9px 12px', borderRadius: 7, background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text-1)', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
                   />
                 </div>
               </div>

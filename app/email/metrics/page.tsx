@@ -61,7 +61,7 @@ function KpiCard({
 const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ color: string; name: string; value: number }>; label?: string }) => {
   if (!active || !payload?.length) return null
   return (
-    <div style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 10, padding: '10px 14px', fontSize: 12 }}>
+    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 14px', fontSize: 12 }}>
       <div style={{ color: 'var(--text-2)', marginBottom: 6 }}>{label}</div>
       {payload.map(p => (
         <div key={p.name} style={{ color: p.color, marginBottom: 2 }}>
@@ -75,7 +75,7 @@ const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?:
 const RateTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ color: string; name: string; value: number }>; label?: string }) => {
   if (!active || !payload?.length) return null
   return (
-    <div style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 10, padding: '10px 14px', fontSize: 12 }}>
+    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 14px', fontSize: 12 }}>
       <div style={{ color: 'var(--text-2)', marginBottom: 6 }}>{label}</div>
       {payload.map(p => (
         <div key={p.name} style={{ color: p.color }}>%{Number(p.value).toFixed(2)}</div>

@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect, useCallback } from 'react'
 import {
@@ -63,7 +63,7 @@ function Toast({ msg, type }: { msg: string; type: 'success' | 'error' }) {
 
 function ActionBtn({ onClick, disabled, variant, children }: { onClick: () => void; disabled?: boolean; variant?: 'default' | 'danger' | 'primary'; children: React.ReactNode }) {
   const styles = {
-    default: { bg:'#F9FAFB', border:'#E5E7EB', color:'#6B7280', hover:'#F3F4F6' },
+    default: { bg:'#F9FAFB', border:'#E5E7EB', color:'var(--text-2)', hover:'#F3F4F6' },
     danger:  { bg:'rgba(220,38,38,0.06)', border:'rgba(220,38,38,0.15)', color:'#DC2626', hover:'rgba(220,38,38,0.1)' },
     primary: { bg:'rgba(37,99,235,0.08)', border:'rgba(37,99,235,0.2)', color:'#2563EB', hover:'rgba(37,99,235,0.14)' },
   }
@@ -181,10 +181,10 @@ export default function CampaignsPage() {
 
       {/* ── Top bar ── */}
       <div className="flex items-center justify-between px-4 md:px-6 h-14 shrink-0"
-        style={{ borderBottom:'1px solid #E5E7EB', background:'#FFFFFF' }}>
+        style={{ borderBottom:'1px solid #E5E7EB', background:'var(--surface)' }}>
         <div>
-          <h1 style={{ fontSize:15, fontWeight:600, color:'#111827' }}>Kampanyalar</h1>
-          <p className="hidden sm:block" style={{ fontSize:11, color:'#6B7280' }}>E-posta ve WhatsApp kampanyalarınızı oluşturun, yönetin ve analiz edin.</p>
+          <h1 style={{ fontSize:15, fontWeight:600, color:'var(--text-1)' }}>Kampanyalar</h1>
+          <p className="hidden sm:block" style={{ fontSize:11, color:'var(--text-2)' }}>E-posta ve WhatsApp kampanyalarınızı oluşturun, yönetin ve analiz edin.</p>
         </div>
         <Link href="/campaigns/new"
           className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-[12px] font-semibold"
@@ -216,14 +216,14 @@ export default function CampaignsPage() {
               const positive  = hasChange && kpi.change! >= 0
               return (
                 <div key={kpi.label} className="rounded-2xl p-4"
-                  style={{ background:'#FFFFFF', border:'1px solid #E5E7EB', boxShadow:'0 1px 3px rgba(0,0,0,0.05)' }}>
+                  style={{ background:'var(--surface)', border:'1px solid var(--border)', boxShadow:'0 1px 3px rgba(0,0,0,0.05)' }}>
                   <div className="flex items-center justify-between mb-3">
-                    <p style={{ fontSize:10, fontWeight:600, color:'#9CA3AF', textTransform:'uppercase', letterSpacing:'0.04em' }}>{kpi.label}</p>
+                    <p style={{ fontSize:10, fontWeight:600, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.04em' }}>{kpi.label}</p>
                     <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background:kpi.bg }}>
                       <Icon className="w-3.5 h-3.5" style={{ color:kpi.color }}/>
                     </div>
                   </div>
-                  <p style={{ fontSize:22, fontWeight:700, color:'#111827', letterSpacing:'-0.02em', marginBottom:8, lineHeight:1 }}>{kpi.value}</p>
+                  <p style={{ fontSize:22, fontWeight:700, color:'var(--text-1)', letterSpacing:'-0.02em', marginBottom:8, lineHeight:1 }}>{kpi.value}</p>
                   {hasChange ? (
                     <div className={cn('inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-md')}
                       style={{ color:positive ? '#16A34A':'#DC2626', background:positive ? '#DCFCE7':'#FEE2E2' }}>
@@ -232,7 +232,7 @@ export default function CampaignsPage() {
                     </div>
                   ) : (
                     <div className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-md"
-                      style={{ color:'#9CA3AF', background:'#F3F4F6' }}>
+                      style={{ color:'var(--text-3)', background:'#F3F4F6' }}>
                       — geçen ay verisi yok
                     </div>
                   )}
@@ -243,27 +243,27 @@ export default function CampaignsPage() {
 
           {/* ── Filter bar ── */}
           <div className="px-4 md:px-6 py-2 flex items-center gap-3 shrink-0 overflow-x-auto no-scrollbar"
-            style={{ borderBottom:'1px solid #E5E7EB', borderTop:'1px solid #F3F4F6', background:'#F9FAFB' }}>
+            style={{ borderBottom:'1px solid #E5E7EB', borderTop:'1px solid #F3F4F6', background:'var(--bg)' }}>
             <div className="flex items-center p-0.5 gap-0.5 rounded-xl shrink-0"
-              style={{ background:'#F3F4F6', border:'1px solid #E5E7EB' }}>
+              style={{ background:'#F3F4F6', border:'1px solid var(--border)' }}>
               {FILTER_TABS.map(tab => (
                 <button key={tab.key} onClick={() => setActiveTab(tab.key)}
                   className="px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all"
-                  style={activeTab===tab.key ? {background:'#FFFFFF',color:'#111827',boxShadow:'0 1px 2px rgba(0,0,0,0.06)'} : {color:'#6B7280'}}>
+                  style={activeTab===tab.key ? {background:'var(--surface)',color:'var(--text-1)',boxShadow:'0 1px 2px rgba(0,0,0,0.06)'} : {color:'var(--text-2)'}}>
                   {tab.label}
                 </button>
               ))}
             </div>
 
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3" style={{ color:'#9CA3AF' }}/>
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3" style={{ color:'var(--text-3)' }}/>
               <input type="text" value={search} onChange={e => setSearch(e.target.value)}
                 placeholder="Kampanya ara..."
                 className="pl-8 pr-3 py-1.5 rounded-xl outline-none w-40 md:w-52"
-                style={{ background:'#FFFFFF', border:'1px solid #E5E7EB', color:'#111827', fontSize:12 }}/>
+                style={{ background:'var(--surface)', border:'1px solid var(--border)', color:'var(--text-1)', fontSize:12 }}/>
             </div>
 
-            <span className="ml-auto text-[11px] shrink-0" style={{ color:'#9CA3AF' }}>
+            <span className="ml-auto text-[11px] shrink-0" style={{ color:'var(--text-3)' }}>
               {filtered.length} kampanya
             </span>
           </div>
@@ -273,7 +273,7 @@ export default function CampaignsPage() {
             <div className="p-4 md:p-6 space-y-2.5 max-w-5xl">
               {loading ? (
                 [...Array(4)].map((_, i) => (
-                  <div key={i} className="rounded-2xl p-4 animate-pulse" style={{ background:'#FFFFFF', border:'1px solid #E5E7EB' }}>
+                  <div key={i} className="rounded-2xl p-4 animate-pulse" style={{ background:'var(--surface)', border:'1px solid var(--border)' }}>
                     <div className="flex items-center gap-3 mb-3">
                       <div className="w-9 h-9 rounded-xl" style={{ background:'#F3F4F6' }}/>
                       <div className="flex-1 space-y-1.5">
@@ -282,7 +282,7 @@ export default function CampaignsPage() {
                       </div>
                       <div className="h-6 w-20 rounded-full" style={{ background:'#F3F4F6' }}/>
                     </div>
-                    <div className="h-2.5 rounded-md w-3/4" style={{ background:'#F9FAFB' }}/>
+                    <div className="h-2.5 rounded-md w-3/4" style={{ background:'var(--bg)' }}/>
                   </div>
                 ))
               ) : filtered.length === 0 ? (
@@ -292,10 +292,10 @@ export default function CampaignsPage() {
                     <Send className="w-6 h-6" style={{ color:'#2563EB' }}/>
                   </div>
                   <div>
-                    <p style={{ fontSize:14, fontWeight:700, color:'#111827', marginBottom:4 }}>
+                    <p style={{ fontSize:14, fontWeight:700, color:'var(--text-1)', marginBottom:4 }}>
                       {search || activeTab !== 'all' ? 'Filtreyle eşleşen kampanya bulunamadı' : 'Henüz kampanya oluşturmadınız'}
                     </p>
-                    <p style={{ fontSize:12, color:'#6B7280' }}>
+                    <p style={{ fontSize:12, color:'var(--text-2)' }}>
                       {search || activeTab !== 'all' ? 'Filtreleri temizleyerek tüm kampanyaları görün' : 'AI destekli ilk kampanyanızı oluşturmak için başlayın'}
                     </p>
                   </div>
@@ -318,7 +318,7 @@ export default function CampaignsPage() {
 
                 return (
                   <div key={campaign.id} className="rounded-2xl p-4 transition-all"
-                    style={{ background:'#FFFFFF', border:'1px solid #E5E7EB', boxShadow:'0 1px 3px rgba(0,0,0,0.04)' }}
+                    style={{ background:'var(--surface)', border:'1px solid var(--border)', boxShadow:'0 1px 3px rgba(0,0,0,0.04)' }}
                     onMouseEnter={e=>(e.currentTarget.style.borderColor='#D1D5DB')}
                     onMouseLeave={e=>(e.currentTarget.style.borderColor='#E5E7EB')}>
 
@@ -333,7 +333,7 @@ export default function CampaignsPage() {
                         <div className="flex items-center gap-2 flex-wrap">
                           <button onClick={() => router.push(`/campaigns/${campaign.id}`)}
                             className="text-[13px] font-semibold truncate text-left hover:underline"
-                            style={{ color:'#111827', maxWidth:280 }}>
+                            style={{ color:'var(--text-1)', maxWidth:280 }}>
                             {campaign.name}
                           </button>
                           {campaign.isAi && (
@@ -351,12 +351,12 @@ export default function CampaignsPage() {
                           <span style={{ width:5, height:5, borderRadius:'50%', background:sc.dot, display:'inline-block' }}/>
                           {sc.label}
                         </div>
-                        <span className="hidden sm:block" style={{ fontSize:11, color:'#9CA3AF' }}>{dateStr}</span>
+                        <span className="hidden sm:block" style={{ fontSize:11, color:'var(--text-3)' }}>{dateStr}</span>
                       </div>
                     </div>
 
                     {/* Row 2: preview */}
-                    <p className="text-[12px] mb-3 truncate pl-12" style={{ color:'#9CA3AF' }}>
+                    <p className="text-[12px] mb-3 truncate pl-12" style={{ color:'var(--text-3)' }}>
                       {campaign.type === 'email'
                         ? `konu: ${campaign.subject ?? '(konu yok)'}`
                         : `mesaj: ${campaign.body?.slice(0, 80) ?? ''}${(campaign.body?.length ?? 0) > 80 ? '…' : ''}`}
@@ -367,19 +367,19 @@ export default function CampaignsPage() {
                       <div className="flex items-center gap-3 flex-wrap">
                         {campaign.sent > 0 ? (
                           <>
-                            <span style={{ fontSize:11, color:'#6B7280' }}>{formatNumber(campaign.sent)} gönderildi</span>
-                            <span style={{ fontSize:11, color:'#6B7280' }}>{formatNumber(campaign.opened)} açıldı ({openR.toFixed(0)}%)</span>
+                            <span style={{ fontSize:11, color:'var(--text-2)' }}>{formatNumber(campaign.sent)} gönderildi</span>
+                            <span style={{ fontSize:11, color:'var(--text-2)' }}>{formatNumber(campaign.opened)} açıldı ({openR.toFixed(0)}%)</span>
                             {campaign.clicked > 0 && (
-                              <span style={{ fontSize:11, color:'#6B7280' }}>{formatNumber(campaign.clicked)} tıklandı ({clickR.toFixed(0)}%)</span>
+                              <span style={{ fontSize:11, color:'var(--text-2)' }}>{formatNumber(campaign.clicked)} tıklandı ({clickR.toFixed(0)}%)</span>
                             )}
                             {campaign.revenue > 0 && (
                               <span style={{ fontSize:11, fontWeight:700, color:'#16A34A' }}>{formatCurrency(campaign.revenue)}</span>
                             )}
                           </>
                         ) : campaign.status === 'scheduled' ? (
-                          <span style={{ fontSize:11, color:'#6B7280' }}>{campaign.segment}</span>
+                          <span style={{ fontSize:11, color:'var(--text-2)' }}>{campaign.segment}</span>
                         ) : campaign.status === 'draft' ? (
-                          <span style={{ fontSize:11, color:'#9CA3AF' }}>Taslak — henüz gönderilmedi</span>
+                          <span style={{ fontSize:11, color:'var(--text-3)' }}>Taslak — henüz gönderilmedi</span>
                         ) : null}
                       </div>
 

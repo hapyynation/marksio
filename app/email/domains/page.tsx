@@ -150,7 +150,7 @@ export default function DomainsPage() {
           style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           onClick={e => { if (e.target === e.currentTarget && !newDomainResult) setShowAddModal(false) }}
         >
-          <div style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 16, padding: '28px', width: 520, boxShadow: '0 8px 32px rgba(0,0,0,0.12)' }}>
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, padding: '28px', width: 520, boxShadow: '0 8px 32px rgba(0,0,0,0.12)' }}>
             {!newDomainResult ? (
               <>
                 <h3 style={{ color: 'var(--text-1)', fontWeight: 700, fontSize: 17, margin: '0 0 6px' }}>Alan Adı Ekle</h3>
@@ -188,7 +188,7 @@ export default function DomainsPage() {
                   <strong style={{ color: 'var(--text-1)' }}>{newDomainResult.domain.domain}</strong> için DNS kayıtlarını domain yöneticinize ekleyin, ardından &quot;Doğrula&quot; butonuna tıklayın.
                 </p>
                 <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden', marginBottom: 20 }}>
-                  <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)', background: '#F9FAFB', display: 'grid', gridTemplateColumns: '80px 60px 1fr 80px', gap: 8 }}>
+                  <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)', background: 'var(--bg)', display: 'grid', gridTemplateColumns: '80px 60px 1fr 80px', gap: 8 }}>
                     {['Tür', 'Kayıt', 'Değer', 'Durum'].map(h => (
                       <div key={h} style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase' }}>{h}</div>
                     ))}
@@ -328,7 +328,7 @@ export default function DomainsPage() {
 
                 {/* DNS records accordion */}
                 {isExpanded && (
-                  <div style={{ borderTop: '1px solid var(--border)', background: '#F9FAFB' }}>
+                  <div style={{ borderTop: '1px solid var(--border)', background: 'var(--bg)' }}>
                     <div style={{ padding: '12px 16px 6px', display: 'grid', gridTemplateColumns: '70px 1fr 1fr 90px', gap: 8 }}>
                       {['Tür', 'Kayıt Adı', 'Değer', 'Durum'].map(h => (
                         <div key={h} style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</div>

@@ -93,7 +93,7 @@ export default function TemplatesPage() {
           style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           onClick={e => { if (e.target === e.currentTarget) setShowModal(false) }}
         >
-          <div style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 16, padding: '28px', width: 400, boxShadow: '0 20px 60px rgba(0,0,0,0.12)' }}>
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, padding: '28px', width: 400, boxShadow: '0 20px 60px rgba(0,0,0,0.12)' }}>
             <h3 style={{ color: 'var(--text-1)', fontWeight: 700, fontSize: 17, margin: '0 0 20px' }}>Yeni Şablon Oluştur</h3>
             <div style={{ marginBottom: 14 }}>
               <label style={{ fontSize: 12, color: 'var(--text-2)', fontWeight: 600, display: 'block', marginBottom: 6 }}>ŞABLON ADI</label>

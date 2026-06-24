@@ -27,10 +27,10 @@ const STATUS_CONFIG: Record<string, { label: string; bg: string; color: string }
 
 function StatChip({ icon, value, label, color = '#6B7280' }: { icon: string; value: string | number; label: string; color?: string }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 20, padding: '4px 12px' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 20, padding: '4px 12px' }}>
       <span className="material-symbols-outlined" style={{ fontSize: 14, color }}>{icon}</span>
-      <span style={{ fontSize: 12, fontWeight: 700, color: '#111827' }}>{value}</span>
-      <span style={{ fontSize: 11, color: '#6B7280' }}>{label}</span>
+      <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-1)' }}>{value}</span>
+      <span style={{ fontSize: 11, color: 'var(--text-2)' }}>{label}</span>
     </div>
   )
 }
@@ -72,12 +72,12 @@ export default function TemplatesPage() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, color: '#111827', margin: '0 0 4px' }}>Şablonlar</h1>
-          <p style={{ fontSize: 13, color: '#6B7280', margin: 0 }}>Meta tarafından onaylanan WhatsApp şablonlarınız</p>
+          <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-1)', margin: '0 0 4px' }}>Şablonlar</h1>
+          <p style={{ fontSize: 13, color: 'var(--text-2)', margin: 0 }}>Meta tarafından onaylanan WhatsApp şablonlarınız</p>
         </div>
         <button
           onClick={handleSync} disabled={syncing}
-          style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#F9FAFB', color: '#374151', border: '1px solid #E5E7EB', borderRadius: 8, padding: '9px 14px', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--bg)', color: '#374151', border: '1px solid var(--border)', borderRadius: 8, padding: '9px 14px', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}
         >
           {syncing ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
           Şablonları Yenile
@@ -93,12 +93,12 @@ export default function TemplatesPage() {
       </div>
 
       {/* Table */}
-      <div style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 10, overflow: 'hidden' }}>
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
-            <tr style={{ background: '#F9FAFB', borderBottom: '1px solid #E5E7EB' }}>
+            <tr style={{ background: 'var(--bg)', borderBottom: '1px solid #E5E7EB' }}>
               {['Şablon Adı', 'Kategori', 'Dil', 'Durum', ''].map(h => (
-                <th key={h} style={{ padding: '10px 14px', fontSize: 11, fontWeight: 600, color: '#6B7280', textAlign: 'left', whiteSpace: 'nowrap', letterSpacing: '0.04em', textTransform: 'uppercase' }}>{h}</th>
+                <th key={h} style={{ padding: '10px 14px', fontSize: 11, fontWeight: 600, color: 'var(--text-2)', textAlign: 'left', whiteSpace: 'nowrap', letterSpacing: '0.04em', textTransform: 'uppercase' }}>{h}</th>
               ))}
             </tr>
           </thead>
@@ -117,7 +117,7 @@ export default function TemplatesPage() {
                   <div style={{ padding: '40px 24px', textAlign: 'center' }}>
                     <img src="/whatsapp/empty-templates.png" alt="Şablon yok" style={{ width: 100, height: 100, objectFit: 'cover', borderRadius: 12, marginBottom: 12, opacity: 0.85 }} />
                     <p style={{ fontSize: 14, fontWeight: 600, color: '#374151', margin: '0 0 4px' }}>Henüz şablon yok</p>
-                    <p style={{ fontSize: 13, color: '#6B7280', margin: '0 0 16px' }}>Meta'dan şablonlarınızı senkronize edin</p>
+                    <p style={{ fontSize: 13, color: 'var(--text-2)', margin: '0 0 16px' }}>Meta'dan şablonlarınızı senkronize edin</p>
                     <button onClick={handleSync} disabled={syncing} style={{ background: '#16A34A', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                       {syncing ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
                       Şablonları Yenile
@@ -139,20 +139,20 @@ export default function TemplatesPage() {
                         onClick={() => t.status === 'REJECTED' && setExpanded(isExpanded ? null : t.id)}
                       >
                         <td style={{ padding: '10px 14px' }}>
-                          <span style={{ fontSize: 13, fontFamily: 'monospace', fontWeight: 600, color: '#111827' }}>{t.name}</span>
+                          <span style={{ fontSize: 13, fontFamily: 'monospace', fontWeight: 600, color: 'var(--text-1)' }}>{t.name}</span>
                         </td>
                         <td style={{ padding: '10px 14px' }}>
                           <span style={{ background: catCfg.bg, color: catCfg.color, fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 6 }}>{catCfg.label}</span>
                         </td>
                         <td style={{ padding: '10px 14px' }}>
-                          <span style={{ fontSize: 12, color: '#6B7280' }}>{t.language.toUpperCase()}</span>
+                          <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{t.language.toUpperCase()}</span>
                         </td>
                         <td style={{ padding: '10px 14px' }}>
                           <span style={{ background: stsCfg.bg, color: stsCfg.color, fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 6 }}>{stsCfg.label}</span>
                         </td>
                         <td style={{ padding: '10px 14px', textAlign: 'right' }}>
                           {t.status === 'REJECTED' && (
-                            <span style={{ color: '#9CA3AF' }}>{isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}</span>
+                            <span style={{ color: 'var(--text-3)' }}>{isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}</span>
                           )}
                         </td>
                       </tr>

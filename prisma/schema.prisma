@@ -219,6 +219,7 @@ model Customer {
 
   platformId  String?   // Shopify customer ID, WooCommerce ID vb.
   source      String    @default("manual") // "shopify" | "woocommerce" | "trendyol" | "manual" | "csv"
+  riskScore   String    @default("low")   // low | medium | high
 
   birthdayMonth Int?
   birthdayDay   Int?
@@ -829,6 +830,7 @@ model WhatsappAccount {
   messagingTier      MessagingTier        @default(TIER_250)
   webhookVerifyToken String               @unique
   status             WhatsappAccountStatus @default(PENDING)
+  isDemo             Boolean              @default(false)
   lastWebhookAt      DateTime?
   connectedAt        DateTime             @default(now())
   createdAt          DateTime             @default(now())
@@ -882,8 +884,71 @@ model WhatsappConversation {
   account       WhatsappAccount     @relation(fields: [accountId], references: [id], onDelete: Cascade)
   status        WaConversationStatus @default(AI_HANDLING)
   lastMessageAt DateTime            @default(now())
+  demo          Boolean             @default(false)
 
-  messages      WhatsappMessage[]
+  messages       WhatsappMessage[]
+  aiDecisionLogs AiDecisionLog[]
+  internalNotes  InternalNote[]
+  tagLinks       ConversationTagLink[]
+}
+
+model AiDecisionLog {
+  id              String               @id @default(cuid())
+  conversationId  String
+  conversation    WhatsappConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId          String
+
+  intent          String?
+  confidence      Float?
+  knowledgeSource String?
+  faqMatched      String?
+  orderDataUsed   Boolean  @default(false)
+  transferred     Boolean  @default(false)
+  transferReason  String?
+  action          String?
+  responsePreview String?
+
+  createdAt       DateTime @default(now())
+
+  @@index([conversationId])
+  @@index([userId, createdAt])
+}
+
+model InternalNote {
+  id             String               @id @default(cuid())
+  conversationId String
+  conversation   WhatsappConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String
+  note           String
+  createdBy      String
+
+  createdAt      DateTime @default(now())
+
+  @@index([conversationId])
+}
+
+model ConversationTag {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  color     String   @default("#6B7280")
+  createdAt DateTime @default(now())
+
+  links     ConversationTagLink[]
+
+  @@unique([userId, name])
+  @@index([userId])
+}
+
+model ConversationTagLink {
+  id             String               @id @default(cuid())
+  conversationId String
+  conversation   WhatsappConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  tagId          String
+  tag            ConversationTag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  createdAt      DateTime             @default(now())
+
+  @@unique([conversationId, tagId])
 }
 
 model WhatsappMessage {
@@ -907,19 +972,47 @@ model WhatsappBroadcast {
   id               String          @id @default(cuid())
   accountId        String
   account          WhatsappAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  templateId       String
-  template         WhatsappTemplate @relation(fields: [templateId], references: [id])
+  templateId       String?
+  template         WhatsappTemplate? @relation(fields: [templateId], references: [id])
+  demo             Boolean @default(false)
   segmentId        String?
   name             String
+  description      String?
   scheduledAt      DateTime?
   status           BroadcastStatus @default(DRAFT)
+  sendType         String          @default("IMMEDIATE")
   totalRecipients  Int             @default(0)
   sentCount        Int             @default(0)
   deliveredCount   Int             @default(0)
   readCount        Int             @default(0)
   failedCount      Int             @default(0)
+  clickCount       Int             @default(0)
+  convertedCount   Int             @default(0)
+  revenue          Float           @default(0)
+  userId           String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
 
   messages         WhatsappMessage[]
+  conversions      WhatsappBroadcastConversion[]
+
+  @@index([userId, createdAt])
+  @@index([accountId, status])
+}
+
+model WhatsappBroadcastConversion {
+  id          String            @id @default(cuid())
+  broadcastId String
+  broadcast   WhatsappBroadcast @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
+  userId      String
+  customerId  String?
+  orderId     String?
+  phoneNumber String
+  revenue     Float             @default(0)
+  createdAt   DateTime          @default(now())
+
+  @@index([broadcastId])
+  @@index([userId, createdAt])
 }
 
 enum AssistantTone {
@@ -928,19 +1021,55 @@ enum AssistantTone {
   PROFESSIONAL
 }
 
+enum AssistantResponseLength {
+  SHORT
+  MEDIUM
+  LONG
+}
+
+enum AssistantConfidenceLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum HandoverRuleType {
+  AI_CANNOT_RESOLVE
+  ORDER_COMPLAINT
+  RETURN_REQUEST
+  ANGRY_CUSTOMER
+  MANUAL_TRANSFER
+}
+
+enum KnowledgeSourceType {
+  WEBSITE_URL
+  PDF
+  FAQ_IMPORT
+  MANUAL
+}
+
 model WhatsappAssistantConfig {
-  id               String          @id @default(cuid())
-  accountId        String          @unique
-  account          WhatsappAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  enabled          Boolean         @default(false)
-  tone             AssistantTone   @default(PROFESSIONAL)
-  businessName     String?
-  customKnowledge  String?
-  fallbackMessage  String?
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  id                String                   @id @default(cuid())
+  accountId         String                   @unique
+  account           WhatsappAccount          @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  enabled           Boolean                  @default(false)
+  tone              AssistantTone            @default(PROFESSIONAL)
+  responseLength    AssistantResponseLength  @default(MEDIUM)
+  confidenceLevel   AssistantConfidenceLevel @default(MEDIUM)
+  businessName      String?
+  customKnowledge   String?
+  fallbackMessage   String?
+  websiteUrl        String?
+  shopifyEnabled    Boolean                  @default(false)
+  workingHoursStart String?
+  workingHoursEnd   String?
+  offlineMessage    String?
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
 
   faqs             WhatsappAssistantFaq[]
+  handoverRules    WhatsappHandoverRule[]
+  knowledgeSources WhatsappKnowledgeSource[]
 }
 
 model WhatsappAssistantFaq {
@@ -950,4 +1079,27 @@ model WhatsappAssistantFaq {
   question  String
   answer    String
   createdAt DateTime                @default(now())
+}
+
+model WhatsappHandoverRule {
+  id       String                  @id @default(cuid())
+  configId String
+  config   WhatsappAssistantConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
+  ruleType HandoverRuleType
+  enabled  Boolean                 @default(true)
+
+  @@unique([configId, ruleType])
+}
+
+model WhatsappKnowledgeSource {
+  id         String                  @id @default(cuid())
+  configId   String
+  config     WhatsappAssistantConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
+  sourceType KnowledgeSourceType
+  title      String?
+  content    String?
+  url        String?
+  fileName   String?
+  storageUrl String?
+  createdAt  DateTime                @default(now())
 }

@@ -2,8 +2,7 @@
  * Tek seferlik çalıştırılan script: WhatsApp modülü için statik illüstrasyonlar üretir.
  * Çalıştırma: npx tsx scripts/generate-whatsapp-assets.ts
  *
- * Üretilen dosyalar /public/whatsapp/ klasörüne kaydedilir.
- * Sayfa her yüklendiğinde API'ye istek atılmaz — görseller statik olarak servis edilir.
+ * Üretilen dosyalar /public/whatsapp/ ve /public/whatsapp/guide/ klasörlerine kaydedilir.
  */
 
 import { fal } from '@fal-ai/client'
@@ -20,6 +19,9 @@ if (!process.env.FAL_KEY) {
 fal.config({ credentials: process.env.FAL_KEY })
 
 const OUTPUT_DIR = path.join(process.cwd(), 'public', 'whatsapp')
+const GUIDE_DIR = path.join(process.cwd(), 'public', 'whatsapp', 'guide')
+
+// ── Genel onboarding/empty-state görselleri ─────────────────────────────────
 
 const ASSETS: Array<{ name: string; prompt: string }> = [
   {
@@ -64,6 +66,32 @@ const ASSETS: Array<{ name: string; prompt: string }> = [
   },
 ]
 
+// ── Rehber adımı görselleri — /public/whatsapp/guide/ ───────────────────────
+// Metin yok, sadece ikon/sembol; Türkçe açıklamalar HTML/CSS ile bindirilir.
+
+const GUIDE_ASSETS: Array<{ name: string; prompt: string }> = [
+  {
+    name: 'meta-app-creation',
+    prompt: 'Minimalist flat icon illustration on dark navy background #0a1f2e, a simple browser app window icon with a plus sign next to it, abstract geometric shapes suggesting app creation and building, absolutely no text no letters no numbers, clean line art style, teal #00d4aa and white accent colors, 16:9 aspect ratio',
+  },
+  {
+    name: 'meta-api-setup',
+    prompt: 'Minimalist flat icon illustration on dark navy background #0a1f2e, two distinct ID card tag icons side by side connected by a subtle dotted line, small abstract diamond and bracket shapes suggesting identifier codes, absolutely no text no letters no numbers no words, pure icon illustration, clean line art style, teal #00d4aa and white accent colors, 16:9 aspect ratio',
+  },
+  {
+    name: 'meta-add-phone',
+    prompt: 'Minimalist flat icon illustration on dark navy background #0a1f2e, a smartphone outline icon with a checkmark shield nearby and a small speech bubble suggesting SMS verification, absolutely no text no letters no numbers, clean line art style, teal #00d4aa and white accent colors, 16:9 aspect ratio',
+  },
+  {
+    name: 'webhook-setup',
+    prompt: 'Minimalist flat icon illustration on dark navy background #0a1f2e, two rounded nodes connected by a curved bidirectional arrow suggesting a webhook data link, abstract circuit dot pattern around the nodes, absolutely no text no letters no numbers, clean line art style, teal #00d4aa and white accent colors, 16:9 aspect ratio',
+  },
+  {
+    name: 'meta-publish',
+    prompt: 'Minimalist symbolic icon illustration on dark navy #0a1f2e background, a large upward-pointing rocket silhouette launching with three small star sparkles around it, a simple circular badge with a checkmark below the rocket suggesting completion and going live, no text no labels no letters no words no numbers no alphabet characters anywhere in the image, pure geometric icon illustration only, teal #00d4aa and white colors, 16:9 landscape',
+  },
+]
+
 async function downloadFile(url: string, dest: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const client = url.startsWith('https') ? https : http
@@ -90,33 +118,57 @@ async function generateImage(prompt: string, aspectRatio: '1:1' | '16:9'): Promi
   return url
 }
 
-async function main() {
-  if (!fs.existsSync(OUTPUT_DIR)) {
-    fs.mkdirSync(OUTPUT_DIR, { recursive: true })
-    console.log(`Klasör oluşturuldu: ${OUTPUT_DIR}`)
+async function processAssets(
+  assets: Array<{ name: string; prompt: string }>,
+  dir: string,
+  label: string,
+): Promise<{ ok: number; skipped: number; failed: number }> {
+  const stats = { ok: 0, skipped: 0, failed: 0 }
+
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true })
+    console.log(`  Klasör oluşturuldu: ${dir}`)
   }
 
-  for (const asset of ASSETS) {
-    const destPath = path.join(OUTPUT_DIR, `${asset.name}.png`)
+  for (const asset of assets) {
+    const destPath = path.join(dir, `${asset.name}.png`)
 
     if (fs.existsSync(destPath)) {
-      console.log(`⏭  Atlanıyor (zaten var): ${asset.name}.png`)
+      console.log(`  ⏭  Atlanıyor (zaten var): ${label}/${asset.name}.png`)
+      stats.skipped++
       continue
     }
 
-    console.log(`🎨 Üretiliyor: ${asset.name}…`)
+    process.stdout.write(`  🎨 Üretiliyor: ${label}/${asset.name}… `)
     try {
-      const aspectRatio = asset.prompt.includes('16:9') ? '16:9' : '1:1'
-      const imageUrl = await generateImage(asset.prompt, aspectRatio)
+      const ar = asset.prompt.includes('16:9') ? '16:9' : '1:1'
+      const imageUrl = await generateImage(asset.prompt, ar)
       await downloadFile(imageUrl, destPath)
-      console.log(`✅ Kaydedildi: public/whatsapp/${asset.name}.png`)
+      console.log('✅')
+      stats.ok++
     } catch (err) {
-      console.error(`❌ Hata (${asset.name}):`, (err as Error).message)
+      console.log('❌')
+      console.error(`     Hata: ${(err as Error).message}`)
+      stats.failed++
     }
   }
 
-  console.log('\n✨ Tüm görseller işlendi.')
-  console.log('Component kullanımı: <img src="/whatsapp/[asset-name].png" />')
+  return stats
+}
+
+async function main() {
+  console.log('\n=== WhatsApp Asset Generator ===\n')
+
+  console.log('[ Genel onboarding görselleri ]')
+  const s1 = await processAssets(ASSETS, OUTPUT_DIR, 'whatsapp')
+
+  console.log('\n[ Rehber adım görselleri — guide/ ]')
+  const s2 = await processAssets(GUIDE_ASSETS, GUIDE_DIR, 'whatsapp/guide')
+
+  console.log('\n=== Özet ===')
+  console.log(`  Üretildi : ${s1.ok + s2.ok}`)
+  console.log(`  Atlandı  : ${s1.skipped + s2.skipped}`)
+  console.log(`  Hata     : ${s1.failed + s2.failed}`)
 }
 
 main()

@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
@@ -143,14 +143,14 @@ function TestModal({ autoId, onClose }: { autoId: string; onClose: () => void })
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.35)' }} onClick={onClose} />
-      <div style={{ position: 'relative', background: '#fff', borderRadius: 20, padding: 28, width: 400, boxShadow: '0 20px 60px rgba(0,0,0,0.18)', border: '1px solid rgba(0,0,0,0.06)' }}>
+      <div style={{ position: 'relative', background: 'var(--surface)', borderRadius: 20, padding: 28, width: 400, boxShadow: '0 20px 60px rgba(0,0,0,0.18)', border: '1px solid rgba(0,0,0,0.06)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
           <div style={{ width: 36, height: 36, borderRadius: 10, background: '#f0eeff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <FlaskConical size={16} color="#6366f1" />
           </div>
           <div>
             <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#0f172a' }}>Test Çalıştır</p>
-            <p style={{ margin: 0, fontSize: 11, color: '#94a3b8' }}>Gerçek müşteri ile akışı test et</p>
+            <p style={{ margin: 0, fontSize: 11, color: 'var(--text-3)' }}>Gerçek müşteri ile akışı test et</p>
           </div>
           <button onClick={onClose} style={{ marginLeft: 'auto', width: 28, height: 28, borderRadius: 8, border: '1px solid #e5e7eb', background: '#f9fafb', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9ca3af' }}>
             <X size={13} />
@@ -380,7 +380,7 @@ export function AutomationBuilder({ overrideId }: { overrideId?: string }) {
     <div style={{ width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f4fe' }}>
       <div style={{ textAlign: 'center' }}>
         <Loader2 size={24} color="#6366f1" style={{ animation: 'spin 0.8s linear infinite' }} />
-        <p style={{ color: '#94a3b8', marginTop: 12, fontSize: 13 }}>Yükleniyor…</p>
+        <p style={{ color: 'var(--text-3)', marginTop: 12, fontSize: 13 }}>Yükleniyor…</p>
       </div>
     </div>
   )
@@ -397,7 +397,7 @@ export function AutomationBuilder({ overrideId }: { overrideId?: string }) {
 
       {/* ════════════════════ HEADER ════════════════════════ */}
       <header style={{
-        height: 58, background: '#ffffff',
+        height: 58, background: 'var(--surface)',
         borderBottom: '1px solid rgba(99,102,241,0.1)',
         display: 'flex', alignItems: 'center', padding: '0 18px', gap: 8, flexShrink: 0,
         boxShadow: '0 1px 0 rgba(99,102,241,0.06), 0 2px 10px rgba(0,0,0,0.04)',
@@ -446,7 +446,7 @@ export function AutomationBuilder({ overrideId }: { overrideId?: string }) {
 
           {/* Last saved */}
           {savedAgo && (
-            <span style={{ fontSize: 10.5, color: '#94a3b8', display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
+            <span style={{ fontSize: 10.5, color: 'var(--text-3)', display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
               <Clock size={10} /> {savedAgo}
             </span>
           )}
@@ -572,7 +572,7 @@ export function AutomationBuilder({ overrideId }: { overrideId?: string }) {
           >
             <Background color="rgba(99,102,241,0.16)" gap={26} size={1.5} variant={BackgroundVariant.Dots} />
 
-            <Controls style={{ background: '#fff', border: '1px solid rgba(99,102,241,0.12)', borderRadius: 12, overflow: 'hidden', boxShadow: '0 4px 16px rgba(0,0,0,0.08)' }} />
+            <Controls style={{ background: 'var(--surface)', border: '1px solid rgba(99,102,241,0.12)', borderRadius: 12, overflow: 'hidden', boxShadow: '0 4px 16px rgba(0,0,0,0.08)' }} />
 
             <MiniMap
               nodeColor={n => {
@@ -602,7 +602,7 @@ export function AutomationBuilder({ overrideId }: { overrideId?: string }) {
 
             {/* Node count badge */}
             {nodes.length > 0 && (
-              <div style={{ position: 'absolute', top: 12, right: 12, fontSize: 11, color: '#94a3b8', background: '#fff', border: '1px solid rgba(0,0,0,0.07)', borderRadius: 8, padding: '4px 10px', fontWeight: 500, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+              <div style={{ position: 'absolute', top: 12, right: 12, fontSize: 11, color: 'var(--text-3)', background: 'var(--surface)', border: '1px solid rgba(0,0,0,0.07)', borderRadius: 8, padding: '4px 10px', fontWeight: 500, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
                 {nodes.length} blok · {edges.length} bağlantı
               </div>
             )}
@@ -615,7 +615,7 @@ export function AutomationBuilder({ overrideId }: { overrideId?: string }) {
                 </div>
                 <div style={{ textAlign: 'center' }}>
                   <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#1e1b4b', letterSpacing: '-0.01em' }}>Akışını oluşturmaya başla</p>
-                  <p style={{ margin: '6px 0 0', fontSize: 12, color: '#94a3b8', lineHeight: 1.6 }}>
+                  <p style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--text-3)', lineHeight: 1.6 }}>
                     Sol panelden bir <strong style={{ color: '#6366f1', fontWeight: 600 }}>TETİKLEYİCİ</strong> seç ve canvas'a sürükle
                   </p>
                 </div>
@@ -643,7 +643,7 @@ export function AutomationBuilder({ overrideId }: { overrideId?: string }) {
       {showTest && currentIdRef.current === 'new' && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.3)' }} onClick={() => setShowTest(false)} />
-          <div style={{ position: 'relative', background: '#fff', borderRadius: 16, padding: 24, boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}>
+          <div style={{ position: 'relative', background: 'var(--surface)', borderRadius: 16, padding: 24, boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}>
             <p style={{ fontSize: 13, color: '#374151', fontWeight: 600, marginBottom: 12 }}>Önce otomasyonu kaydet</p>
             <button onClick={() => setShowTest(false)} style={{ padding: '8px 16px', borderRadius: 8, background: '#6366f1', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>Tamam</button>
           </div>

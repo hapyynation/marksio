@@ -88,7 +88,7 @@ function Toggle({ enabled, onChange }: { enabled: boolean; onChange: (v: boolean
       <div className="absolute inset-0 rounded-full transition-all"
         style={{ background: enabled ? '#2563EB' : '#E5E7EB' }} />
       <div className="absolute w-4 h-4 rounded-full transition-all"
-        style={{ background: '#fff', left: enabled ? 18 : 2, top: 2, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }} />
+        style={{ background: 'var(--surface)', left: enabled ? 18 : 2, top: 2, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }} />
     </button>
   )
 }
@@ -105,13 +105,13 @@ function RuleRow({
 
   return (
     <div className="flex items-center gap-1.5 p-2.5 rounded-xl"
-      style={{ background: '#F9FAFB', border: '1px solid #E5E7EB' }}>
+      style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
       {/* Field */}
       <select
         value={rule.field}
         onChange={e => onUpdate(index, 'field', e.target.value)}
         className="flex-1 min-w-0 px-2 py-1.5 rounded-lg text-[11px] outline-none"
-        style={{ background: '#F3F4F6', border: '1px solid #E5E7EB', color: '#111827' }}
+        style={{ background: '#F3F4F6', border: '1px solid var(--border)', color: 'var(--text-1)' }}
       >
         {RULE_FIELDS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
       </select>
@@ -120,7 +120,7 @@ function RuleRow({
         value={rule.operator}
         onChange={e => onUpdate(index, 'operator', e.target.value)}
         className="w-28 px-2 py-1.5 rounded-lg text-[10px] outline-none shrink-0"
-        style={{ background: '#F3F4F6', border: '1px solid #E5E7EB', color: '#111827' }}
+        style={{ background: '#F3F4F6', border: '1px solid var(--border)', color: 'var(--text-1)' }}
       >
         {ops.map(op => <option key={op.value} value={op.value}>{op.label}</option>)}
       </select>
@@ -130,12 +130,12 @@ function RuleRow({
         onChange={e => onUpdate(index, 'value', e.target.value)}
         placeholder={fieldDef?.placeholder ?? ''}
         className="w-20 px-2 py-1.5 rounded-lg text-[11px] outline-none text-center shrink-0"
-        style={{ background: '#F3F4F6', border: '1px solid #E5E7EB', color: '#111827' }}
+        style={{ background: '#F3F4F6', border: '1px solid var(--border)', color: 'var(--text-1)' }}
       />
       <button
         onClick={() => onRemove(index)}
         className="p-1 rounded-lg shrink-0 transition-colors"
-        style={{ color: '#6B7280' }}
+        style={{ color: 'var(--text-2)' }}
         onMouseEnter={e => (e.currentTarget.style.color = '#e84545')}
         onMouseLeave={e => (e.currentTarget.style.color = '#6B7280')}
       >
@@ -299,7 +299,7 @@ export default function SegmentsPage() {
             onClick={refreshCounts}
             disabled={refreshing}
             className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-semibold transition-all"
-            style={{ background: '#F3F4F6', color: '#6B7280', border: '1px solid #E5E7EB' }}
+            style={{ background: '#F3F4F6', color: 'var(--text-2)', border: '1px solid var(--border)' }}
           >
             <RefreshCw className={cn('w-3.5 h-3.5', refreshing && 'animate-spin')} />
             Sayımları Güncelle
@@ -347,7 +347,7 @@ export default function SegmentsPage() {
           <div className="px-6 py-2 flex items-center gap-3 shrink-0"
             style={{ borderBottom: '1px solid var(--border)', borderTop: '1px solid var(--border)', background: 'var(--bg-app)' }}>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3" style={{ color: '#6B7280' }} />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3" style={{ color: 'var(--text-2)' }} />
               <input
                 type="text" value={search} onChange={e => setSearch(e.target.value)}
                 placeholder="Segment ara..."
@@ -399,7 +399,7 @@ export default function SegmentsPage() {
                         <div>
                           <p className="text-[12px] font-semibold truncate max-w-[160px]" style={{ color: 'var(--text-primary)' }}>{seg.name}</p>
                           {seg.description && (
-                            <p className="text-[10px]" style={{ color: '#6B7280' }}>
+                            <p className="text-[10px]" style={{ color: 'var(--text-2)' }}>
                               {seg.description.length > 50 ? seg.description.slice(0, 49) + '…' : seg.description}
                             </p>
                           )}
@@ -420,11 +420,11 @@ export default function SegmentsPage() {
 
                     {/* Count */}
                     <td className="px-4 py-3.5">
-                      <p className="text-[13px] font-bold" style={{ color: '#111827', fontFamily: 'monospace' }}>
+                      <p className="text-[13px] font-bold" style={{ color: 'var(--text-1)', fontFamily: 'monospace' }}>
                         {formatNumber(seg.count)}
                       </p>
                       {totalCount > 0 && (
-                        <p className="text-[9px]" style={{ color: '#6B7280' }}>
+                        <p className="text-[9px]" style={{ color: 'var(--text-2)' }}>
                           %{((seg.count / totalCount) * 100).toFixed(1)} toplam
                         </p>
                       )}
@@ -437,16 +437,16 @@ export default function SegmentsPage() {
                           const fieldLabel = RULE_FIELDS.find(f => f.value === r.field)?.label ?? r.field
                           return (
                             <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium"
-                              style={{ background: 'rgba(153,180,255,0.08)', color: '#6B7280', border: '1px solid #E5E7EB' }}>
+                              style={{ background: 'rgba(153,180,255,0.08)', color: 'var(--text-2)', border: '1px solid var(--border)' }}>
                               {fieldLabel} {r.operator} {r.value}
                             </span>
                           )
                         })}
                         {(seg.rules ?? []).length > 3 && (
-                          <span className="text-[10px]" style={{ color: '#6B7280' }}>+{seg.rules.length - 3}</span>
+                          <span className="text-[10px]" style={{ color: 'var(--text-2)' }}>+{seg.rules.length - 3}</span>
                         )}
                         {(seg.rules ?? []).length === 0 && (
-                          <span className="text-[10px]" style={{ color: '#6B7280' }}>Tüm müşteriler</span>
+                          <span className="text-[10px]" style={{ color: 'var(--text-2)' }}>Tüm müşteriler</span>
                         )}
                       </div>
                     </td>
@@ -462,7 +462,7 @@ export default function SegmentsPage() {
                         {seg.type !== 'builtin' && (
                           <Link href={`/segments/${seg.id}/edit`}
                             className="px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-all flex items-center gap-1"
-                            style={{ background: '#F3F4F6', color: '#6B7280', border: '1px solid #E5E7EB' }}>
+                            style={{ background: '#F3F4F6', color: 'var(--text-2)', border: '1px solid var(--border)' }}>
                             <Pencil className="w-2.5 h-2.5" /> Düzenle
                           </Link>
                         )}
@@ -477,7 +477,7 @@ export default function SegmentsPage() {
                           <button
                             onClick={e => { e.stopPropagation(); setOpenMenuId(openMenuId === seg.id ? null : seg.id) }}
                             className="p-1.5 rounded-lg transition-all"
-                            style={{ color: '#6B7280' }}
+                            style={{ color: 'var(--text-2)' }}
                             onMouseEnter={e => (e.currentTarget.style.background = '#F3F4F6')}
                             onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                           >
@@ -502,7 +502,7 @@ export default function SegmentsPage() {
                                 </button>
                               )}
                               {seg.type === 'builtin' && (
-                                <p className="px-3 py-2.5 text-[10px]" style={{ color: '#6B7280' }}>
+                                <p className="px-3 py-2.5 text-[10px]" style={{ color: 'var(--text-2)' }}>
                                   Varsayılan segment silinemez
                                 </p>
                               )}
@@ -519,7 +519,7 @@ export default function SegmentsPage() {
             {!loading && filtered.length === 0 && (
               <div className="flex flex-col items-center justify-center py-16 gap-3">
                 <Filter className="w-8 h-8" style={{ color: '#33334a' }} />
-                <p className="text-[13px]" style={{ color: '#6B7280' }}>Segment bulunamadı</p>
+                <p className="text-[13px]" style={{ color: 'var(--text-2)' }}>Segment bulunamadı</p>
               </div>
             )}
           </div>
@@ -537,7 +537,7 @@ export default function SegmentsPage() {
               style={{ borderBottom: '1px solid var(--border)' }}>
               <p className="text-[13px] font-bold" style={{ color: 'var(--text-primary)' }}>Yeni Segment Oluştur</p>
               <button onClick={() => { setShowCreate(false); setSaveError('') }}
-                className="p-1.5 rounded-lg transition-all" style={{ color: '#6B7280' }}
+                className="p-1.5 rounded-lg transition-all" style={{ color: 'var(--text-2)' }}
                 onMouseEnter={e => (e.currentTarget.style.background = '#F3F4F6')}
                 onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
                 <X className="w-4 h-4" />
@@ -548,34 +548,34 @@ export default function SegmentsPage() {
 
               {/* Name */}
               <div>
-                <label className="block text-[11px] font-semibold mb-1.5" style={{ color: '#6B7280' }}>Segment Adı *</label>
+                <label className="block text-[11px] font-semibold mb-1.5" style={{ color: 'var(--text-2)' }}>Segment Adı *</label>
                 <input
                   value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                   placeholder="Örn: Sadık Müşteriler"
                   className="w-full px-3 py-2.5 rounded-xl text-[12px] outline-none"
                   style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
                   onFocus={e => (e.currentTarget.style.borderColor = '#4470ff66')}
-                  onBlur={e => (e.currentTarget.style.borderColor = '#E5E7EB')}
+                  onBlur={e => (e.currentTarget.style.borderColor = 'var(--border)')}
                 />
               </div>
 
               {/* Description */}
               <div>
-                <label className="block text-[11px] font-semibold mb-1.5" style={{ color: '#6B7280' }}>Açıklama</label>
+                <label className="block text-[11px] font-semibold mb-1.5" style={{ color: 'var(--text-2)' }}>Açıklama</label>
                 <input
                   value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
                   placeholder="Bu segment nedir?"
                   className="w-full px-3 py-2.5 rounded-xl text-[12px] outline-none"
                   style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
                   onFocus={e => (e.currentTarget.style.borderColor = '#4470ff66')}
-                  onBlur={e => (e.currentTarget.style.borderColor = '#E5E7EB')}
+                  onBlur={e => (e.currentTarget.style.borderColor = 'var(--border)')}
                 />
               </div>
 
               {/* Icon + Color */}
               <div className="flex gap-3">
                 <div className="flex-1">
-                  <label className="block text-[11px] font-semibold mb-1.5" style={{ color: '#6B7280' }}>İkon</label>
+                  <label className="block text-[11px] font-semibold mb-1.5" style={{ color: 'var(--text-2)' }}>İkon</label>
                   <div className="grid grid-cols-8 gap-1">
                     {ICON_OPTIONS.map(ic => (
                       <button key={ic} onClick={() => setForm(f => ({ ...f, icon: ic }))}
@@ -590,7 +590,7 @@ export default function SegmentsPage() {
 
               {/* Color */}
               <div>
-                <label className="block text-[11px] font-semibold mb-1.5" style={{ color: '#6B7280' }}>Renk</label>
+                <label className="block text-[11px] font-semibold mb-1.5" style={{ color: 'var(--text-2)' }}>Renk</label>
                 <div className="flex gap-1.5 flex-wrap">
                   {COLOR_OPTIONS.map(c => (
                     <button key={c} onClick={() => setForm(f => ({ ...f, color: c }))}
@@ -606,16 +606,16 @@ export default function SegmentsPage() {
               {/* Rules */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-[11px] font-semibold" style={{ color: '#6B7280' }}>KOŞULLAR *</p>
+                  <p className="text-[11px] font-semibold" style={{ color: 'var(--text-2)' }}>KOŞULLAR *</p>
                   {/* Match type */}
                   <div className="flex items-center p-0.5 rounded-lg"
-                    style={{ background: '#F3F4F6', border: '1px solid #E5E7EB' }}>
+                    style={{ background: '#F3F4F6', border: '1px solid var(--border)' }}>
                     {(['all', 'any'] as const).map(t => (
                       <button key={t} onClick={() => setForm(f => ({ ...f, matchType: t }))}
                         className="px-2.5 py-1 rounded-md text-[10px] font-semibold transition-all"
                         style={form.matchType === t
-                          ? { background: '#FFFFFF', color: '#2563EB', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }
-                          : { color: '#6B7280' }}>
+                          ? { background: 'var(--surface)', color: '#2563EB', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }
+                          : { color: 'var(--text-2)' }}>
                         {t === 'all' ? 'Tümü' : 'Herhangi'}
                       </button>
                     ))}
@@ -636,23 +636,23 @@ export default function SegmentsPage() {
               </div>
 
               {/* Preview */}
-              <div className="rounded-xl p-3.5" style={{ background: '#FFFFFF', border: '1px solid #E5E7EB' }}>
+              <div className="rounded-xl p-3.5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-8 h-8 rounded-xl flex items-center justify-center text-[15px]"
                     style={{ background: `${form.color}15`, border: `1px solid ${form.color}25` }}>
                     {resolveIcon(form.icon)}
                   </div>
                   <div>
-                    <p className="text-[12px] font-semibold" style={{ color: '#111827' }}>{form.name || 'Segment Adı'}</p>
-                    <p className="text-[10px]" style={{ color: '#6B7280' }}>{form.rules.length} koşul · {form.matchType === 'all' ? 'tümü' : 'herhangi biri'}</p>
+                    <p className="text-[12px] font-semibold" style={{ color: 'var(--text-1)' }}>{form.name || 'Segment Adı'}</p>
+                    <p className="text-[10px]" style={{ color: 'var(--text-2)' }}>{form.rules.length} koşul · {form.matchType === 'all' ? 'tümü' : 'herhangi biri'}</p>
                   </div>
                 </div>
                 {form.rules.length === 0 ? (
-                  <p className="text-[10px]" style={{ color: '#6B7280' }}>Koşul ekleyince önizleme görünür.</p>
+                  <p className="text-[10px]" style={{ color: 'var(--text-2)' }}>Koşul ekleyince önizleme görünür.</p>
                 ) : previewLoading ? (
                   <div className="flex items-center gap-1.5">
-                    <Loader2 className="w-3 h-3 animate-spin" style={{ color: '#6B7280' }} />
-                    <p className="text-[10px]" style={{ color: '#6B7280' }}>Hesaplanıyor…</p>
+                    <Loader2 className="w-3 h-3 animate-spin" style={{ color: 'var(--text-2)' }} />
+                    <p className="text-[10px]" style={{ color: 'var(--text-2)' }}>Hesaplanıyor…</p>
                   </div>
                 ) : previewCount !== null ? (
                   <p className="text-[11px] font-bold" style={{ color: form.color }}>
@@ -674,7 +674,7 @@ export default function SegmentsPage() {
             <div className="px-5 py-4 flex gap-2 shrink-0" style={{ borderTop: '1px solid #E5E7EB' }}>
               <button onClick={() => { setShowCreate(false); setSaveError('') }}
                 className="flex-1 py-2 rounded-xl text-[12px] font-semibold"
-                style={{ background: '#F3F4F6', color: '#6B7280', border: '1px solid #E5E7EB' }}>
+                style={{ background: '#F3F4F6', color: 'var(--text-2)', border: '1px solid var(--border)' }}>
                 İptal
               </button>
               <button onClick={saveSegment} disabled={saving}

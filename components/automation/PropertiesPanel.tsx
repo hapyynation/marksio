@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useState } from 'react'
 import { type Node } from 'reactflow'
@@ -31,7 +31,7 @@ function PInput({ label, value, onChange, placeholder, type = 'text', hint }: {
         onChange={e => onChange(e.target.value)}
         onFocus={e => inp(e.target)} onBlur={e => blr(e.target)}
         style={inputBase} />
-      {hint && <p style={{ margin: '3px 0 0', fontSize: 9.5, color: '#94a3b8' }}>{hint}</p>}
+      {hint && <p style={{ margin: '3px 0 0', fontSize: 9.5, color: 'var(--text-3)' }}>{hint}</p>}
     </div>
   )
 }
@@ -47,7 +47,7 @@ function PTextarea({ label, value, onChange, placeholder, rows = 3, hint }: {
         onChange={e => onChange(e.target.value)}
         onFocus={e => inp(e.target)} onBlur={e => blr(e.target)}
         style={{ ...inputBase, resize: 'vertical', lineHeight: 1.55 }} />
-      {hint && <p style={{ margin: '3px 0 0', fontSize: 9.5, color: '#94a3b8' }}>{hint}</p>}
+      {hint && <p style={{ margin: '3px 0 0', fontSize: 9.5, color: 'var(--text-3)' }}>{hint}</p>}
     </div>
   )
 }
@@ -68,7 +68,7 @@ function PSelect({ label, value, options, onChange, hint }: {
         </select>
         <ChevronDown size={11} color="#94a3b8" style={{ position: 'absolute', right: 9, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
       </div>
-      {hint && <p style={{ margin: '3px 0 0', fontSize: 9.5, color: '#94a3b8' }}>{hint}</p>}
+      {hint && <p style={{ margin: '3px 0 0', fontSize: 9.5, color: 'var(--text-3)' }}>{hint}</p>}
     </div>
   )
 }
@@ -80,13 +80,13 @@ function PToggle({ label, description, checked, onChange }: {
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '7px 10px', borderRadius: 8, background: '#faf9ff', border: '1px solid #f1f5f9' }}>
       <div>
         <p style={{ margin: 0, fontSize: 11.5, fontWeight: 500, color: '#334155' }}>{label}</p>
-        {description && <p style={{ margin: '1px 0 0', fontSize: 9.5, color: '#94a3b8' }}>{description}</p>}
+        {description && <p style={{ margin: '1px 0 0', fontSize: 9.5, color: 'var(--text-3)' }}>{description}</p>}
       </div>
       <button onClick={() => onChange(!checked)} style={{
         flexShrink: 0, width: 36, height: 20, borderRadius: 100, border: 'none',
         cursor: 'pointer', background: checked ? '#6366f1' : '#e2e8f0', position: 'relative', transition: 'background 0.18s',
       }}>
-        <span style={{ position: 'absolute', top: 2, left: checked ? 18 : 2, width: 16, height: 16, borderRadius: '50%', background: '#fff', transition: 'left 0.18s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+        <span style={{ position: 'absolute', top: 2, left: checked ? 18 : 2, width: 16, height: 16, borderRadius: '50%', background: 'var(--surface)', transition: 'left 0.18s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
       </button>
     </div>
   )
@@ -108,7 +108,7 @@ function StatBig({ label, value, color }: { label: string; value: number; color:
   const fmt = (n: number) => n >= 1000 ? `${(n/1000).toFixed(1)}k` : n.toLocaleString('tr')
   return (
     <div style={{ flex: 1, padding: '10px 12px', borderRadius: 10, background: '#faf9ff', border: '1px solid #ede9fe', textAlign: 'center' }}>
-      <p style={{ margin: 0, fontSize: 9, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{label}</p>
+      <p style={{ margin: 0, fontSize: 9, color: 'var(--text-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{label}</p>
       <p style={{ margin: '4px 0 0', fontSize: 22, fontWeight: 900, color: value > 0 ? color : '#e2e8f0', fontFamily: 'ui-monospace,monospace', lineHeight: 1 }}>
         {value > 0 ? fmt(value) : '—'}
       </p>
@@ -352,14 +352,14 @@ export default function PropertiesPanel({ node, onUpdate, onDelete, onCopy, onCl
 
   return (
     <aside style={{
-      width: 288, background: '#ffffff',
+      width: 288, background: 'var(--surface)',
       borderLeft: '1px solid rgba(99,102,241,0.1)',
       display: 'flex', flexDirection: 'column',
       overflow: 'hidden', flexShrink: 0,
       boxShadow: '-2px 0 10px rgba(99,102,241,0.05)',
     }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 14px 12px', borderBottom: '1px solid rgba(99,102,241,0.08)', background: '#ffffff', position: 'sticky', top: 0, zIndex: 1 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 14px 12px', borderBottom: '1px solid rgba(99,102,241,0.08)', background: 'var(--surface)', position: 'sticky', top: 0, zIndex: 1 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ width: 3, height: 14, borderRadius: 2, background: 'linear-gradient(180deg,#6366f1,#7c3aed)' }} />
           <p style={{ margin: 0, fontSize: 12.5, fontWeight: 700, color: '#0f172a', letterSpacing: '-0.01em' }}>Adım Özellikleri</p>
@@ -376,11 +376,11 @@ export default function PropertiesPanel({ node, onUpdate, onDelete, onCopy, onCl
 
         {/* Node identity */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '9px 11px', borderRadius: 11, background: meta.bgColor, border: `1px solid ${meta.color}18` }}>
-          <div style={{ width: 32, height: 32, borderRadius: 8, background: '#fff', border: `1px solid ${meta.color}20`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--surface)', border: `1px solid ${meta.color}20`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             <Icon size={14} color={meta.color} />
           </div>
           <div>
-            <p style={{ margin: 0, fontSize: 11.5, fontWeight: 700, color: '#111827' }}>{meta.label}</p>
+            <p style={{ margin: 0, fontSize: 11.5, fontWeight: 700, color: 'var(--text-1)' }}>{meta.label}</p>
             <p style={{ margin: 0, fontSize: 9.5, color: `${meta.color}cc` }}>{meta.sublabel}</p>
           </div>
         </div>

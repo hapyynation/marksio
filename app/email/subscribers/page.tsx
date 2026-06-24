@@ -232,7 +232,7 @@ export default function SubscribersPage() {
         <div style={{
           display: 'grid', gridTemplateColumns: '40px 1fr 140px 90px 120px 80px 40px',
           padding: '12px 16px', borderBottom: '1px solid var(--border)',
-          background: '#F9FAFB',
+          background: 'var(--bg)',
         }}>
           <div>
             <input
@@ -325,7 +325,7 @@ export default function SubscribersPage() {
                 {openMenu === sub.id && (
                   <div style={{
                     position: 'absolute', right: 0, top: 30, zIndex: 10,
-                    background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 8,
+                    background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8,
                     minWidth: 160, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', overflow: 'hidden',
                   }}>
                     {sub.unsubscribed && (

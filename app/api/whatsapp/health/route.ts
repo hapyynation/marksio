@@ -16,7 +16,7 @@ export async function GET() {
 
   const account = await prisma.whatsappAccount.findFirst({
     where: { userId: session.user.id, status: { not: 'DISCONNECTED' } },
-    orderBy: { connectedAt: 'desc' },
+    orderBy: [{ isDemo: 'asc' }, { connectedAt: 'desc' }],
     select: {
       id: true,
       displayName: true,
@@ -25,6 +25,7 @@ export async function GET() {
       qualityRating: true,
       messagingTier: true,
       status: true,
+      isDemo: true,
       lastWebhookAt: true,
       accessToken: true,
     },
@@ -56,6 +57,7 @@ export async function GET() {
     messagingTierUsed: sentToday,
     lastWebhookAt: account.lastWebhookAt?.toISOString() ?? null,
     hasMetaToken: true,
+    isDemo: account.isDemo,
   }
 
   return NextResponse.json({ health })

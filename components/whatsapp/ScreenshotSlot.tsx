@@ -2,16 +2,29 @@ interface ScreenshotSlotProps {
   step: string
   alt: string
   src?: string
+  caption?: string
   aspectRatio?: string
   theme?: 'dark' | 'light'
 }
 
-export default function ScreenshotSlot({ step, alt, src, aspectRatio = '16/9', theme = 'dark' }: ScreenshotSlotProps) {
+export default function ScreenshotSlot({ step, alt, src, caption, aspectRatio = '16/9', theme = 'dark' }: ScreenshotSlotProps) {
   if (src) {
+    const borderColor = theme === 'light' ? '1px solid #E5E7EB' : '1px solid rgba(255,255,255,0.08)'
     return (
-      <div className="rounded-xl overflow-hidden" style={{ border: theme === 'light' ? '1px solid #E5E7EB' : '1px solid rgba(255,255,255,0.08)' }}>
+      <div className="rounded-xl overflow-hidden" style={{ border: borderColor }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={src} alt={alt} style={{ width: '100%', display: 'block' }} />
+        {caption && (
+          <div style={{
+            padding: '7px 14px',
+            background: theme === 'light' ? '#F9FAFB' : 'rgba(255,255,255,0.03)',
+            borderTop: theme === 'light' ? '1px solid #E5E7EB' : '1px solid rgba(255,255,255,0.06)',
+          }}>
+            <p style={{ fontSize: 11, color: theme === 'light' ? '#6B7280' : '#8080a0', margin: 0, textAlign: 'center', lineHeight: 1.4 }}>
+              {caption}
+            </p>
+          </div>
+        )}
       </div>
     )
   }
@@ -33,7 +46,7 @@ export default function ScreenshotSlot({ step, alt, src, aspectRatio = '16/9', t
     >
       <span className="material-symbols-outlined" style={{ fontSize: 28, color: colors.icon }}>image</span>
       <p style={{ fontSize: 12, color: colors.text, margin: 0 }}>Görsel eklenecek</p>
-      <p style={{ fontSize: 10, color: colors.subtext, textAlign: 'center', maxWidth: 240, lineHeight: 1.4, margin: 0 }}>{alt}</p>
+      <p style={{ fontSize: 10, color: colors.subtext, textAlign: 'center', maxWidth: 240, lineHeight: 1.4, margin: 0 }}>{caption ?? alt}</p>
     </div>
   )
 }

@@ -17,7 +17,7 @@ const QUICK_STARTS = [
     icon: Zap,
     title: 'İlk kampanyamı oluştur',
     desc: 'AI ile dakikalar içinde kampanya hazırla',
-    href: '/ai-studio',
+    href: '/campaigns/new',
     color: '#4470ff',
     bg: 'rgba(68,112,255,0.08)',
     border: 'rgba(68,112,255,0.2)',
@@ -95,13 +95,25 @@ export default function OnboardingPage() {
   async function complete(destination = '/dashboard') {
     setSaving(true)
     try {
-      await fetch('/api/auth/onboarding', {
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 8000)
+      const res = await fetch('/api/auth/onboarding', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ storeName: storeName.trim() || undefined, storeUrl, industry }),
+        signal: controller.signal,
       })
-    } catch { /* ignore */ }
+      clearTimeout(timeout)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    } catch {
+      // Timeout, network error, or API error — navigate anyway.
+      // If the onboarding cookie wasn't set, middleware will redirect back here
+      // and the component will remount with fresh (non-loading) state.
+    }
     router.push(destination)
+    // Safety: if middleware redirects back to /onboarding without unmounting,
+    // reset saving so buttons aren't permanently disabled.
+    setSaving(false)
   }
 
   function togglePlatform(id: string) {

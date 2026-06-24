@@ -112,7 +112,7 @@ function RunRow({ run, automationId, onRetried }: { run: AutomationRun; automati
 
   return (
     <div style={{
-      background: '#ffffff',
+      background: 'var(--surface)',
       border: `1px solid ${st.border}`,
       borderRadius: 12, overflow: 'hidden',
       boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
@@ -411,7 +411,7 @@ export default function RunHistoryPage() {
             {['', 'completed', 'failed', 'waiting', 'running'].map(s => (
               <button key={s} onClick={() => setFilter(v => v === s ? '' : s)}
                 className={cn('px-3 py-1.5 rounded-lg text-[10.5px] font-semibold transition-all',
-                  statusFilter === s ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700')}>
+                  statusFilter === s ? 'bg-[var(--surface)] text-[var(--text-1)] shadow-sm' : 'text-[var(--text-2)] hover:text-[var(--text-1)]')}>
                 {s === '' ? 'Tümü' : S[s]?.label ?? s}
               </button>
             ))}

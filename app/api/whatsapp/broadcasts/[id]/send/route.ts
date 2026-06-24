@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getApiSession } from '@/lib/auth'
-import { decrypt } from '@/lib/encryption'
 import { Client } from '@upstash/qstash'
+import { sendBatch } from '@/lib/whatsapp-broadcast'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://app.marksio.com'
 
@@ -35,6 +35,8 @@ export async function POST(
   })
 
   if (!broadcast) return NextResponse.json({ error: 'Broadcast bulunamadı.' }, { status: 404 })
+  if (broadcast.demo) return NextResponse.json({ error: 'Demo broadcast gönderilemez.' }, { status: 400 })
+  if (!broadcast.template) return NextResponse.json({ error: 'Şablon bulunamadı.' }, { status: 400 })
   if (broadcast.status !== 'DRAFT' && broadcast.status !== 'SCHEDULED') {
     return NextResponse.json({ error: 'Broadcast zaten gönderilmiş veya gönderiliyor.' }, { status: 409 })
   }
@@ -86,7 +88,7 @@ export async function POST(
     }
   } else {
     // QStash yoksa ilk batch'i senkron gönder (geliştirme ortamı)
-    await sendBatch(broadcast.id, batches[0] ?? [], broadcast.account, broadcast.template)
+    await sendBatch(broadcast.id, batches[0] ?? [], broadcast.account, broadcast.template!)
     if (batches.length === 1) {
       await prisma.whatsappBroadcast.update({
         where: { id: broadcast.id },
@@ -98,102 +100,3 @@ export async function POST(
   return NextResponse.json({ ok: true, totalRecipients: contacts.length, batches: batches.length })
 }
 
-export async function sendBatch(
-  broadcastId: string,
-  phoneNumbers: string[],
-  account: { id: string; phoneNumberId: string; accessToken: string },
-  template: { metaTemplateId: string; name: string; language: string; componentsJson: unknown },
-) {
-  const accessToken = decrypt(account.accessToken)
-  const META_API = 'https://graph.facebook.com/v19.0'
-
-  for (const phoneNumber of phoneNumbers) {
-    // 24 saatlik pencere dolmuşsa sadece template gönderilebilir — bu zaten template broadcast
-    const contact = await prisma.whatsappContact.findFirst({
-      where: { phoneNumber },
-      select: { id: true },
-    })
-
-    // Conversation al veya oluştur
-    let conversation = contact
-      ? await prisma.whatsappConversation.findFirst({
-          where: { contact: { phoneNumber }, accountId: account.id, status: { not: 'CLOSED' } },
-          select: { id: true },
-        })
-      : null
-
-    if (!conversation && contact) {
-      conversation = await prisma.whatsappConversation.create({
-        data: { contactId: contact.id, accountId: account.id, status: 'AI_HANDLING' },
-        select: { id: true },
-      })
-    }
-
-    // Mesaj kaydı oluştur
-    const msgRecord = conversation
-      ? await prisma.whatsappMessage.create({
-          data: {
-            conversationId: conversation.id,
-            direction: 'OUTBOUND',
-            status: 'QUEUED',
-            broadcastId,
-          },
-        })
-      : null
-
-    // Meta API'ye template mesajı gönder
-    const metaRes = await fetch(`${META_API}/${account.phoneNumberId}/messages`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        messaging_product: 'whatsapp',
-        recipient_type: 'individual',
-        to: phoneNumber,
-        type: 'template',
-        template: {
-          name: template.name,
-          language: { code: template.language },
-        },
-      }),
-    }).catch(() => null)
-
-    if (metaRes?.ok) {
-      const data = await metaRes.json() as { messages?: Array<{ id?: string }> }
-      const metaMessageId = data.messages?.[0]?.id ?? null
-
-      if (msgRecord) {
-        await prisma.whatsappMessage.update({
-          where: { id: msgRecord.id },
-          data: { status: 'SENT', metaMessageId },
-        })
-      }
-      await prisma.whatsappBroadcast.update({
-        where: { id: broadcastId },
-        data: { sentCount: { increment: 1 } },
-      })
-    } else {
-      const errData = metaRes ? await metaRes.json().catch(() => ({})) : {}
-      const reason = (errData as { error?: { message?: string } })?.error?.message ?? 'Bilinmeyen hata'
-      console.error('[WhatsApp Broadcast] Meta API hatası:', {
-        status: metaRes?.status,
-        error: (errData as { error?: unknown })?.error,
-        phoneNumber,
-        broadcastId,
-      })
-
-      if (msgRecord) {
-        await prisma.whatsappMessage.update({
-          where: { id: msgRecord.id },
-          data: { status: 'FAILED', errorReason: reason },
-        })
-      }
-      await prisma.whatsappBroadcast.update({
-        where: { id: broadcastId },
-        data: { failedCount: { increment: 1 } },
-      })
-    }
-  }
-}

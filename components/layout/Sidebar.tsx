@@ -7,7 +7,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { useSidebar } from '@/lib/sidebar-context'
 import { createClient } from '@/lib/supabase/client'
 import { signOut as nextAuthSignOut } from 'next-auth/react'
-import { useTheme } from '@/components/providers/ThemeProvider'
+import ThemeToggle from '@/components/ui/ThemeToggle'
 
 type NavItem = {
   href: string
@@ -176,7 +176,6 @@ function NavLink({
 
 export default function Sidebar() {
   const { open, setOpen, collapsed, setCollapsed } = useSidebar()
-  const { theme, toggle: toggleTheme } = useTheme()
   const router = useRouter()
   const [workspace, setWorkspace] = useState<string | null>(null)
   const [userEmail, setUserEmail] = useState<string | null>(null)
@@ -223,7 +222,7 @@ export default function Sidebar() {
       >
         <div
           className="flex-shrink-0 flex items-center justify-center rounded-lg font-black text-white"
-          style={{ width: 26, height: 26, background: '#2563EB', fontSize: 12 }}
+          style={{ width: 26, height: 26, background: 'var(--primary)', fontSize: 12 }}
         >
           M
         </div>
@@ -284,21 +283,12 @@ export default function Sidebar() {
         >
           <div
             className="flex-shrink-0 rounded-full flex items-center justify-center font-semibold"
-            style={{ width: 26, height: 26, background: '#DBEAFE', color: '#2563EB', fontSize: 11 }}
+            style={{ width: 26, height: 26, background: 'var(--primary-soft)', color: 'var(--primary)', fontSize: 11 }}
           >
             {userEmail ? userEmail[0].toUpperCase() : 'U'}
           </div>
           {collapsed ? (
-            <button
-              onClick={toggleTheme}
-              className="rounded-md flex items-center justify-center transition-colors"
-              style={{ width: 24, height: 24, flexShrink: 0 }}
-              title={theme === 'light' ? 'Karanlık Mod' : 'Aydınlık Mod'}
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: 14, color: '#9CA3AF' }}>
-                {theme === 'light' ? 'dark_mode' : 'light_mode'}
-              </span>
-            </button>
+            <ThemeToggle variant="icon" />
           ) : (
             <>
               <div className="flex-1 min-w-0">
@@ -306,23 +296,16 @@ export default function Sidebar() {
                   {userEmail ?? 'Kullanıcı'}
                 </p>
               </div>
-              <button
-                onClick={toggleTheme}
-                className="rounded-md flex items-center justify-center transition-colors hover:bg-gray-100"
-                style={{ width: 24, height: 24, flexShrink: 0 }}
-                title={theme === 'light' ? 'Karanlık Mod' : 'Aydınlık Mod'}
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: 14, color: '#9CA3AF' }}>
-                  {theme === 'light' ? 'dark_mode' : 'light_mode'}
-                </span>
-              </button>
+              <ThemeToggle variant="icon" />
               <button
                 onClick={handleSignOut}
-                className="rounded-md flex items-center justify-center transition-colors hover:bg-red-50"
+                className="rounded-md flex items-center justify-center transition-colors"
                 style={{ width: 24, height: 24, flexShrink: 0 }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'var(--danger-soft)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                 title="Çıkış Yap"
               >
-                <span className="material-symbols-outlined" style={{ fontSize: 14, color: '#9CA3AF' }}>logout</span>
+                <span className="material-symbols-outlined" style={{ fontSize: 14, color: 'var(--text-3)' }}>logout</span>
               </button>
             </>
           )}

@@ -39,6 +39,7 @@ export async function GET() {
       messagingTier: true,
       webhookVerifyToken: true,
       status: true,
+      isDemo: true,
       lastWebhookAt: true,
       connectedAt: true,
     },

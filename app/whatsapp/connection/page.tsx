@@ -17,10 +17,10 @@ const STEPS = ['Giriş', 'Numara', 'İşletme', 'Uygulama', 'Numara Ekle', 'Bilg
 const WEBHOOK_URL = 'https://app.marksio.com/api/webhooks/whatsapp'
 
 const inp: React.CSSProperties = {
-  width: '100%', background: '#F9FAFB', border: '1px solid #E5E7EB',
-  borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#111827', outline: 'none',
+  width: '100%', background: 'var(--bg)', border: '1px solid var(--border)',
+  borderRadius: 8, padding: '10px 14px', fontSize: 13, color: 'var(--text-1)', outline: 'none',
 }
-const helperStyle: React.CSSProperties = { fontSize: 11, color: '#6B7280', margin: '5px 0 0', lineHeight: 1.5 }
+const helperStyle: React.CSSProperties = { fontSize: 11, color: 'var(--text-2)', margin: '5px 0 0', lineHeight: 1.5 }
 
 function Field({ label, helper, children }: { label: string; helper?: string; children: React.ReactNode }) {
   return (
@@ -51,7 +51,7 @@ function StepDot({ num, current }: { num: number; current: Step }) {
 function NavBtns({ onBack, onNext, nextLabel = 'İleri', nextDisabled = false }: { onBack: () => void; onNext: () => void; nextLabel?: string; nextDisabled?: boolean }) {
   return (
     <div style={{ display: 'flex', gap: 10, paddingTop: 4 }}>
-      <button onClick={onBack} style={{ background: '#F3F4F6', border: '1px solid #E5E7EB', borderRadius: 8, padding: '10px 18px', fontSize: 13, fontWeight: 500, cursor: 'pointer', color: '#374151', display: 'flex', alignItems: 'center', gap: 6 }}>
+      <button onClick={onBack} style={{ background: '#F3F4F6', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 18px', fontSize: 13, fontWeight: 500, cursor: 'pointer', color: '#374151', display: 'flex', alignItems: 'center', gap: 6 }}>
         <ArrowLeft size={13} /> Geri
       </button>
       <button onClick={onNext} disabled={nextDisabled} style={{ background: '#2563EB', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 20px', fontSize: 13, fontWeight: 600, cursor: nextDisabled ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6, opacity: nextDisabled ? 0.5 : 1 }}>
@@ -150,11 +150,11 @@ export default function ConnectionPage() {
       .catch(() => setSyncStatus('error'))
   }
 
-  const card: React.CSSProperties = { background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 12, padding: 28, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }
+  const card: React.CSSProperties = { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: 28, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }
   const totalSteps = STEPS.length
 
   return (
-    <div style={{ minHeight: '100vh', background: '#F9FAFB' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
       <div style={{ maxWidth: 640, margin: '0 auto', padding: '40px 24px' }}>
 
         {/* Header */}
@@ -162,8 +162,8 @@ export default function ConnectionPage() {
           <div style={{ width: 48, height: 48, borderRadius: 12, background: '#DCFCE7', border: '1px solid #BBF7D0', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
             <span className="material-symbols-outlined" style={{ fontSize: 22, color: '#16A34A' }}>chat_bubble</span>
           </div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: '#111827', margin: '0 0 4px' }}>WhatsApp Business Bağlantısı</h1>
-          <p style={{ fontSize: 13, color: '#6B7280', margin: 0 }}>Meta Cloud API'yi adım adım bağlayın</p>
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-1)', margin: '0 0 4px' }}>WhatsApp Business Bağlantısı</h1>
+          <p style={{ fontSize: 13, color: 'var(--text-2)', margin: 0 }}>Meta Cloud API'yi adım adım bağlayın</p>
         </div>
 
         {/* Step indicator */}
@@ -197,8 +197,8 @@ export default function ConnectionPage() {
               <div style={{ marginBottom: 20, overflow: 'hidden', borderRadius: 10 }}>
                 <ScreenshotSlot step="onboarding-intro" alt="WhatsApp Business API bağlantı illüstrasyonu" src="/whatsapp/onboarding-intro.png" aspectRatio="16/7"  theme="light"/>
               </div>
-              <h2 style={{ fontSize: 18, fontWeight: 700, color: '#111827', margin: '0 0 8px' }}>WhatsApp Business hesabını bağla</h2>
-              <p style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.6, margin: '0 0 24px' }}>
+              <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-1)', margin: '0 0 8px' }}>WhatsApp Business hesabını bağla</h2>
+              <p style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6, margin: '0 0 24px' }}>
                 Meta Cloud API ile WhatsApp Business hesabınızı bağlayarak müşterilerinize toplu mesaj gönderebilir,
                 şablonlarınızı yönetebilir ve AI destekli sohbet kurabilirsiniz.
               </p>
@@ -212,8 +212,8 @@ export default function ConnectionPage() {
           {step === 2 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
               <div>
-                <h2 style={{ fontSize: 16, fontWeight: 700, color: '#111827', margin: '0 0 6px' }}>Bağlayacağınız Numara Hakkında</h2>
-                <p style={{ fontSize: 12, color: '#6B7280', margin: 0 }}>Devam etmeden önce bir bilgi vermemiz gerekiyor.</p>
+                <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-1)', margin: '0 0 6px' }}>Bağlayacağınız Numara Hakkında</h2>
+                <p style={{ fontSize: 12, color: 'var(--text-2)', margin: 0 }}>Devam etmeden önce bir bilgi vermemiz gerekiyor.</p>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -230,7 +230,7 @@ export default function ConnectionPage() {
                       onChange={() => setNumberStatus(opt.val)}
                       style={{ marginTop: 2, flexShrink: 0, accentColor: '#2563EB' }}
                     />
-                    <span style={{ fontSize: 13, color: '#111827', lineHeight: 1.5 }}>{opt.label}</span>
+                    <span style={{ fontSize: 13, color: 'var(--text-1)', lineHeight: 1.5 }}>{opt.label}</span>
                   </label>
                 ))}
               </div>
@@ -265,8 +265,8 @@ export default function ConnectionPage() {
           {step === 3 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
               <div>
-                <h2 style={{ fontSize: 16, fontWeight: 700, color: '#111827', margin: '0 0 6px' }}>Meta İşletme Hesabı Oluşturun</h2>
-                <p style={{ fontSize: 12, color: '#6B7280', margin: 0 }}>WhatsApp Cloud API için Meta Business Manager hesabı gerekli.</p>
+                <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-1)', margin: '0 0 6px' }}>Meta İşletme Hesabı Oluşturun</h2>
+                <p style={{ fontSize: 12, color: 'var(--text-2)', margin: 0 }}>WhatsApp Cloud API için Meta Business Manager hesabı gerekli.</p>
               </div>
               <Steps items={[
                 <><a href="https://business.facebook.com/overview" target="_blank" rel="noreferrer" style={{ color: '#2563EB' }}>business.facebook.com/overview</a> adresine gidin</>,
@@ -283,8 +283,8 @@ export default function ConnectionPage() {
           {step === 4 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
               <div>
-                <h2 style={{ fontSize: 16, fontWeight: 700, color: '#111827', margin: '0 0 6px' }}>Meta Uygulaması Oluşturun</h2>
-                <p style={{ fontSize: 12, color: '#6B7280', margin: 0 }}>WhatsApp API'ye erişmek için bir Meta uygulaması gerekli.</p>
+                <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-1)', margin: '0 0 6px' }}>Meta Uygulaması Oluşturun</h2>
+                <p style={{ fontSize: 12, color: 'var(--text-2)', margin: 0 }}>WhatsApp API'ye erişmek için bir Meta uygulaması gerekli.</p>
               </div>
               <Steps items={[
                 <><a href="https://developers.facebook.com/apps" target="_blank" rel="noreferrer" style={{ color: '#2563EB' }}>developers.facebook.com/apps</a> → <strong>Uygulama Oluştur</strong></>,
@@ -303,8 +303,8 @@ export default function ConnectionPage() {
           {step === 5 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
               <div>
-                <h2 style={{ fontSize: 16, fontWeight: 700, color: '#111827', margin: '0 0 6px' }}>WhatsApp Numaranızı Ekleyin</h2>
-                <p style={{ fontSize: 12, color: '#6B7280', margin: 0 }}>Gerçek işletme numaranızı Meta uygulamanıza tanıtın.</p>
+                <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-1)', margin: '0 0 6px' }}>WhatsApp Numaranızı Ekleyin</h2>
+                <p style={{ fontSize: 12, color: 'var(--text-2)', margin: 0 }}>Gerçek işletme numaranızı Meta uygulamanıza tanıtın.</p>
               </div>
               <Steps items={[
                 <>Meta uygulamanızda <strong>WhatsApp → API Kurulumu</strong> bölümüne gidin</>,
@@ -327,8 +327,8 @@ export default function ConnectionPage() {
           {step === 6 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
-                <h2 style={{ fontSize: 16, fontWeight: 700, color: '#111827', margin: '0 0 4px' }}>API Bilgilerini Girin</h2>
-                <p style={{ fontSize: 12, color: '#6B7280', margin: 0 }}>Bu 4 bilgiyi Meta panelinden toplayıp aşağıya girin.</p>
+                <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-1)', margin: '0 0 4px' }}>API Bilgilerini Girin</h2>
+                <p style={{ fontSize: 12, color: 'var(--text-2)', margin: 0 }}>Bu 4 bilgiyi Meta panelinden toplayıp aşağıya girin.</p>
               </div>
 
               {testError && (
@@ -358,7 +358,7 @@ export default function ConnectionPage() {
               >
                 <div style={{ position: 'relative' }}>
                   <input type={showToken ? 'text' : 'password'} value={form.accessToken} onChange={f('accessToken')} placeholder="EAABcde... (200+ karakter)" style={{ ...inp, paddingRight: 40 }} />
-                  <button onClick={() => setShowToken(p => !p)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF' }}>
+                  <button onClick={() => setShowToken(p => !p)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)' }}>
                     {showToken ? <EyeOff size={14} /> : <Eye size={14} />}
                   </button>
                 </div>
@@ -370,7 +370,7 @@ export default function ConnectionPage() {
               >
                 <div style={{ position: 'relative' }}>
                   <input type={showSecret ? 'text' : 'password'} value={form.appSecret} onChange={f('appSecret')} placeholder="~32 karakter" style={{ ...inp, paddingRight: 40 }} />
-                  <button onClick={() => setShowSecret(p => !p)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF' }}>
+                  <button onClick={() => setShowSecret(p => !p)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)' }}>
                     {showSecret ? <EyeOff size={14} /> : <Eye size={14} />}
                   </button>
                 </div>
@@ -379,7 +379,7 @@ export default function ConnectionPage() {
               <ScreenshotSlot step="meta-api-setup" alt="Meta API Setup sayfasında WABA ID ve Phone Number ID konumları" src="/whatsapp/guide/meta-api-setup.png" caption="API Setup sayfasında WABA ID ve Phone Number ID'yi bulma" aspectRatio="16/9" theme="light" />
 
               <div style={{ display: 'flex', gap: 10, paddingTop: 4 }}>
-                <button onClick={() => setStep(5)} style={{ background: '#F3F4F6', border: '1px solid #E5E7EB', borderRadius: 8, padding: '10px 18px', fontSize: 13, fontWeight: 500, cursor: 'pointer', color: '#374151', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <button onClick={() => setStep(5)} style={{ background: '#F3F4F6', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 18px', fontSize: 13, fontWeight: 500, cursor: 'pointer', color: '#374151', display: 'flex', alignItems: 'center', gap: 6 }}>
                   <ArrowLeft size={13} /> Geri
                 </button>
                 <button
@@ -398,8 +398,8 @@ export default function ConnectionPage() {
           {step === 7 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
               <div>
-                <h2 style={{ fontSize: 16, fontWeight: 700, color: '#111827', margin: '0 0 6px' }}>Webhook'u Ayarlayın</h2>
-                <p style={{ fontSize: 12, color: '#6B7280', margin: 0 }}>Meta uygulamanızın webhook ayarlarına bu URL ve doğrulama token'ını girin.</p>
+                <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-1)', margin: '0 0 6px' }}>Webhook'u Ayarlayın</h2>
+                <p style={{ fontSize: 12, color: 'var(--text-2)', margin: 0 }}>Meta uygulamanızın webhook ayarlarına bu URL ve doğrulama token'ını girin.</p>
               </div>
 
               {subscribeWarning && (
@@ -408,9 +408,9 @@ export default function ConnectionPage() {
 
               {([{ label: 'Webhook URL', value: WEBHOOK_URL, key: 'url' }, { label: 'Verify Token (Doğrulama Kodu)', value: webhookToken || 'Yükleniyor…', key: 'token' }]).map(item => (
                 <Field key={item.key} label={item.label}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 8, padding: '10px 14px' }}>
-                    <span style={{ flex: 1, fontSize: 12, fontFamily: 'monospace', color: '#111827', overflowX: 'auto', whiteSpace: 'nowrap' }}>{item.value}</span>
-                    <button onClick={() => copy(item.value, item.key)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: '#9CA3AF', flexShrink: 0 }} title="Kopyala">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 14px' }}>
+                    <span style={{ flex: 1, fontSize: 12, fontFamily: 'monospace', color: 'var(--text-1)', overflowX: 'auto', whiteSpace: 'nowrap' }}>{item.value}</span>
+                    <button onClick={() => copy(item.value, item.key)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: 'var(--text-3)', flexShrink: 0 }} title="Kopyala">
                       {copied === item.key ? <Check size={14} style={{ color: '#16A34A' }} /> : <Copy size={14} />}
                     </button>
                   </div>
@@ -432,8 +432,8 @@ export default function ConnectionPage() {
           {step === 8 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
               <div>
-                <h2 style={{ fontSize: 16, fontWeight: 700, color: '#111827', margin: '0 0 6px' }}>Uygulamayı Yayınlayın</h2>
-                <p style={{ fontSize: 12, color: '#6B7280', margin: 0 }}>Bu adım atlanırsa gerçek müşteri mesajları sisteme hiç ulaşmaz.</p>
+                <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-1)', margin: '0 0 6px' }}>Uygulamayı Yayınlayın</h2>
+                <p style={{ fontSize: 12, color: 'var(--text-2)', margin: 0 }}>Bu adım atlanırsa gerçek müşteri mesajları sisteme hiç ulaşmaz.</p>
               </div>
 
               <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 9, padding: '14px 16px', display: 'flex', gap: 10 }}>
@@ -468,10 +468,10 @@ export default function ConnectionPage() {
               <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#DCFCE7', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
                 <CheckCircle2 size={22} style={{ color: '#16A34A' }} />
               </div>
-              <h2 style={{ fontSize: 18, fontWeight: 700, color: '#111827', margin: '0 0 6px' }}>Bağlantın tamamlandı!</h2>
-              <p style={{ fontSize: 13, color: '#6B7280', margin: '0 0 20px' }}>WhatsApp Business hesabınız Marksio'ya başarıyla bağlandı.</p>
+              <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-1)', margin: '0 0 6px' }}>Bağlantın tamamlandı!</h2>
+              <p style={{ fontSize: 13, color: 'var(--text-2)', margin: '0 0 20px' }}>WhatsApp Business hesabınız Marksio'ya başarıyla bağlandı.</p>
 
-              <div style={{ background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 8, padding: '12px 16px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '12px 16px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
                 {syncStatus === 'syncing' && <Loader2 size={14} className="animate-spin" style={{ color: '#2563EB', flexShrink: 0 }} />}
                 {syncStatus === 'done' && <CheckCircle2 size={14} style={{ color: '#16A34A', flexShrink: 0 }} />}
                 {syncStatus === 'error' && <AlertTriangle size={14} style={{ color: '#D97706', flexShrink: 0 }} />}
@@ -486,7 +486,7 @@ export default function ConnectionPage() {
                 <a href="/whatsapp/broadcasts" style={{ background: '#16A34A', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 20px', fontSize: 13, fontWeight: 600, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                   İlk Broadcast'i Oluştur <ChevronRight size={14} />
                 </a>
-                <a href="/whatsapp/templates" style={{ background: '#F3F4F6', color: '#374151', border: '1px solid #E5E7EB', borderRadius: 8, padding: '10px 16px', fontSize: 13, fontWeight: 500, textDecoration: 'none' }}>
+                <a href="/whatsapp/templates" style={{ background: '#F3F4F6', color: '#374151', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 16px', fontSize: 13, fontWeight: 500, textDecoration: 'none' }}>
                   Şablonlara Git
                 </a>
               </div>
@@ -496,7 +496,7 @@ export default function ConnectionPage() {
         </div>
 
         {/* Step label below */}
-        <p style={{ textAlign: 'center', fontSize: 12, color: '#9CA3AF', margin: '12px 0 0' }}>
+        <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--text-3)', margin: '12px 0 0' }}>
           Adım {step} / {totalSteps} — {STEPS[step - 1]}
         </p>
       </div>

@@ -296,8 +296,8 @@ export default function RegisterPage() {
 
                 <p style={{ fontSize: 11, color: '#424754', textAlign: 'center', marginTop: 8 }}>
                   Kayıt olarak{' '}
-                  <Link href="#" style={{ color: '#6B7280', textDecoration: 'underline' }}>Kullanım Şartları</Link>'nı ve{' '}
-                  <Link href="#" style={{ color: '#6B7280', textDecoration: 'underline' }}>Gizlilik Politikası</Link>'nı kabul etmiş olursunuz.
+                  <Link href="#" style={{ color: 'var(--text-2)', textDecoration: 'underline' }}>Kullanım Şartları</Link>'nı ve{' '}
+                  <Link href="#" style={{ color: 'var(--text-2)', textDecoration: 'underline' }}>Gizlilik Politikası</Link>'nı kabul etmiş olursunuz.
                 </p>
               </form>
             </div>

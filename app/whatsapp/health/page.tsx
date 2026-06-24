@@ -21,7 +21,7 @@ const QUALITY_CONFIG: Record<string, { label: string; color: string; bg: string;
   GREEN:   { label: 'İyi',       color: '#16A34A', bg: '#DCFCE7', desc: 'Hesabınız sağlıklı durumda' },
   YELLOW:  { label: 'Orta',      color: '#D97706', bg: '#FEF3C7', desc: 'Spam şikâyetlerinizi kontrol edin' },
   RED:     { label: 'Düşük',     color: '#DC2626', bg: '#FEE2E2', desc: 'Kısıtlama riski var, dikkat!' },
-  UNKNOWN: { label: 'Bilinmiyor', color: '#6B7280', bg: '#F3F4F6', desc: 'Kalite puanı alınamadı' },
+  UNKNOWN: { label: 'Bilinmiyor', color: 'var(--text-2)', bg: '#F3F4F6', desc: 'Kalite puanı alınamadı' },
 }
 
 function CircularGauge({ rating }: { rating: string }) {
@@ -45,7 +45,7 @@ function CircularGauge({ rating }: { rating: string }) {
       </svg>
       <div style={{ textAlign: 'center', zIndex: 1 }}>
         <p style={{ fontSize: 20, fontWeight: 800, color: cfg.color, margin: 0 }}>{cfg.label}</p>
-        <p style={{ fontSize: 10, color: '#9CA3AF', margin: 0 }}>Kalite Puanı</p>
+        <p style={{ fontSize: 10, color: 'var(--text-3)', margin: 0 }}>Kalite Puanı</p>
       </div>
     </div>
   )
@@ -61,10 +61,10 @@ function relTime(iso: string) {
 
 function StatChip({ icon, value, label, color = '#6B7280' }: { icon: string; value: string | number; label: string; color?: string }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 20, padding: '4px 12px' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 20, padding: '4px 12px' }}>
       <span className="material-symbols-outlined" style={{ fontSize: 14, color }}>{icon}</span>
-      <span style={{ fontSize: 12, fontWeight: 700, color: '#111827' }}>{value}</span>
-      <span style={{ fontSize: 11, color: '#6B7280' }}>{label}</span>
+      <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-1)' }}>{value}</span>
+      <span style={{ fontSize: 11, color: 'var(--text-2)' }}>{label}</span>
     </div>
   )
 }
@@ -141,7 +141,7 @@ export default function HealthPage() {
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 24px', gap: 12 }}>
         <WifiOff size={36} style={{ color: '#D1D5DB' }} />
         <p style={{ fontSize: 14, fontWeight: 600, color: '#374151', margin: 0 }}>WhatsApp bağlı değil</p>
-        <p style={{ fontSize: 13, color: '#6B7280', margin: 0 }}>Hesabınızı bağlamak için kurulum sihirbazını kullanın</p>
+        <p style={{ fontSize: 13, color: 'var(--text-2)', margin: 0 }}>Hesabınızı bağlamak için kurulum sihirbazını kullanın</p>
         <a href="/whatsapp/connection" style={{ background: '#16A34A', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 20px', fontSize: 13, fontWeight: 600, textDecoration: 'none', marginTop: 4 }}>
           Bağlantı Kur
         </a>
@@ -160,10 +160,10 @@ export default function HealthPage() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, color: '#111827', margin: '0 0 4px' }}>Hesap Sağlığı</h1>
-          <p style={{ fontSize: 13, color: '#6B7280', margin: 0 }}>WhatsApp Business API bağlantı durumu</p>
+          <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-1)', margin: '0 0 4px' }}>Hesap Sağlığı</h1>
+          <p style={{ fontSize: 13, color: 'var(--text-2)', margin: 0 }}>WhatsApp Business API bağlantı durumu</p>
         </div>
-        <button onClick={load} style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#F9FAFB', color: '#374151', border: '1px solid #E5E7EB', borderRadius: 8, padding: '9px 14px', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
+        <button onClick={load} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--bg)', color: '#374151', border: '1px solid var(--border)', borderRadius: 8, padding: '9px 14px', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
           <RefreshCw size={13} /> Yenile
         </button>
       </div>
@@ -178,16 +178,16 @@ export default function HealthPage() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 
         {/* Quality + info card */}
-        <div style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 10, padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 28, flexWrap: 'wrap' }}>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 28, flexWrap: 'wrap' }}>
           <CircularGauge rating={health.qualityRating} />
           <div style={{ flex: 1, minWidth: 200 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
               <span style={{ background: cfg.bg, color: cfg.color, fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 8 }}>{cfg.label}</span>
-              <span style={{ fontSize: 12, color: '#6B7280' }}>{cfg.desc}</span>
+              <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{cfg.desc}</span>
             </div>
-            <p style={{ fontSize: 11, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 4px' }}>Bağlı Numara</p>
-            <p style={{ fontSize: 18, fontWeight: 700, color: '#111827', margin: '0 0 2px' }}>{health.phoneNumber ?? '—'}</p>
-            {health.displayName && <p style={{ fontSize: 13, color: '#6B7280', margin: '0 0 4px' }}>{health.displayName}</p>}
+            <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 4px' }}>Bağlı Numara</p>
+            <p style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-1)', margin: '0 0 2px' }}>{health.phoneNumber ?? '—'}</p>
+            {health.displayName && <p style={{ fontSize: 13, color: 'var(--text-2)', margin: '0 0 4px' }}>{health.displayName}</p>}
             {health.verifiedName && health.verifiedName !== health.displayName && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 <CheckCircle2 size={12} style={{ color: '#16A34A' }} />
@@ -198,10 +198,10 @@ export default function HealthPage() {
         </div>
 
         {/* Messaging tier */}
-        <div style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 10, padding: '18px 22px' }}>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '18px 22px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-            <p style={{ fontSize: 13, fontWeight: 600, color: '#111827', margin: 0 }}>Günlük Mesaj Limiti</p>
-            <p style={{ fontSize: 12, color: '#6B7280', margin: 0 }}>{health.messagingTierUsed} / {health.messagingTierLimit} kullanıldı</p>
+            <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)', margin: 0 }}>Günlük Mesaj Limiti</p>
+            <p style={{ fontSize: 12, color: 'var(--text-2)', margin: 0 }}>{health.messagingTierUsed} / {health.messagingTierLimit} kullanıldı</p>
           </div>
           <div style={{ width: '100%', height: 8, background: '#F3F4F6', borderRadius: 8, overflow: 'hidden' }}>
             <div style={{
@@ -212,7 +212,7 @@ export default function HealthPage() {
             }} />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 }}>
-            <span style={{ fontSize: 11, color: '#9CA3AF' }}>{health.messagingTierLimit - health.messagingTierUsed} mesaj kaldı</span>
+            <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{health.messagingTierLimit - health.messagingTierUsed} mesaj kaldı</span>
             {tierPct > 80 && <span style={{ fontSize: 11, color: '#D97706', fontWeight: 600 }}>Limite yaklaşıyorsunuz</span>}
           </div>
         </div>
@@ -220,7 +220,7 @@ export default function HealthPage() {
         {/* Webhook health */}
         <div style={{ background: webhookStale ? '#FFFBEB' : '#FFFFFF', border: `1px solid ${webhookStale ? '#FDE68A' : '#E5E7EB'}`, borderRadius: 10, padding: '18px 22px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <p style={{ fontSize: 13, fontWeight: 600, color: '#111827', margin: 0 }}>Webhook Durumu</p>
+            <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)', margin: 0 }}>Webhook Durumu</p>
             {webhookStale ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#D97706' }}>
                 <AlertTriangle size={13} />
@@ -233,7 +233,7 @@ export default function HealthPage() {
               </div>
             )}
           </div>
-          <p style={{ fontSize: 12, color: '#6B7280', margin: '6px 0 0' }}>
+          <p style={{ fontSize: 12, color: 'var(--text-2)', margin: '6px 0 0' }}>
             Son sinyal: {health.lastWebhookAt ? relTime(health.lastWebhookAt) : 'Hiç sinyal gelmedi'}
           </p>
           {webhookStale && (
@@ -246,15 +246,15 @@ export default function HealthPage() {
         </div>
 
         {/* Token güncelle */}
-        <div style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 10, padding: '18px 22px' }}>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '18px 22px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: showTokenForm ? 14 : 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Key size={14} style={{ color: '#6B7280' }} />
-              <p style={{ fontSize: 13, fontWeight: 600, color: '#111827', margin: 0 }}>Erişim Token&apos;ı</p>
+              <Key size={14} style={{ color: 'var(--text-2)' }} />
+              <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)', margin: 0 }}>Erişim Token&apos;ı</p>
             </div>
             <button
               onClick={() => { setShowTokenForm(p => !p); setTokenError(null); setTokenSuccess(false) }}
-              style={{ background: '#F3F4F6', border: '1px solid #E5E7EB', borderRadius: 7, padding: '6px 14px', fontSize: 12, fontWeight: 500, cursor: 'pointer', color: '#374151' }}
+              style={{ background: '#F3F4F6', border: '1px solid var(--border)', borderRadius: 7, padding: '6px 14px', fontSize: 12, fontWeight: 500, cursor: 'pointer', color: '#374151' }}
             >
               {showTokenForm ? 'İptal' : 'Token Güncelle'}
             </button>
@@ -269,7 +269,7 @@ export default function HealthPage() {
 
           {showTokenForm && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <p style={{ fontSize: 12, color: '#6B7280', margin: 0 }}>
+              <p style={{ fontSize: 12, color: 'var(--text-2)', margin: 0 }}>
                 Meta Business Manager&apos;dan yeni bir System User Token oluşturup buraya yapıştırın. Token önce Meta API&apos;ye karşı doğrulanır.
               </p>
               <div style={{ position: 'relative' }}>
@@ -278,11 +278,11 @@ export default function HealthPage() {
                   value={newToken}
                   onChange={e => setNewToken(e.target.value)}
                   placeholder="EAABcde..."
-                  style={{ width: '100%', background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 8, padding: '9px 40px 9px 12px', fontSize: 13, color: '#111827', outline: 'none', boxSizing: 'border-box' }}
+                  style={{ width: '100%', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '9px 40px 9px 12px', fontSize: 13, color: 'var(--text-1)', outline: 'none', boxSizing: 'border-box' }}
                 />
                 <button
                   onClick={() => setShowToken(p => !p)}
-                  style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', padding: 0 }}
+                  style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', padding: 0 }}
                 >
                   {showToken ? <EyeOff size={14} /> : <Eye size={14} />}
                 </button>
@@ -313,8 +313,8 @@ export default function HealthPage() {
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
               <AlertTriangle size={16} style={{ color: '#DC2626', marginTop: 1, flexShrink: 0 }} />
               <div style={{ flex: 1 }}>
-                <p style={{ fontSize: 13, fontWeight: 700, color: '#111827', margin: '0 0 4px' }}>Token Geçersiz veya Süresi Dolmuş</p>
-                <p style={{ fontSize: 12, color: '#6B7280', margin: '0 0 12px' }}>
+                <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-1)', margin: '0 0 4px' }}>Token Geçersiz veya Süresi Dolmuş</p>
+                <p style={{ fontSize: 12, color: 'var(--text-2)', margin: '0 0 12px' }}>
                   Meta API token&apos;ınız artık çalışmıyor. Yeni bir System User Token oluşturup bağlantıyı yenileyin.
                 </p>
                 <button
