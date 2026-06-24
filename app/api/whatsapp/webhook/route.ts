@@ -133,7 +133,7 @@ export async function POST(req: NextRequest) {
           include: {
             user: { select: { id: true, storeName: true } },
             assistantConfig: {
-              include: { faqs: true },
+              include: { faqs: true, knowledgeSources: true },
             },
           },
         })
@@ -260,6 +260,7 @@ async function handleNewModelMessage({
       customKnowledge: string | null
       businessName: string | null
       faqs: Array<{ question: string; answer: string }>
+      knowledgeSources: Array<{ sourceType: string; content: string | null; url: string | null; fileName: string | null; title: string | null }>
     } | null
   }
   from: string
@@ -356,6 +357,7 @@ async function handleNewModelMessage({
         currency: 'TRY',
         userMessage: text,
         botSettings,
+        knowledgeSources: aiConfig?.knowledgeSources ?? [],
       })
 
       intent = 'general_query'

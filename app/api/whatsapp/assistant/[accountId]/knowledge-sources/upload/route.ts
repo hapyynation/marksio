@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getApiSession } from '@/lib/auth'
 import { createClient } from '@supabase/supabase-js'
+import * as pdfParseModule from 'pdf-parse'
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const pdfParse: (buf: Buffer) => Promise<{ text: string }> = (pdfParseModule as any).default ?? pdfParseModule
 
 function getAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -58,6 +61,14 @@ export async function POST(
     .from('whatsapp-knowledge')
     .getPublicUrl(fileName)
 
+  let extractedText: string | null = null
+  try {
+    const parsed = await pdfParse(buffer)
+    extractedText = parsed.text?.trim().slice(0, 12000) || null
+  } catch {
+    // PDF ayrıştırma başarısız olsa bile devam et, içerik null kalır
+  }
+
   const source = await prisma.whatsappKnowledgeSource.create({
     data: {
       configId: config.id,
@@ -65,8 +76,9 @@ export async function POST(
       title: file.name,
       fileName: file.name,
       storageUrl: urlData.publicUrl,
+      content: extractedText,
     },
   })
 
-  return NextResponse.json({ source }, { status: 201 })
+  return NextResponse.json({ source, textExtracted: extractedText !== null }, { status: 201 })
 }

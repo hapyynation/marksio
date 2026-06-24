@@ -71,13 +71,18 @@ export async function POST(
     ? `\nWEB SİTESİ: ${config.websiteUrl}`
     : ''
 
-  const sourcesSection = config?.knowledgeSources?.length
-    ? `\nBİLGİ KAYNAKLARI:\n${config.knowledgeSources.map(s => {
-        if (s.sourceType === 'WEBSITE_URL') return `- Web sitesi: ${s.url}`
-        if (s.sourceType === 'PDF') return `- PDF doküman: ${s.fileName}`
-        if (s.sourceType === 'MANUAL') return `- Manuel bilgi: ${s.content}`
-        return ''
-      }).filter(Boolean).join('\n')}`
+  const sourcesSection = config?.knowledgeSources?.filter(s => s.content?.trim()).length
+    ? `\nBİLGİ KAYNAKLARI (bu bilgileri kullanarak cevap ver):\n${
+        config.knowledgeSources
+          .filter(s => s.content?.trim())
+          .map(s => {
+            const label = s.sourceType === 'PDF' ? `PDF (${s.fileName ?? s.title})`
+              : s.sourceType === 'WEBSITE_URL' ? `Web sitesi (${s.url ?? s.title})`
+              : s.title ?? 'Bilgi'
+            return `[${label}]\n${s.content!.trim().slice(0, 2000)}`
+          })
+          .join('\n\n')
+      }`
     : ''
 
   const systemPrompt = `Sen "${storeName}" mağazasının WhatsApp müşteri hizmetleri asistanısın.

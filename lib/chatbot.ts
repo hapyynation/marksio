@@ -23,6 +23,14 @@ interface BotSettings {
   botName: string
 }
 
+interface KnowledgeSourceItem {
+  sourceType: string
+  content?: string | null
+  url?: string | null
+  fileName?: string | null
+  title?: string | null
+}
+
 interface ChatbotParams {
   storeName: string
   customerName?: string | null
@@ -31,6 +39,7 @@ interface ChatbotParams {
   currency: string
   userMessage: string
   botSettings?: BotSettings
+  knowledgeSources?: KnowledgeSourceItem[]
 }
 
 const TONE_INSTRUCTIONS: Record<string, string> = {
@@ -47,7 +56,7 @@ const EMOJI_INSTRUCTIONS: Record<string, string> = {
 }
 
 export async function buildChatbotReply(params: ChatbotParams): Promise<string> {
-  const { storeName, customerName, customerOrders, activeCampaigns, currency, userMessage, botSettings } = params
+  const { storeName, customerName, customerOrders, activeCampaigns, currency, userMessage, botSettings, knowledgeSources } = params
 
   const tone = botSettings?.tone ?? 'friendly'
   const responseLength = botSettings?.responseLength ?? 'medium'
@@ -70,12 +79,24 @@ ${customerOrders.length
     ? activeCampaigns.map(c => `- ${c.name} (${c.type})`).join('\n')
     : 'Aktif kampanya yok.'
 
+  const sourcesWithContent = (knowledgeSources ?? []).filter(s => s.content?.trim())
+  const knowledgeSection = sourcesWithContent.length
+    ? '\n\nBİLGİ KAYNAKLARI (bu bilgileri kullanarak cevap ver):\n' +
+      sourcesWithContent.map(s => {
+        const label = s.sourceType === 'PDF' ? `PDF (${s.fileName ?? s.title})`
+          : s.sourceType === 'WEBSITE_URL' ? `Web sitesi (${s.url ?? s.title})`
+          : s.title ?? 'Bilgi'
+        return `[${label}]\n${s.content!.trim().slice(0, 2000)}`
+      }).join('\n\n')
+    : ''
+
   const systemPrompt = `Sen "${storeName}" adlı e-ticaret mağazasının WhatsApp asistanısın. Adın: ${botName}
 
 ${customerSection}
 
 Aktif kampanyalar:
 ${campaignSection}
+${knowledgeSection}
 
 Yanıt kuralları:
 - ${TONE_INSTRUCTIONS[tone] ?? TONE_INSTRUCTIONS.friendly}

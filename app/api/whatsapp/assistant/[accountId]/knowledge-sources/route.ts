@@ -68,12 +68,41 @@ export async function POST(
     return NextResponse.json({ error: 'İçerik zorunlu.' }, { status: 400 })
   }
 
+  let resolvedContent = body.content ?? null
+
+  if (body.sourceType === 'WEBSITE_URL' && body.url?.trim()) {
+    const rawUrl = body.url.trim()
+    const fetchUrl = rawUrl.startsWith('http') ? rawUrl : `https://${rawUrl}`
+    try {
+      const res = await fetch(fetchUrl, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Marksio-Bot/1.0)' },
+        signal: AbortSignal.timeout(8000),
+      })
+      if (res.ok) {
+        const html = await res.text()
+        resolvedContent = html
+          .replace(/<script[\s\S]*?<\/script>/gi, '')
+          .replace(/<style[\s\S]*?<\/style>/gi, '')
+          .replace(/<nav[\s\S]*?<\/nav>/gi, '')
+          .replace(/<header[\s\S]*?<\/header>/gi, '')
+          .replace(/<footer[\s\S]*?<\/footer>/gi, '')
+          .replace(/<[^>]+>/g, ' ')
+          .replace(/&[a-z]+;/gi, ' ')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .slice(0, 8000) || null
+      }
+    } catch {
+      // Fetch başarısız olsa da devam et, içerik null kalır
+    }
+  }
+
   const source = await prisma.whatsappKnowledgeSource.create({
     data: {
       configId: config.id,
       sourceType: body.sourceType,
       title: body.title ?? null,
-      content: body.content ?? null,
+      content: resolvedContent,
       url: body.url ?? null,
       fileName: body.fileName ?? null,
       storageUrl: body.storageUrl ?? null,
