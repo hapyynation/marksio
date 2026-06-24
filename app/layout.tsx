@@ -26,6 +26,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&family=Inter:ital,opsz,wght@0,14..32,300..900;1,14..32,300..900&family=JetBrains+Mono:wght@400;500;600&display=swap"
         />
+        <link
+          rel="preload"
+          as="font"
+          type="font/woff2"
+          href="/_next/static/media/material-symbols-outlined.502efa35.woff2"
+          crossOrigin="anonymous"
+        />
       </head>
       <body style={{ overflowX: 'hidden' }}>
         <ThemeProvider>

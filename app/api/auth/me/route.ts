@@ -26,7 +26,9 @@ export async function GET() {
 
   const session = await getApiSession()
   if (!session?.user?.id) {
-    return NextResponse.json({ emailVerified: true, onboarded: true })
+    // Return 200 with sensible defaults so the frontend doesn't show auth errors
+    // for auth-check calls (this route is informational, not a data route)
+    return NextResponse.json({ emailVerified: false, onboarded: false, authenticated: false })
   }
 
   const user = await prisma.user.findUnique({

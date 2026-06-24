@@ -35,11 +35,20 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // Check NextAuth session first (email+password login)
-  const nextToken = await getToken({
+  // Check NextAuth session — try both cookie variants so sessions created before/after
+  // NEXTAUTH_URL was configured are both accepted.
+  let nextToken = await getToken({
     req: request,
     secret: process.env.NEXTAUTH_SECRET,
+    secureCookie: true,   // __Secure-next-auth.session-token (Vercel / HTTPS)
   })
+  if (!nextToken) {
+    nextToken = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
+      secureCookie: false, // next-auth.session-token (dev or older sessions)
+    })
+  }
 
   let supabaseResponse = NextResponse.next({ request })
   let supabaseUser: { email?: string } | null = null
