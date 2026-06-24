@@ -1,7 +1,8 @@
 import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
+import { getToken } from 'next-auth/jwt'
 import { getServerSession } from 'next-auth'
-import { authOptions } from './auth-options'
+import { authOptions } from '@/lib/auth-options'
 import { prisma } from '@/lib/prisma'
 import { getEffectivePlan } from '@/lib/plan-limits'
 
@@ -13,7 +14,6 @@ export interface ApiSession {
     storeName: string
     plan: string
     planStatus: string
-    /** plan downgraded to 'free' when planStatus is expired or past_due */
     effectivePlan: string
     onboarded: boolean
   }
@@ -37,59 +37,95 @@ function buildApiSession(user: {
   }
 }
 
-// Checks NextAuth JWT (email+password) first, then falls back to Supabase (OTP / legacy).
+// Checks NextAuth session first, then Supabase session.
 export async function getApiSession(): Promise<ApiSession | null> {
-  // 1. NextAuth session (email+password login)
+  // 1a. NextAuth via getServerSession (recommended for App Router route handlers)
   try {
-    const nextSession = await getServerSession(authOptions)
-    if (nextSession?.user?.email) {
-      const user = await prisma.user.findUnique({ where: { email: nextSession.user.email } })
+    const session = await getServerSession(authOptions)
+    if (session?.user?.email) {
+      const user = await prisma.user.findUnique({ where: { email: session.user.email as string } })
       if (user) return buildApiSession(user)
     }
-  } catch { /* fall through */ }
-
-  // 2. Supabase session (OTP login / existing sessions)
-  const cookieStore = await cookies()
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: () => {},
-      },
-    }
-  )
-
-  const { data: { user: supaUser } } = await supabase.auth.getUser()
-  if (!supaUser?.email) return null
-
-  let user = await prisma.user.findUnique({ where: { email: supaUser.email } })
-
-  if (!user) {
-    const name = (supaUser.user_metadata?.name as string | undefined)
-      || supaUser.email.split('@')[0]
-    user = await prisma.user.create({
-      data: {
-        email: supaUser.email,
-        name,
-        storeName: (supaUser.user_metadata?.store_name as string | undefined) || name,
-        password: '',
-        emailVerified: true, // Supabase already verified this email
-      },
-    })
-  } else if (!user.emailVerified) {
-    // Supabase session means Supabase verified the email — sync that to Prisma
-    user = await prisma.user.update({
-      where: { id: user.id },
-      data: { emailVerified: true },
-    })
+  } catch (err) {
+    console.error('[Auth] getServerSession failed:', err)
   }
 
-  return buildApiSession(user)
+  // 1b. NextAuth JWT fallback via raw cookie (handles edge cases / cached sessions)
+  try {
+    const headersList = headers()
+    const cookieHeader = headersList.get('cookie') ?? ''
+    const token = await getToken({
+      req: { headers: { cookie: cookieHeader } } as Parameters<typeof getToken>[0]['req'],
+      secret: process.env.NEXTAUTH_SECRET!,
+      secureCookie: process.env.NEXTAUTH_URL?.startsWith('https://') ?? false,
+    })
+    if (token?.email) {
+      const user = await prisma.user.findUnique({ where: { email: token.email as string } })
+      if (user) return buildApiSession(user)
+    }
+  } catch (err) {
+    console.error('[Auth] NextAuth getToken failed:', err)
+  }
+
+  // 2. Supabase session fallback (OTP / magic-link logins)
+  try {
+    const cookieStore = cookies()
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll: () => cookieStore.getAll(),
+          setAll: () => {},
+        },
+      }
+    )
+
+    const { data: { user: supaUser }, error } = await supabase.auth.getUser()
+
+    if (error) {
+      console.error('[Auth] Supabase getUser error:', error.message)
+      // getUser() makes a network call to Supabase; if it fails, fall back to local
+      // session decoding (getSession). Less secure but avoids hard failures.
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.user?.email) {
+        const user = await prisma.user.findUnique({ where: { email: session.user.email } })
+        if (user) return buildApiSession(user)
+      }
+      return null
+    }
+
+    if (!supaUser?.email) return null
+
+    let user = await prisma.user.findUnique({ where: { email: supaUser.email } })
+
+    if (!user) {
+      const name = (supaUser.user_metadata?.name as string | undefined)
+        || supaUser.email.split('@')[0]
+      user = await prisma.user.create({
+        data: {
+          email: supaUser.email,
+          name,
+          storeName: (supaUser.user_metadata?.store_name as string | undefined) || name,
+          password: '',
+          emailVerified: true,
+        },
+      })
+    } else if (!user.emailVerified) {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: { emailVerified: true },
+      })
+    }
+
+    return buildApiSession(user)
+  } catch (err) {
+    console.error('[Auth] Supabase session failed:', err)
+    return null
+  }
 }
 
-// Legacy client-side helpers (kept for compatibility)
+// ── Legacy client-side helpers (kept for compatibility) ───────────────────────
 export interface AuthUser {
   name: string
   email: string

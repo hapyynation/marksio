@@ -42,6 +42,7 @@
     "grapesjs-preset-newsletter": "^1.0.2",
     "groq-sdk": "^1.2.0",
     "lucide-react": "^0.378.0",
+    "material-symbols": "^0.45.3",
     "motion": "^12.40.0",
     "next": "14.2.3",
     "next-auth": "^4.24.14",
