@@ -911,6 +911,64 @@ export default function AIAssistantPage() {
           </div>
         )}
 
+        {addSourceType === 'FAQ_IMPORT' && (
+          <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: 14, marginBottom: 12 }}>
+            <p style={{ fontSize: 11, color: 'var(--text-2)', margin: '0 0 10px', lineHeight: 1.5 }}>
+              Her satıra bir soru-cevap çifti girin. Format: <code style={{ background: 'rgba(255,255,255,0.07)', borderRadius: 4, padding: '1px 5px' }}>Soru;Cevap</code>
+            </p>
+            <textarea
+              value={newSourceValue}
+              onChange={e => setNewSourceValue(e.target.value)}
+              rows={6}
+              style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.6, fontFamily: 'monospace', fontSize: 12 }}
+              placeholder={"Kargo süresi ne kadar?;2-3 iş günü içinde teslim edilir.\nİade nasıl yapılır?;14 gün içinde iade formunu doldurun.\nÖdeme yöntemleri neler?;Kredi kartı, havale ve kapıda ödeme kabul edilir."}
+              autoFocus
+            />
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
+              <span style={{ fontSize: 11, color: 'var(--text-3)' }}>
+                {newSourceValue.trim() ? `${newSourceValue.trim().split('\n').filter(l => l.includes(';')).length} soru tespit edildi` : ''}
+              </span>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  onClick={() => { setAddSourceType(null); setNewSourceValue(''); setNewSourceTitle('') }}
+                  style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 14px', fontSize: 12, cursor: 'pointer', color: 'var(--text-2)' }}
+                >
+                  İptal
+                </button>
+                <button
+                  disabled={!newSourceValue.trim().split('\n').some(l => l.includes(';'))}
+                  onClick={() => {
+                    const lines = newSourceValue.trim().split('\n').filter(l => l.includes(';'))
+                    const newFaqs: FAQ[] = lines.map(line => {
+                      const semi = line.indexOf(';')
+                      return {
+                        id: `local-import-${Date.now()}-${Math.random()}`,
+                        question: line.slice(0, semi).trim(),
+                        answer: line.slice(semi + 1).trim(),
+                      }
+                    }).filter(f => f.question && f.answer)
+                    if (newFaqs.length > 0) {
+                      setSettings(s => ({ ...s, faqs: [...s.faqs, ...newFaqs] }))
+                      showToast(`${newFaqs.length} soru SSS listesine eklendi. Kaydetmeyi unutmayın.`, 'success')
+                    }
+                    setAddSourceType(null)
+                    setNewSourceValue('')
+                    setNewSourceTitle('')
+                  }}
+                  style={{
+                    background: 'var(--blue)', color: '#fff', border: 'none', borderRadius: 8,
+                    padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                    opacity: !newSourceValue.trim().split('\n').some(l => l.includes(';')) ? 0.5 : 1,
+                    display: 'flex', alignItems: 'center', gap: 5,
+                  }}
+                >
+                  <Upload size={11} /> İçe Aktar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {knowledgeSources.length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
             {knowledgeSources.map(src => (
