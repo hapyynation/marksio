@@ -48,14 +48,22 @@ export async function POST(req: NextRequest) {
   )
 
   if (!metaRes.ok) {
-    return NextResponse.json({ error: 'Meta API\'dan template listesi alınamadı.' }, { status: 400 })
+    const errBody = await metaRes.json().catch(() => ({})) as { error?: { message?: string } }
+    const errMsg = errBody?.error?.message ?? 'Meta API hatası'
+    await prisma.whatsappAccount.update({
+      where: { id: account.id },
+      data: { lastSyncError: errMsg },
+    }).catch(() => null)
+    return NextResponse.json({ error: 'Meta API\'dan template listesi alınamadı.', detail: errMsg }, { status: 400 })
   }
 
   const data = await metaRes.json() as { data?: MetaTemplate[] }
   const templates = data.data ?? []
 
   let synced = 0
+  const now = new Date()
   for (const tpl of templates) {
+    const qualityRating = (tpl as { quality_score?: { score?: string } }).quality_score?.score ?? null
     await prisma.whatsappTemplate.upsert({
       where: { accountId_metaTemplateId: { accountId: account.id, metaTemplateId: String(tpl.id) } },
       create: {
@@ -67,7 +75,9 @@ export async function POST(req: NextRequest) {
         status: STATUS_MAP[tpl.status] ?? 'PENDING',
         componentsJson: (tpl.components ?? []) as Prisma.InputJsonValue,
         rejectedReason: tpl.rejected_reason ?? null,
-        syncedAt: new Date(),
+        qualityRating,
+        submittedAt: now,
+        syncedAt: now,
       },
       update: {
         name: tpl.name,
@@ -76,16 +86,22 @@ export async function POST(req: NextRequest) {
         status: STATUS_MAP[tpl.status] ?? 'PENDING',
         componentsJson: (tpl.components ?? []) as Prisma.InputJsonValue,
         rejectedReason: tpl.rejected_reason ?? null,
-        syncedAt: new Date(),
+        qualityRating,
+        syncedAt: now,
       },
     })
     synced++
   }
 
+  await prisma.whatsappAccount.update({
+    where: { id: account.id },
+    data: { lastSyncAt: now, lastSyncError: null },
+  })
+
   // QStash ile günlük otomatik sync zamanla (sadece ilk sync'te)
   if (accountId) scheduleDaily(accountId).catch(() => null)
 
-  return NextResponse.json({ synced })
+  return NextResponse.json({ synced, lastSyncAt: now.toISOString() })
 }
 
 async function scheduleDaily(accountId: string) {

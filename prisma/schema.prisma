@@ -832,6 +832,8 @@ model WhatsappAccount {
   status             WhatsappAccountStatus @default(PENDING)
   isDemo             Boolean              @default(false)
   lastWebhookAt      DateTime?
+  lastSyncAt         DateTime?
+  lastSyncError      String?
   connectedAt        DateTime             @default(now())
   createdAt          DateTime             @default(now())
   updatedAt          DateTime             @updatedAt
@@ -853,12 +855,28 @@ model WhatsappTemplate {
   status          WaTemplateStatus
   componentsJson  Json
   rejectedReason  String?
+  qualityRating   String?          // GREEN | YELLOW | RED (Meta quality score per template)
+  submittedAt     DateTime?        // when first submitted to Meta (for pending age tracking)
   syncedAt        DateTime         @default(now())
 
   broadcasts      WhatsappBroadcast[]
   waMessages      WhatsappMessage[]
+  versions        WhatsappTemplateVersion[]
 
   @@unique([accountId, metaTemplateId])
+}
+
+model WhatsappTemplateVersion {
+  id             String           @id @default(cuid())
+  templateId     String
+  template       WhatsappTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  componentsJson Json
+  status         String
+  rejectedReason String?
+  attemptNote    String?
+  createdAt      DateTime         @default(now())
+
+  @@index([templateId])
 }
 
 model WhatsappContact {
@@ -1102,4 +1120,17 @@ model WhatsappKnowledgeSource {
   fileName   String?
   storageUrl String?
   createdAt  DateTime                @default(now())
+}
+
+model WhatsappOptInHistory {
+  id          String      @id @default(cuid())
+  userId      String
+  phoneNumber String
+  status      OptInStatus
+  source      String      @default("manual") // csv_import | webhook | manual | broadcast_unsubscribe
+  note        String?
+  createdAt   DateTime    @default(now())
+
+  @@index([userId, phoneNumber])
+  @@index([userId, createdAt])
 }
