@@ -217,9 +217,20 @@ export default function ConnectionPage() {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {([
-                  { val: 'fresh' as const, label: 'Hayır, bu numara hiçbir yerde WhatsApp\'ta kayıtlı değil (yeni numara)' },
-                  { val: 'existing' as const, label: 'Evet, bu numarayı telefonumda WhatsApp Business uygulamasında kullanıyorum' },
+                {/* Recommended: fresh number */}
+              <div style={{ background: '#F0FDF4', border: '2px solid #86EFAC', borderRadius: 9, padding: '14px 16px', display: 'flex', gap: 10 }}>
+                <div style={{ width: 20, height: 20, borderRadius: '50%', background: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>
+                  <Check size={11} color="white" strokeWidth={2.5} />
+                </div>
+                <div style={{ fontSize: 12, color: '#14532D', lineHeight: 1.6 }}>
+                  <strong>Önerilen yöntem — Ayrı, özel bir numara kullanın</strong><br />
+                  WhatsApp otomasyonu için ayrı bir numara (yeni SIM veya sanal hat) kullanmak en temiz yaklaşımdır. Mevcut WhatsApp'ınız kesintisiz çalışmaya devam eder; kurulum daha basit olur; Türkiye'deki tüm WhatsApp API sağlayıcılarının önerdiği standart yöntemdir.
+                </div>
+              </div>
+
+              {([
+                  { val: 'fresh' as const, label: 'Bu numara yeni — hiçbir yerde WhatsApp\'a kayıtlı değil' },
+                  { val: 'existing' as const, label: 'Bu numarayı şu an WhatsApp Business uygulamasında kullanıyorum (taşımak istiyorum)' },
                 ] as const).map(opt => (
                   <label key={opt.val} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, background: numberStatus === opt.val ? '#EFF6FF' : '#F9FAFB', border: `2px solid ${numberStatus === opt.val ? '#2563EB' : '#E5E7EB'}`, borderRadius: 9, padding: '13px 14px', cursor: 'pointer' }}>
                     <input
@@ -239,18 +250,11 @@ export default function ConnectionPage() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <div style={{ background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 9, padding: '14px 16px' }}>
                     <div style={{ display: 'flex', gap: 10 }}>
-                      <AlertTriangle size={15} style={{ color: '#EA580C', flexShrink: 0, marginTop: 1 }} />
+                      <Info size={15} style={{ color: '#D97706', flexShrink: 0, marginTop: 1 }} />
                       <div style={{ fontSize: 12, color: '#7C2D12', lineHeight: 1.6 }}>
-                        <strong>Önemli uyarı:</strong> Bu numarayı Marksio'ya bağlamak için telefonunuzdaki WhatsApp Business uygulamasından bu numarayı <strong>silmeniz</strong> gerekecek. Bu işlem geri alınamaz — numaranızdaki tüm mesaj geçmişi kaybolur. Devam etmeden önce önemli sohbetlerinizi yedekleyin.<br /><br />
-                        <strong>Öneri:</strong> Mevcut numaranızı WhatsApp Business uygulamasında kullanmaya devam etmek istiyorsanız, Marksio için ayrı bir telefon numarası (yeni SIM) kullanmanızı öneririz.
-                      </div>
-                    </div>
-                  </div>
-                  <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 9, padding: '14px 16px' }}>
-                    <div style={{ display: 'flex', gap: 10 }}>
-                      <Info size={15} style={{ color: '#2563EB', flexShrink: 0, marginTop: 1 }} />
-                      <div style={{ fontSize: 12, color: '#1E40AF', lineHeight: 1.6 }}>
-                        <strong>Endişelenmeyin — kontrolü kaybetmiyorsunuz.</strong> Numaranızı Marksio'ya bağladıktan sonra Marksio&apos;nun Inbox ekranından, telefonunuzdaki WhatsApp uygulamasında yaptığınız gibi gelen tüm mesajları görüp istediğiniz an kendiniz yanıtlayabilirsiniz. AI&apos;dan istediğiniz zaman devralıp manuel yazabilirsiniz. Sadece kullandığınız arayüz değişiyor (telefon uygulaması yerine Marksio paneli) — kontrolünüz değişmiyor.
+                        <strong>Mevcut numara taşıma — bilmeniz gerekenler:</strong><br />
+                        Bu seçenekle devam ederseniz, numaranızı Meta paneline eklerken telefonunuzdaki WhatsApp Business uygulamasından bu numarayı kaldırmanız gerekecek. Öncesinde önemli sohbetlerinizi yedeklemenizi öneririz.<br /><br />
+                        Taşıma sonrasında gelen tüm mesajları Marksio&apos;nun Inbox ekranından takip edip yanıtlayabilirsiniz — AI&apos;ı istediğiniz an devre dışı bırakıp kendiniz yazabilirsiniz.
                       </div>
                     </div>
                   </div>
@@ -314,9 +318,9 @@ export default function ConnectionPage() {
                 <>Numara onaylandıktan sonra API Setup sayfasına geri dönün</>,
               ]} />
               {numberStatus === 'existing' && (
-                <WarnBox>
-                  <strong>Hatırlatma:</strong> Bu numarayı WhatsApp Business uygulamasında kullanıyorsanız, numarayı buraya eklemeden önce uygulamadan silmeniz gerekiyor.
-                </WarnBox>
+                <InfoBox>
+                  <strong>Hatırlatma:</strong> Bu numarayı Meta paneline eklemeden önce telefonunuzdaki WhatsApp Business uygulamasından bu numarayı kaldırın. Öncesinde önemli sohbetlerinizi yedeklemenizi öneririz.
+                </InfoBox>
               )}
               <ScreenshotSlot step="meta-add-phone" alt="Meta panelinde telefon numarası ekleme" src="/whatsapp/guide/meta-add-phone.png" caption="Telefon numaranızı ekleme ve SMS/sesli kodla doğrulama" theme="light" />
               <NavBtns onBack={() => setStep(4)} onNext={() => setStep(6)} />
