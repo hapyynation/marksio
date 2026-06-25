@@ -7,21 +7,23 @@ import {
   AlertTriangle, Check, Eye, EyeOff, Copy, Link2Off, RefreshCw, Loader2,
   AlertCircle, ShoppingBag, Globe, ChevronRight, ChevronLeft, Package, X, Settings, Trash2,
   Globe2, CheckCircle2, Clock, Plus, ShoppingCart, Key, Download, Pause,
-  Send, Lock, Phone, Store, Bot, Upload, Webhook,
+  Send, Lock, Phone, Store, Bot, Upload, Webhook, Palette,
 } from 'lucide-react'
 import Link from 'next/link'
 import AppShell from '@/components/layout/AppShell'
-import { useSettingsDrawer } from '@/lib/settings-drawer-context'
 import { cn } from '@/lib/utils'
+import { useTheme, type ThemeMode } from '@/components/providers/ThemeProvider'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Tab =
-  | 'hesap' | 'billing' | 'integrations' | 'email'
+  | 'hesap' | 'gorunum' | 'billing' | 'integrations' | 'email'
   | 'whatsapp' | 'ai-studio' | 'notifications' | 'team' | 'security' | 'danger'
 
 const tabs: Array<{ key: Tab; label: string; icon: React.ElementType; danger?: boolean }> = [
   { key: 'hesap',         label: 'Hesap',             icon: User           },
+  { key: 'gorunum',       label: 'Görünüm',           icon: Palette        },
+  { key: 'security',      label: 'Güvenlik',          icon: Shield         },
   { key: 'billing',       label: 'Plan & Faturalama', icon: CreditCard     },
   { key: 'integrations',  label: 'Entegrasyonlar',    icon: Link2          },
   { key: 'email',         label: 'E-posta Gönderimi', icon: Mail           },
@@ -29,7 +31,6 @@ const tabs: Array<{ key: Tab; label: string; icon: React.ElementType; danger?: b
   { key: 'ai-studio',     label: 'Marka Kimliği',     icon: Sparkles       },
   { key: 'notifications', label: 'Bildirimler',       icon: Bell           },
   { key: 'team',          label: 'Takım',             icon: Users          },
-  { key: 'security',      label: 'Güvenlik',          icon: Shield         },
   { key: 'danger',        label: 'Tehlikeli Bölge',   icon: AlertTriangle, danger: true },
 ]
 
@@ -1983,17 +1984,155 @@ function TehlikeliBolgeSection() {
 // ═══════════════════════════════════════════════════════════════
 
 const TAB_META: Record<Tab, { label: string; desc: string; icon: React.ElementType; danger?: boolean }> = {
-  hesap:         { label: 'Hesap',             desc: 'Profil ve mağaza bilgileri',   icon: User           },
-  billing:       { label: 'Plan & Faturalama', desc: 'Abonelik ve ödeme yönetimi',   icon: CreditCard     },
-  integrations:  { label: 'Entegrasyonlar',    desc: 'Platform ve servis bağlantıları', icon: Link2       },
-  email:         { label: 'E-posta Gönderimi', desc: 'Domain ve gönderim ayarları',  icon: Mail           },
-  whatsapp:      { label: 'WhatsApp AI',       desc: 'Bot yapılandırması',            icon: MessageCircle  },
-  'ai-studio':   { label: 'Marka Kimliği',      desc: 'E-posta şablonlarında kullanılacak marka stili', icon: Sparkles },
-  notifications: { label: 'Bildirimler',       desc: 'Bildirim tercihleriniz',        icon: Bell           },
-  team:          { label: 'Takım',             desc: 'Üyeler ve yetkilendirme',       icon: Users          },
-  security:      { label: 'Güvenlik',          desc: 'Şifre ve erişim kontrolü',      icon: Shield         },
-  danger:        { label: 'Tehlikeli Bölge',   desc: 'Hesap silme ve dondurma',       icon: AlertTriangle, danger: true },
+  hesap:         { label: 'Hesap',             desc: 'Profil ve mağaza bilgileri',                      icon: User           },
+  gorunum:       { label: 'Görünüm',           desc: 'Uygulama teması ve renk şeması',                  icon: Palette        },
+  billing:       { label: 'Plan & Faturalama', desc: 'Abonelik ve ödeme yönetimi',                      icon: CreditCard     },
+  integrations:  { label: 'Entegrasyonlar',    desc: 'Platform ve servis bağlantıları',                  icon: Link2          },
+  email:         { label: 'E-posta Gönderimi', desc: 'Domain ve gönderim ayarları',                     icon: Mail           },
+  whatsapp:      { label: 'WhatsApp AI',       desc: 'Bot yapılandırması',                              icon: MessageCircle  },
+  'ai-studio':   { label: 'Marka Kimliği',     desc: 'E-posta şablonlarında kullanılacak marka stili',  icon: Sparkles       },
+  notifications: { label: 'Bildirimler',       desc: 'Bildirim tercihleriniz',                          icon: Bell           },
+  team:          { label: 'Takım',             desc: 'Üyeler ve yetkilendirme',                         icon: Users          },
+  security:      { label: 'Güvenlik',          desc: 'Şifre ve erişim kontrolü',                        icon: Shield         },
+  danger:        { label: 'Tehlikeli Bölge',   desc: 'Hesap silme ve dondurma',                         icon: AlertTriangle, danger: true },
 }
+
+// ─── Theme selector section ───────────────────────────────────────────────────
+
+function GorunumSection() {
+  const { mode, setTheme } = useTheme()
+
+  const options: Array<{ key: ThemeMode; label: string; desc: string; preview: React.ReactNode }> = [
+    {
+      key: 'light',
+      label: 'Açık',
+      desc: 'Her zaman açık tema',
+      preview: (
+        <div style={{ height: 72, borderRadius: 8, overflow: 'hidden', background: '#F5F6F3', border: '1px solid #DFDFD9' }}>
+          <div style={{ height: 16, background: '#FFFFFF', borderBottom: '1px solid #DFDFD9', display: 'flex', alignItems: 'center', padding: '0 8px', gap: 4 }}>
+            <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#FFB3B3' }} />
+            <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#FFE0A3' }} />
+            <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#B3EFCA' }} />
+          </div>
+          <div style={{ display: 'flex', height: 56 }}>
+            <div style={{ width: 30, background: '#F0F1EE', borderRight: '1px solid #DFDFD9', display: 'flex', flexDirection: 'column', gap: 3, padding: 5 }}>
+              <div style={{ width: '100%', height: 4, borderRadius: 2, background: '#DFDFD9' }} />
+              <div style={{ width: '100%', height: 4, borderRadius: 2, background: '#DFDFD9' }} />
+              <div style={{ width: '100%', height: 4, borderRadius: 2, background: 'rgba(201,138,62,0.4)' }} />
+            </div>
+            <div style={{ flex: 1, padding: '6px 8px', display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <div style={{ height: 6, borderRadius: 2, background: '#DFDFD9', width: '65%' }} />
+              <div style={{ height: 5, borderRadius: 2, background: '#ECEDE9', width: '50%' }} />
+              <div style={{ height: 11, borderRadius: 4, background: '#C98A3E', width: '38%', marginTop: 4 }} />
+            </div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'dark',
+      label: 'Koyu',
+      desc: 'Her zaman koyu tema',
+      preview: (
+        <div style={{ height: 72, borderRadius: 8, overflow: 'hidden', background: '#0D1411', border: '1px solid rgba(237,238,233,0.1)' }}>
+          <div style={{ height: 16, background: '#111915', borderBottom: '1px solid rgba(237,238,233,0.09)', display: 'flex', alignItems: 'center', padding: '0 8px', gap: 4 }}>
+            <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#3D2020' }} />
+            <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#3D3020' }} />
+            <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#1E3A28' }} />
+          </div>
+          <div style={{ display: 'flex', height: 56 }}>
+            <div style={{ width: 30, background: '#0C1410', borderRight: '1px solid rgba(237,238,233,0.09)', display: 'flex', flexDirection: 'column', gap: 3, padding: 5 }}>
+              <div style={{ width: '100%', height: 4, borderRadius: 2, background: '#1E2922' }} />
+              <div style={{ width: '100%', height: 4, borderRadius: 2, background: '#1E2922' }} />
+              <div style={{ width: '100%', height: 4, borderRadius: 2, background: 'rgba(201,138,62,0.4)' }} />
+            </div>
+            <div style={{ flex: 1, padding: '6px 8px', display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <div style={{ height: 6, borderRadius: 2, background: '#1E2922', width: '65%' }} />
+              <div style={{ height: 5, borderRadius: 2, background: '#172019', width: '50%' }} />
+              <div style={{ height: 11, borderRadius: 4, background: '#C98A3E', width: '38%', marginTop: 4 }} />
+            </div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'system',
+      label: 'Sistem',
+      desc: 'OS tercihine göre otomatik',
+      preview: (
+        <div style={{ height: 72, borderRadius: 8, overflow: 'hidden', display: 'flex', border: '1px solid #DFDFD9' }}>
+          <div style={{ flex: 1, background: '#F5F6F3', borderRight: '1px solid #DFDFD9' }}>
+            <div style={{ height: 16, background: '#FFFFFF', borderBottom: '1px solid #DFDFD9' }} />
+            <div style={{ padding: '5px 8px', display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <div style={{ height: 5, borderRadius: 2, background: '#ECEDE9', width: '80%' }} />
+              <div style={{ height: 5, borderRadius: 2, background: '#ECEDE9', width: '60%' }} />
+              <div style={{ height: 9, borderRadius: 3, background: '#C98A3E', width: '40%', marginTop: 3 }} />
+            </div>
+          </div>
+          <div style={{ flex: 1, background: '#0D1411' }}>
+            <div style={{ height: 16, background: '#111915', borderBottom: '1px solid rgba(237,238,233,0.09)' }} />
+            <div style={{ padding: '5px 8px', display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <div style={{ height: 5, borderRadius: 2, background: '#1E2922', width: '80%' }} />
+              <div style={{ height: 5, borderRadius: 2, background: '#172019', width: '60%' }} />
+              <div style={{ height: 9, borderRadius: 3, background: '#C98A3E', width: '40%', marginTop: 3 }} />
+            </div>
+          </div>
+        </div>
+      ),
+    },
+  ]
+
+  return (
+    <div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
+        {options.map(opt => {
+          const active = mode === opt.key
+          return (
+            <button
+              key={opt.key}
+              onClick={() => setTheme(opt.key)}
+              style={{
+                padding: 12, borderRadius: 12,
+                border: `2px solid ${active ? 'var(--primary)' : 'var(--border)'}`,
+                background: active ? 'var(--primary-soft)' : 'var(--surface)',
+                cursor: 'pointer', textAlign: 'left',
+                transition: 'border-color 0.15s, background 0.15s',
+              }}
+            >
+              {opt.preview}
+              <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)', margin: 0 }}>{opt.label}</p>
+                  <p style={{ fontSize: 11, color: 'var(--text-3)', margin: 0, marginTop: 2 }}>{opt.desc}</p>
+                </div>
+                {active && (
+                  <div style={{
+                    width: 18, height: 18, borderRadius: '50%', background: 'var(--primary)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                  }}>
+                    <Check size={10} color="white" />
+                  </div>
+                )}
+              </div>
+            </button>
+          )
+        })}
+      </div>
+      <p style={{ fontSize: 12, color: 'var(--text-3)' }}>
+        Tema seçimi anında uygulanır ve tarayıcınıza kaydedilir.
+      </p>
+    </div>
+  )
+}
+
+// ─── Main page ────────────────────────────────────────────────────────────────
+
+const NAV_GROUPS: Array<{ label: string | null; keys: Tab[] }> = [
+  { label: 'Kişisel',   keys: ['hesap', 'gorunum', 'security'] },
+  { label: 'Platform',  keys: ['billing', 'integrations', 'email', 'whatsapp', 'ai-studio'] },
+  { label: 'Workspace', keys: ['notifications', 'team'] },
+  { label: null,        keys: ['danger'] },
+]
 
 function SettingsPageInner() {
   const router       = useRouter()
@@ -2003,7 +2142,7 @@ function SettingsPageInner() {
 
   const [integrations, setIntegrations] = useState<Integration[]>([])
   const [oauthSuccess, setOauthSuccess] = useState(false)
-  const { open: openDrawer } = useSettingsDrawer()
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
   const loadIntegrations = useCallback(async () => {
     try {
@@ -2013,7 +2152,6 @@ function SettingsPageInner() {
     } catch {}
   }, [])
 
-  // Load integrations once on mount; handle Shopify OAuth callback
   useEffect(() => {
     loadIntegrations()
     if (searchParams.get('connected') === 'shopify') {
@@ -2024,111 +2162,160 @@ function SettingsPageInner() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadIntegrations])
 
-  // Open the drawer when there is no tab in the URL
-  useEffect(() => {
-    if (!tabParam) openDrawer()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tabParam])
-
   const meta = TAB_META[activeTab]
   const Icon = meta.icon
 
-  return (
-    <AppShell>
-      {/* ── Sticky top bar ── */}
-      <div
-        className="sticky top-0 z-20 flex items-center justify-between h-[52px] px-5 lg:px-6 shrink-0"
-        style={{
-          background: 'rgba(8,8,15,0.9)',
-          backdropFilter: 'blur(12px)',
-          borderBottom: '1px solid var(--border)',
-        }}
-      >
-        {/* Left: back breadcrumb */}
-        <button
-          onClick={openDrawer}
-          className="flex items-center gap-1.5 text-[13px] transition-colors group"
-          style={{ color: 'var(--text-3)' }}
-          onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-2)')}
-          onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-3)')}
-        >
-          <ChevronLeft className="w-3.5 h-3.5 transition-transform group-hover:-translate-x-0.5" />
-          <span>Tüm Ayarlar</span>
-        </button>
+  function navigate(key: Tab) {
+    router.replace(`/settings?tab=${key}`)
+    setMobileNavOpen(false)
+  }
 
-        {/* Center: current section */}
-        <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
-          <div
-            className="w-6 h-6 rounded-[7px] flex items-center justify-center shrink-0"
-            style={{
-              background: meta.danger ? 'var(--red-soft)' : 'var(--blue-soft)',
-              border: `1px solid ${meta.danger ? 'rgba(232,69,69,0.2)' : 'rgba(68,112,255,0.2)'}`,
-            }}
-          >
-            <Icon className="w-3 h-3" style={{ color: meta.danger ? 'var(--red)' : 'var(--blue)' }} />
-          </div>
-          <span className="text-[13px] font-semibold" style={{ color: 'var(--text-1)' }}>{meta.label}</span>
-        </div>
-
-        {/* Right: section switcher pill */}
-        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar" style={{ maxWidth: 320 }}>
-          {tabs.slice(0, 5).map(t => (
-            <button
-              key={t.key}
-              onClick={() => router.replace(`/settings?tab=${t.key}`)}
-              className="shrink-0 px-2.5 py-1 rounded-lg text-[11.5px] font-medium transition-all"
-              style={
-                activeTab === t.key
-                  ? { background: t.danger ? 'var(--red-soft)' : 'var(--blue-soft)', color: t.danger ? 'var(--red)' : 'var(--blue)' }
-                  : { color: 'var(--text-3)' }
-              }
-              onMouseEnter={e => { if (activeTab !== t.key) e.currentTarget.style.color = 'var(--text-2)' }}
-              onMouseLeave={e => { if (activeTab !== t.key) e.currentTarget.style.color = 'var(--text-3)' }}
-            >
-              {t.label}
-            </button>
-          ))}
-          <button
-            onClick={openDrawer}
-            className="shrink-0 px-2.5 py-1 rounded-lg text-[11.5px] font-medium transition-colors"
-            style={{ color: 'var(--text-3)' }}
-            onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-2)')}
-            onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-3)')}
-          >
-            Tümü →
-          </button>
-        </div>
-      </div>
-
-      {/* ── Page content ── */}
-      <div className="flex-1 overflow-y-auto">
-        {/* Section hero header */}
-        <div className="px-5 lg:px-8 pt-8 pb-6">
-          <div className="max-w-2xl mx-auto">
-            <div className="flex items-center gap-3 mb-1">
-              <div
-                className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+  const NavList = ({ onNavigate }: { onNavigate: (key: Tab) => void }) => (
+    <nav style={{ flex: 1, overflowY: 'auto', padding: '8px' }}>
+      {NAV_GROUPS.map((group, gi) => (
+        <div key={gi} style={{ marginBottom: 4 }}>
+          {group.label && (
+            <p style={{
+              fontSize: 10, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase',
+              color: 'var(--text-3)', padding: '10px 10px 4px', margin: 0,
+            }}>
+              {group.label}
+            </p>
+          )}
+          {!group.label && gi > 0 && (
+            <div style={{ height: 1, background: 'var(--border)', margin: '8px 10px 8px' }} />
+          )}
+          {group.keys.map(key => {
+            const t = tabs.find(t => t.key === key)
+            if (!t) return null
+            const active = activeTab === t.key
+            return (
+              <button
+                key={t.key}
+                onClick={() => onNavigate(t.key)}
                 style={{
-                  background: meta.danger ? 'var(--red-soft)' : 'var(--blue-soft)',
-                  border: `1px solid ${meta.danger ? 'rgba(232,69,69,0.2)' : 'rgba(68,112,255,0.2)'}`,
+                  display: 'flex', alignItems: 'center', gap: 9, width: '100%',
+                  padding: '7px 10px', borderRadius: 8, border: 'none', cursor: 'pointer',
+                  fontSize: 13, fontWeight: active ? 600 : 400, textAlign: 'left',
+                  background: active
+                    ? t.danger ? 'rgba(184,80,61,0.12)' : 'var(--primary-soft)'
+                    : 'transparent',
+                  color: t.danger ? 'var(--red)' : active ? 'var(--primary)' : 'var(--text-2)',
+                  marginBottom: 1, transition: 'background 0.1s, color 0.1s',
                 }}
               >
-                <Icon className="w-4.5 h-4.5" style={{ color: meta.danger ? 'var(--red)' : 'var(--blue)' }} />
+                <t.icon size={15} strokeWidth={1.5} style={{ flexShrink: 0 }} />
+                {t.label}
+              </button>
+            )
+          })}
+        </div>
+      ))}
+    </nav>
+  )
+
+  return (
+    <AppShell>
+      <div style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
+
+        {/* ── Left panel (desktop ≥ lg) ── */}
+        <aside
+          className="hidden lg:flex flex-col"
+          style={{
+            width: 220, flexShrink: 0, overflow: 'hidden',
+            borderRight: '1px solid var(--border)',
+            background: 'var(--surface)',
+          }}
+        >
+          <div style={{ padding: '16px', borderBottom: '1px solid var(--border)' }}>
+            <Link
+              href="/dashboard"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 500, color: 'var(--text-3)' }}
+            >
+              <ChevronLeft size={13} strokeWidth={1.5} />
+              Dashboard&apos;a Dön
+            </Link>
+          </div>
+          <NavList onNavigate={navigate} />
+        </aside>
+
+        {/* ── Mobile nav overlay ── */}
+        {mobileNavOpen && (
+          <div
+            className="lg:hidden"
+            style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex' }}
+            onClick={() => setMobileNavOpen(false)}
+          >
+            <aside
+              style={{
+                width: 248, height: '100%', background: 'var(--surface)',
+                borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', overflow: 'hidden',
+              }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div style={{ padding: '16px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Link
+                  href="/dashboard"
+                  onClick={() => setMobileNavOpen(false)}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 500, color: 'var(--text-3)' }}
+                >
+                  <ChevronLeft size={13} strokeWidth={1.5} />
+                  Dashboard&apos;a Dön
+                </Link>
+                <button
+                  onClick={() => setMobileNavOpen(false)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', display: 'flex', padding: 2 }}
+                >
+                  <X size={16} />
+                </button>
               </div>
-              <div>
-                <h1 className="text-xl font-bold" style={{ color: 'var(--text-1)', letterSpacing: '-0.025em' }}>
-                  {meta.label}
-                </h1>
-                <p className="text-[12.5px]" style={{ color: 'var(--text-3)' }}>{meta.desc}</p>
-              </div>
+              <NavList onNavigate={key => { navigate(key); setMobileNavOpen(false) }} />
+            </aside>
+          </div>
+        )}
+
+        {/* ── Main content ── */}
+        <div style={{ flex: 1, overflow: 'auto', background: 'var(--bg)' }}>
+
+          {/* Mobile topbar */}
+          <div
+            className="lg:hidden sticky top-0 z-10 flex items-center gap-3 px-4"
+            style={{ height: 52, background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}
+          >
+            <button
+              onClick={() => setMobileNavOpen(true)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-2)', display: 'flex', alignItems: 'center', padding: 0 }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 22, fontVariationSettings: "'wght' 300" }}>menu</span>
+            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+              <Icon size={15} strokeWidth={1.5} style={{ color: meta.danger ? 'var(--red)' : 'var(--primary)' }} />
+              <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-1)' }}>{meta.label}</span>
             </div>
           </div>
-        </div>
 
-        {/* Section content */}
-        <div className="px-5 lg:px-8 pb-16">
-          <div className="max-w-2xl mx-auto">
+          {/* Section */}
+          <div style={{ padding: '36px 32px 72px', maxWidth: 720, margin: '0 auto' }}>
+
+            {/* Section header */}
+            <div style={{ marginBottom: 28, display: 'flex', alignItems: 'center', gap: 14 }}>
+              <div style={{
+                width: 44, height: 44, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                background: meta.danger ? 'rgba(184,80,61,0.12)' : 'var(--primary-soft)',
+                border: `1px solid ${meta.danger ? 'rgba(184,80,61,0.22)' : 'rgba(201,138,62,0.22)'}`,
+              }}>
+                <Icon size={20} strokeWidth={1.5} style={{ color: meta.danger ? 'var(--red)' : 'var(--primary)' }} />
+              </div>
+              <div>
+                <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-1)', margin: 0, letterSpacing: '-0.022em' }}>
+                  {meta.label}
+                </h1>
+                <p style={{ fontSize: 12.5, color: 'var(--text-3)', margin: 0, marginTop: 2 }}>{meta.desc}</p>
+              </div>
+            </div>
+
             {activeTab === 'hesap'         && <HesapSection />}
+            {activeTab === 'gorunum'       && <GorunumSection />}
             {activeTab === 'billing'       && <BillingSection />}
             {activeTab === 'integrations'  && <EntegrasyonlarSection integrations={integrations} onRefresh={loadIntegrations} oauthSuccess={oauthSuccess} />}
             {activeTab === 'email'         && <EmailSection />}
