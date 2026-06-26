@@ -37,7 +37,7 @@ export async function cancelScheduledResume(messageId: string): Promise<void> {
   }
 }
 
-export async function verifyQStashSignature(req: Request): Promise<boolean> {
+export async function verifyQStashSignature(req: Request, targetUrl?: string): Promise<boolean> {
   try {
     const { Receiver } = await import('@upstash/qstash')
     const receiver = new Receiver({
@@ -47,13 +47,9 @@ export async function verifyQStashSignature(req: Request): Promise<boolean> {
 
     const body = await req.text()
     const signature = req.headers.get('upstash-signature') ?? ''
+    const url = targetUrl ?? `${APP_URL}/api/automations/resume`
 
-    await receiver.verify({
-      signature,
-      body,
-      url: `${APP_URL}/api/automations/resume`,
-    })
-
+    await receiver.verify({ signature, body, url })
     return true
   } catch {
     return false

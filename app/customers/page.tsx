@@ -16,11 +16,11 @@ import { formatCurrency, formatNumber, cn } from '@/lib/utils'
 type Segment = 'vip' | 'loyal' | 'at_risk' | 'new' | 'inactive'
 
 const segmentConfig: Record<Segment, { label: string; icon: React.ElementType; color: string; bg: string; badgeText: string; badgeBg: string }> = {
-  vip:      { label: 'VIP',    icon: Crown,         color: '#f59e0b', bg: 'rgba(245,158,11,0.12)',  badgeText: '#f59e0b', badgeBg: 'rgba(245,158,11,0.12)' },
-  loyal:    { label: 'Sadık',  icon: Users,         color: '#99b4ff', bg: 'rgba(153,180,255,0.12)', badgeText: '#99b4ff', badgeBg: 'rgba(153,180,255,0.12)' },
-  at_risk:  { label: 'Riskli', icon: AlertTriangle, color: '#e84545', bg: 'rgba(232,69,69,0.12)',   badgeText: '#e84545', badgeBg: 'rgba(232,69,69,0.12)' },
-  new:      { label: 'Yeni',   icon: UserPlus,      color: '#22c97a', bg: 'rgba(34,201,122,0.12)',  badgeText: '#22c97a', badgeBg: 'rgba(34,201,122,0.12)' },
-  inactive: { label: 'Pasif',  icon: Clock,         color: 'var(--text-2)', bg: 'rgba(128,128,160,0.12)', badgeText: 'var(--text-3)', badgeBg: 'rgba(128,128,160,0.12)' },
+  vip:      { label: 'VIP',    icon: Crown,         color: 'var(--warning)', bg: 'var(--warning-soft)', badgeText: 'var(--warning)', badgeBg: 'var(--warning-soft)' },
+  loyal:    { label: 'Sadık',  icon: Users,         color: 'var(--primary)', bg: 'var(--primary-soft)', badgeText: 'var(--primary)', badgeBg: 'var(--primary-soft)' },
+  at_risk:  { label: 'Riskli', icon: AlertTriangle, color: 'var(--danger)',  bg: 'var(--danger-soft)',  badgeText: 'var(--danger)',  badgeBg: 'var(--danger-soft)' },
+  new:      { label: 'Yeni',   icon: UserPlus,      color: 'var(--success)', bg: 'var(--success-soft)', badgeText: 'var(--success)', badgeBg: 'var(--success-soft)' },
+  inactive: { label: 'Pasif',  icon: Clock,         color: 'var(--text-2)',  bg: 'var(--surface-2)',    badgeText: 'var(--text-3)',  badgeBg: 'var(--surface-2)' },
 }
 
 const SEGMENT_OPTIONS = [

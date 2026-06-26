@@ -165,7 +165,7 @@ function AutoCard({ a, onToggle, onDelete, onClone }: {
                 %{successRate}
               </span>
             </div>
-            <div className="h-1 rounded-full overflow-hidden" style={{ background: '#E5E7EB' }}>
+            <div className="h-1 rounded-full overflow-hidden" style={{ background: 'var(--border)' }}>
               <div className="h-full rounded-full transition-all duration-500" style={{
                 width: `${successRate}%`,
                 background: successRate! >= 80 ? '#22c97a' : successRate! >= 50 ? '#f0a020' : '#e84545',
@@ -198,8 +198,11 @@ function AutoCard({ a, onToggle, onDelete, onClone }: {
         <div className="flex items-center justify-between pt-1 border-t border-white/[0.05]">
           <div className="flex items-center gap-1">
             <Link href={`/automations/${a.id}/builder`}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all hover:bg-[#99b4ff]/10"
-              style={{ color: '#99b4ff' }}>
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all"
+              style={{ color: 'var(--primary)' }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--primary-soft)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+              >
               <Pencil size={10} /> Düzenle
             </Link>
             <Link href={`/automations/${a.id}/runs`}
@@ -406,7 +409,7 @@ export default function AutomationsPage() {
 
       {/* ── Top bar ── */}
       <div className="sticky top-0 z-20 flex items-center justify-between px-4 md:px-6 h-14 shrink-0"
-        style={{ background: 'rgba(255,255,255,0.97)', backdropFilter: 'blur(24px)', borderBottom: '1px solid #E5E7EB' }}>
+        style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}>
         <div>
           <h1 className="text-[15px] md:text-[16px] font-bold" style={{ color: 'var(--text-1)' }}>Otomasyonlar</h1>
           <p className="text-[11px] hidden sm:block" style={{ color: 'var(--text-2)' }}>Akıllı müşteri yolculukları oluşturun, yönetin ve performanslarını artırın.</p>
@@ -416,12 +419,11 @@ export default function AutomationsPage() {
             onClick={downloadCSV}
             disabled={automations.length === 0}
             className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold transition-all disabled:opacity-40"
-            style={{ background: '#F3F4F6', color: 'var(--text-2)', border: '1px solid var(--border)' }}>
+            style={{ background: 'var(--surface-2)', color: 'var(--text-2)', border: '1px solid var(--border)' }}>
             <Download className="w-3.5 h-3.5" /> Raporu İndir
           </button>
           <Link href="/automations/new"
-            className="flex items-center gap-1.5 px-3 md:px-4 py-2 rounded-xl text-[12px] font-bold"
-            style={{ background: '#4470ff', color: '#fff' }}>
+            className="btn-primary flex items-center gap-1.5 px-3 md:px-4 py-2 rounded-md text-[12px] font-bold">
             <Plus className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Yeni Otomasyon</span>
           </Link>
         </div>
@@ -443,7 +445,7 @@ export default function AutomationsPage() {
               return (
                 <div key={k.label} className="rounded-2xl p-4 relative overflow-hidden cursor-default transition-all"
                   style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-                  onMouseEnter={e => (e.currentTarget.style.background = '#F3F4F6')}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-2)')}
                   onMouseLeave={e => (e.currentTarget.style.background = 'var(--surface)')}>
                   <div className="absolute top-0 left-4 right-4 h-px" style={{ background: `linear-gradient(90deg,transparent,${k.color}44,transparent)` }} />
                   <div className="flex items-center justify-between mb-3">
@@ -475,7 +477,7 @@ export default function AutomationsPage() {
                 return (
                   <div key={tpl.id} className="rounded-2xl p-4 cursor-default transition-all relative overflow-hidden"
                     style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-                    onMouseEnter={e => { e.currentTarget.style.background = '#F3F4F6'; e.currentTarget.style.borderColor = `${tpl.color}25` }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface-2)'; e.currentTarget.style.borderColor = `${tpl.color}25` }}
                     onMouseLeave={e => { e.currentTarget.style.background = 'var(--surface)'; e.currentTarget.style.borderColor = 'var(--border)' }}>
                     <div className="absolute top-0 left-0 right-0 h-px" style={{ background: `linear-gradient(90deg,transparent,${tpl.color}44,transparent)` }} />
                     {tpl.pro && (
@@ -524,11 +526,11 @@ export default function AutomationsPage() {
           <div>
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-3">
               <h2 className="text-[14px] font-bold shrink-0" style={{ color: 'var(--text-1)' }}>Aktif Otomasyonlar</h2>
-              <div className="flex items-center p-0.5 gap-0.5 rounded-xl overflow-x-auto no-scrollbar" style={{ background: '#F3F4F6', border: '1px solid var(--border)' }}>
+              <div className="flex items-center p-0.5 gap-0.5 rounded-xl overflow-x-auto no-scrollbar" style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
                 {(['all','active','paused','draft'] as FilterKey[]).map(f => (
                   <button key={f} onClick={() => setFilter(f)}
                     className="px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all shrink-0 whitespace-nowrap"
-                    style={filter === f ? { background: 'var(--surface)', color: '#2563EB', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' } : { color: 'var(--text-2)' }}>
+                    style={filter === f ? { background: 'var(--surface)', color: 'var(--primary)', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' } : { color: 'var(--text-2)' }}>
                     {f === 'all' ? 'Tümü' : STATUS_CFG[f]?.label ?? f}
                   </button>
                 ))}
@@ -538,7 +540,7 @@ export default function AutomationsPage() {
                 <input value={search} onChange={e => setSearch(e.target.value)}
                   placeholder="Otomasyon ara..."
                   className="pl-8 pr-3 py-1.5 text-[12px] rounded-xl outline-none w-full sm:w-48"
-                  style={{ background: '#F3F4F6', border: '1px solid var(--border)', color: 'var(--text-1)' }} />
+                  style={{ background: 'var(--bg)', border: '1px solid var(--border-2)', color: 'var(--text-1)' }} />
               </div>
             </div>
 
@@ -561,8 +563,7 @@ export default function AutomationsPage() {
                     Yukarıdaki şablonlardan birini seçin veya sıfırdan bir otomasyon oluşturun.
                   </p>
                 </div>
-                <Link href="/automations/new" className="flex items-center gap-2 px-4 py-2 rounded-xl text-[12px] font-bold"
-                  style={{ background: '#4470ff', color: '#fff' }}>
+                <Link href="/automations/new" className="btn-primary flex items-center gap-2 px-4 py-2 rounded-md text-[12px] font-bold">
                   <Plus className="w-3.5 h-3.5" /> İlk Otomasyonu Oluştur
                 </Link>
               </div>
@@ -575,7 +576,7 @@ export default function AutomationsPage() {
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr style={{ background: 'var(--bg)', borderBottom: '1px solid #E5E7EB' }}>
+                    <tr style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
                       {['OTOMASYON ADI', 'DURUM', 'TETİKLEYİCİ', 'ÇALIŞMA (30G)', 'DÖNÜŞÜM ORANI', 'KAZANILAN GELİR', 'SON ÇALIŞMA', ''].map(col => (
                         <th key={col} className="text-left px-4 py-2.5 text-[9px] font-semibold tracking-wider whitespace-nowrap"
                           style={{ color: 'var(--text-3)' }}>{col}</th>
@@ -591,8 +592,8 @@ export default function AutomationsPage() {
                       const isUpdating = updatingId === a.id
                       return (
                         <tr key={a.id} className="transition-all cursor-default"
-                          style={{ borderBottom: i < filtered.length - 1 ? '1px solid #F3F4F6' : 'none' }}
-                          onMouseEnter={e => (e.currentTarget.style.background = '#F9FAFB')}
+                          style={{ borderBottom: i < filtered.length - 1 ? '1px solid var(--border)' : 'none' }}
+                          onMouseEnter={e => (e.currentTarget.style.background = 'var(--primary-lighter)')}
                           onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-2.5">
@@ -612,7 +613,7 @@ export default function AutomationsPage() {
                                   ? { background: 'rgba(34,201,122,0.1)', color: '#22c97a', border: '1px solid rgba(34,201,122,0.2)' }
                                   : a.status === 'paused'
                                     ? { background: 'rgba(240,160,32,0.1)', color: '#f0a020', border: '1px solid rgba(240,160,32,0.2)' }
-                                    : { background: '#F3F4F6', color: 'var(--text-2)', border: '1px solid var(--border)' }
+                                    : { background: 'var(--surface-2)', color: 'var(--text-2)', border: '1px solid var(--border)' }
                               }>
                               <span className={cn('w-1.5 h-1.5 rounded-full', st.dot)} />
                               {st.label}
@@ -641,7 +642,7 @@ export default function AutomationsPage() {
                             <div className="flex items-center gap-1">
                               <Link href={`/automations/${a.id}/builder`}
                                 className="text-[10px] font-semibold px-2.5 py-1 rounded-lg transition-all"
-                                style={{ background: 'rgba(153,180,255,0.08)', color: '#99b4ff', border: '1px solid rgba(153,180,255,0.15)' }}>
+                                style={{ background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--primary-glow)' }}>
                                 Düzenle
                               </Link>
                               <button

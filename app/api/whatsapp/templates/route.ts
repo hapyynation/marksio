@@ -1,6 +1,130 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getApiSession } from '@/lib/auth'
+import { decrypt } from '@/lib/encryption'
+import type { Prisma } from '@prisma/client'
+
+const META_API = 'https://graph.facebook.com/v19.0'
+
+export async function POST(req: NextRequest) {
+  const session = await getApiSession()
+  if (!session) return new Response('Unauthorized', { status: 401 })
+
+  const body = await req.json() as {
+    name?: string
+    category?: string
+    language?: string
+    components?: unknown[]
+    saveDraft?: boolean
+  }
+
+  if (!body.name || !body.category || !body.language || !Array.isArray(body.components)) {
+    return NextResponse.json({ error: 'name, category, language ve components zorunludur.' }, { status: 400 })
+  }
+
+  // ── DRAFT SAVE (Meta API'ye gitmez, hesap bağlı olmak zorunda değil) ──
+  if (body.saveDraft) {
+    const anyAccount = await prisma.whatsappAccount.findFirst({
+      where: { userId: session.user.id },
+      select: { id: true },
+    })
+    if (!anyAccount) {
+      return NextResponse.json({ error: 'Taslak kaydetmek için en az bir WhatsApp hesabı gerekli.' }, { status: 400 })
+    }
+    try {
+      const draft = await prisma.whatsappTemplate.create({
+        data: {
+          accountId: anyAccount.id,
+          metaTemplateId: `draft_${Date.now()}`,
+          name: body.name,
+          category: body.category as 'MARKETING' | 'UTILITY' | 'AUTHENTICATION',
+          language: body.language,
+          status: 'DRAFT',
+          componentsJson: body.components as unknown as Prisma.InputJsonValue,
+        },
+      })
+      await prisma.whatsappTemplateVersion.create({
+        data: {
+          templateId: draft.id,
+          componentsJson: body.components as unknown as Prisma.InputJsonValue,
+          status: 'DRAFT',
+          attemptNote: 'AI Şablon Oluşturucu ile taslak kaydedildi',
+        },
+      })
+      return NextResponse.json({ template: draft }, { status: 201 })
+    } catch (err) {
+      console.error('[templates POST] draft save failed:', err)
+      return NextResponse.json({ error: 'Taslak kaydedilemedi.' }, { status: 500 })
+    }
+  }
+
+  const account = await prisma.whatsappAccount.findFirst({
+    where: { userId: session.user.id, status: 'CONNECTED' },
+    select: { id: true, wabaId: true, accessToken: true },
+  })
+  if (!account) return NextResponse.json({ error: 'Bağlı WhatsApp hesabı bulunamadı.' }, { status: 400 })
+
+  let accessToken: string
+  try {
+    accessToken = decrypt(account.accessToken)
+  } catch (err) {
+    console.error('[templates POST] decrypt failed:', err)
+    return NextResponse.json({ error: 'Erişim belirteci çözümlenemedi. WhatsApp hesabını yeniden bağlayın.' }, { status: 500 })
+  }
+
+  const metaRes = await fetch(`${META_API}/${account.wabaId}/message_templates`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name: body.name,
+      language: body.language,
+      category: body.category,
+      components: body.components,
+    }),
+  }).catch((err) => {
+    console.error('[templates POST] Meta fetch failed:', err)
+    return null
+  })
+
+  if (!metaRes?.ok) {
+    const errBody = metaRes ? await metaRes.json().catch(() => ({})) : {}
+    const metaMsg = (errBody as { error?: { message?: string; error_user_msg?: string } })?.error
+    const msg = metaMsg?.error_user_msg ?? metaMsg?.message ?? `Meta API hatası (${metaRes?.status ?? 'network'})`
+    console.error('[templates POST] Meta rejected:', errBody)
+    return NextResponse.json({ error: msg }, { status: 400 })
+  }
+
+  const metaData = await metaRes.json() as { id?: string; status?: string }
+
+  try {
+    const template = await prisma.whatsappTemplate.create({
+      data: {
+        accountId: account.id,
+        metaTemplateId: metaData.id ?? `local_${Date.now()}`,
+        name: body.name,
+        category: body.category as 'MARKETING' | 'UTILITY' | 'AUTHENTICATION',
+        language: body.language,
+        status: 'PENDING',
+        componentsJson: body.components as unknown as Prisma.InputJsonValue,
+        submittedAt: new Date(),
+      },
+    })
+
+    await prisma.whatsappTemplateVersion.create({
+      data: {
+        templateId: template.id,
+        componentsJson: body.components as unknown as Prisma.InputJsonValue,
+        status: 'PENDING',
+        attemptNote: 'AI Şablon Oluşturucu ile oluşturuldu',
+      },
+    })
+
+    return NextResponse.json({ template }, { status: 201 })
+  } catch (err) {
+    console.error('[templates POST] Prisma create failed:', err)
+    return NextResponse.json({ error: 'Şablon veritabanına kaydedilemedi.' }, { status: 500 })
+  }
+}
 
 export async function GET() {
   const session = await getApiSession()

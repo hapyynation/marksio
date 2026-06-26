@@ -86,7 +86,7 @@ function Toggle({ enabled, onChange }: { enabled: boolean; onChange: (v: boolean
       style={{ width: 36, height: 20 }}
     >
       <div className="absolute inset-0 rounded-full transition-all"
-        style={{ background: enabled ? '#2563EB' : '#E5E7EB' }} />
+        style={{ background: enabled ? 'var(--primary)' : 'var(--border-2)' }} />
       <div className="absolute w-4 h-4 rounded-full transition-all"
         style={{ background: 'var(--surface)', left: enabled ? 18 : 2, top: 2, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }} />
     </button>
@@ -111,7 +111,7 @@ function RuleRow({
         value={rule.field}
         onChange={e => onUpdate(index, 'field', e.target.value)}
         className="flex-1 min-w-0 px-2 py-1.5 rounded-lg text-[11px] outline-none"
-        style={{ background: '#F3F4F6', border: '1px solid var(--border)', color: 'var(--text-1)' }}
+        style={{ background: 'var(--bg-input)', border: '1px solid var(--border-2)', color: 'var(--text-1)' }}
       >
         {RULE_FIELDS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
       </select>
@@ -120,7 +120,7 @@ function RuleRow({
         value={rule.operator}
         onChange={e => onUpdate(index, 'operator', e.target.value)}
         className="w-28 px-2 py-1.5 rounded-lg text-[10px] outline-none shrink-0"
-        style={{ background: '#F3F4F6', border: '1px solid var(--border)', color: 'var(--text-1)' }}
+        style={{ background: 'var(--bg-input)', border: '1px solid var(--border-2)', color: 'var(--text-1)' }}
       >
         {ops.map(op => <option key={op.value} value={op.value}>{op.label}</option>)}
       </select>
@@ -130,7 +130,7 @@ function RuleRow({
         onChange={e => onUpdate(index, 'value', e.target.value)}
         placeholder={fieldDef?.placeholder ?? ''}
         className="w-20 px-2 py-1.5 rounded-lg text-[11px] outline-none text-center shrink-0"
-        style={{ background: '#F3F4F6', border: '1px solid var(--border)', color: 'var(--text-1)' }}
+        style={{ background: 'var(--bg-input)', border: '1px solid var(--border-2)', color: 'var(--text-1)' }}
       />
       <button
         onClick={() => onRemove(index)}
@@ -299,16 +299,14 @@ export default function SegmentsPage() {
             onClick={refreshCounts}
             disabled={refreshing}
             className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-semibold transition-all"
-            style={{ background: '#F3F4F6', color: 'var(--text-2)', border: '1px solid var(--border)' }}
+            style={{ background: 'var(--surface-2)', color: 'var(--text-2)', border: '1px solid var(--border)' }}
           >
             <RefreshCw className={cn('w-3.5 h-3.5', refreshing && 'animate-spin')} />
             Sayımları Güncelle
           </button>
           <button
             onClick={() => { setShowCreate(true); setSaveError('') }}
-            className="flex items-center gap-1.5 px-3 md:px-4 py-2 rounded-xl text-[12px] font-bold min-h-[44px]"
-            style={{ background: '#4470ff', color: '#fff' }}
-          >
+            className="btn-primary flex items-center gap-1.5 px-3 md:px-4 py-2 rounded-md text-[12px] font-bold min-h-[44px]">
             <Plus className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Yeni Segment</span>
           </button>
         </div>
@@ -355,7 +353,7 @@ export default function SegmentsPage() {
                 style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
               />
             </div>
-            <span className="ml-auto text-[11px]" style={{ color: '#33334a', fontFamily: 'monospace' }}>
+            <span className="ml-auto text-[11px]" style={{ color: 'var(--text-2)', fontFamily: 'monospace' }}>
               {filtered.length} segment
             </span>
           </div>
@@ -462,7 +460,7 @@ export default function SegmentsPage() {
                         {seg.type !== 'builtin' && (
                           <Link href={`/segments/${seg.id}/edit`}
                             className="px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-all flex items-center gap-1"
-                            style={{ background: '#F3F4F6', color: 'var(--text-2)', border: '1px solid var(--border)' }}>
+                            style={{ background: 'var(--surface-2)', color: 'var(--text-2)', border: '1px solid var(--border)' }}>
                             <Pencil className="w-2.5 h-2.5" /> Düzenle
                           </Link>
                         )}
@@ -478,7 +476,7 @@ export default function SegmentsPage() {
                             onClick={e => { e.stopPropagation(); setOpenMenuId(openMenuId === seg.id ? null : seg.id) }}
                             className="p-1.5 rounded-lg transition-all"
                             style={{ color: 'var(--text-2)' }}
-                            onMouseEnter={e => (e.currentTarget.style.background = '#F3F4F6')}
+                            onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-2)')}
                             onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                           >
                             <MoreHorizontal className="w-3.5 h-3.5" />
@@ -518,7 +516,7 @@ export default function SegmentsPage() {
 
             {!loading && filtered.length === 0 && (
               <div className="flex flex-col items-center justify-center py-16 gap-3">
-                <Filter className="w-8 h-8" style={{ color: '#33334a' }} />
+                <Filter className="w-8 h-8" style={{ color: 'var(--text-3)' }} />
                 <p className="text-[13px]" style={{ color: 'var(--text-2)' }}>Segment bulunamadı</p>
               </div>
             )}
@@ -554,7 +552,7 @@ export default function SegmentsPage() {
                   placeholder="Örn: Sadık Müşteriler"
                   className="w-full px-3 py-2.5 rounded-xl text-[12px] outline-none"
                   style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
-                  onFocus={e => (e.currentTarget.style.borderColor = '#4470ff66')}
+                  onFocus={e => (e.currentTarget.style.borderColor = 'var(--primary)')}
                   onBlur={e => (e.currentTarget.style.borderColor = 'var(--border)')}
                 />
               </div>
@@ -567,7 +565,7 @@ export default function SegmentsPage() {
                   placeholder="Bu segment nedir?"
                   className="w-full px-3 py-2.5 rounded-xl text-[12px] outline-none"
                   style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
-                  onFocus={e => (e.currentTarget.style.borderColor = '#4470ff66')}
+                  onFocus={e => (e.currentTarget.style.borderColor = 'var(--primary)')}
                   onBlur={e => (e.currentTarget.style.borderColor = 'var(--border)')}
                 />
               </div>
@@ -580,7 +578,7 @@ export default function SegmentsPage() {
                     {ICON_OPTIONS.map(ic => (
                       <button key={ic} onClick={() => setForm(f => ({ ...f, icon: ic }))}
                         className="w-7 h-7 rounded-lg flex items-center justify-center text-[13px] transition-all"
-                        style={{ background: form.icon === ic ? 'rgba(37,99,235,0.1)' : '#F3F4F6', border: form.icon === ic ? '1px solid #4470ff66' : '1px solid transparent' }}>
+                        style={{ background: form.icon === ic ? 'var(--primary-soft)' : 'var(--surface-2)', border: form.icon === ic ? '1px solid var(--primary)' : '1px solid transparent' }}>
                         {ic}
                       </button>
                     ))}
@@ -609,12 +607,12 @@ export default function SegmentsPage() {
                   <p className="text-[11px] font-semibold" style={{ color: 'var(--text-2)' }}>KOŞULLAR *</p>
                   {/* Match type */}
                   <div className="flex items-center p-0.5 rounded-lg"
-                    style={{ background: '#F3F4F6', border: '1px solid var(--border)' }}>
+                    style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
                     {(['all', 'any'] as const).map(t => (
                       <button key={t} onClick={() => setForm(f => ({ ...f, matchType: t }))}
                         className="px-2.5 py-1 rounded-md text-[10px] font-semibold transition-all"
                         style={form.matchType === t
-                          ? { background: 'var(--surface)', color: '#2563EB', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }
+                          ? { background: 'var(--surface)', color: 'var(--primary)', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }
                           : { color: 'var(--text-2)' }}>
                         {t === 'all' ? 'Tümü' : 'Herhangi'}
                       </button>
@@ -671,15 +669,13 @@ export default function SegmentsPage() {
             </div>
 
             {/* Footer */}
-            <div className="px-5 py-4 flex gap-2 shrink-0" style={{ borderTop: '1px solid #E5E7EB' }}>
+            <div className="px-5 py-4 flex gap-2 shrink-0" style={{ borderTop: '1px solid var(--border)' }}>
               <button onClick={() => { setShowCreate(false); setSaveError('') }}
-                className="flex-1 py-2 rounded-xl text-[12px] font-semibold"
-                style={{ background: '#F3F4F6', color: 'var(--text-2)', border: '1px solid var(--border)' }}>
+                className="flex-1 py-2 rounded-md text-[12px] font-semibold btn-secondary">
                 İptal
               </button>
               <button onClick={saveSegment} disabled={saving}
-                className="flex-1 py-2 rounded-xl text-[12px] font-bold flex items-center justify-center gap-1.5 transition-all disabled:opacity-50"
-                style={{ background: '#4470ff', color: '#fff' }}>
+                className="flex-1 py-2 rounded-md text-[12px] font-bold flex items-center justify-center gap-1.5 transition-all disabled:opacity-50 btn-primary">
                 {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
                 Kaydet
               </button>

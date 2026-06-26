@@ -15,31 +15,31 @@ interface HeaderProps {
 
 const notifications = [
   {
-    id: 1, icon: CheckCircle, color: 'var(--green)', bg: 'rgba(34,201,122,0.08)',
+    id: 1, icon: CheckCircle, color: 'var(--success)', bg: 'var(--success-soft)',
     title: 'Anneler Günü kampanyası tamamlandı',
     desc: '₺24.680 gelir · %70 açılma oranı',
     time: '2s önce', read: false,
   },
   {
-    id: 2, icon: TrendingUp, color: '#99b4ff', bg: 'rgba(68,112,255,0.08)',
+    id: 2, icon: TrendingUp, color: 'var(--primary)', bg: 'var(--primary-soft)',
     title: 'Sepet terk otomasyonu 48 tetiklendi',
     desc: '12 dönüşüm · ₺2.840 gelir',
     time: '5s önce', read: false,
   },
   {
-    id: 3, icon: AlertCircle, color: 'var(--amber)', bg: 'rgba(240,160,32,0.08)',
+    id: 3, icon: AlertCircle, color: 'var(--warning)', bg: 'var(--warning-soft)',
     title: '3 yeni VIP müşteri tespit edildi',
     desc: 'Segmentasyonu güncellemek ister misiniz?',
     time: 'Dün', read: false,
   },
   {
-    id: 4, icon: Calendar, color: '#00d8f0', bg: 'rgba(0,216,240,0.08)',
+    id: 4, icon: Calendar, color: 'var(--cyan)', bg: 'rgba(19,194,194,0.08)',
     title: 'Win-Back kampanyası yarın gönderilecek',
     desc: '620 müşteriye · Email kanalı',
     time: 'Dün', read: true,
   },
   {
-    id: 5, icon: CheckCircle, color: 'var(--green)', bg: 'rgba(34,201,122,0.08)',
+    id: 5, icon: CheckCircle, color: 'var(--success)', bg: 'var(--success-soft)',
     title: 'WhatsApp Business bağlantısı doğrulandı',
     desc: 'Mesaj göndermeye hazırsınız',
     time: '2 gün', read: true,
@@ -66,10 +66,9 @@ export default function Header({ title, subtitle, action, actions }: HeaderProps
     <header
       className="h-14 flex items-center px-5 gap-3 sticky top-0 z-20"
       style={{
-        background: 'rgba(11,11,20,0.9)',
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
-        borderBottom: '1px solid rgba(255,255,255,0.06)',
+        background: 'var(--surface)',
+        borderBottom: '1px solid var(--border)',
+        boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
       }}
     >
       {/* Mobile menu */}
@@ -77,25 +76,26 @@ export default function Header({ title, subtitle, action, actions }: HeaderProps
         onClick={() => setOpen(true)}
         className="lg:hidden p-2 rounded-lg transition-colors"
         style={{ color: 'var(--text-2)' }}
-        onMouseEnter={e => (e.currentTarget.style.color = '#eeeef4')}
-        onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-2)')}>
+        onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-2)')}
+        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
         <Menu className="w-4 h-4" />
       </button>
 
       {/* Title */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2.5">
-          <h1 className="text-[14px] font-semibold truncate tracking-tight"
-            style={{ color: '#eeeef4', letterSpacing: '-0.01em' }}>
+          <h1 className="text-[14px] font-semibold truncate" style={{ color: 'var(--text-1)', letterSpacing: '-0.01em' }}>
             {title}
           </h1>
           {subtitle && (
-            <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium"
+            <span
+              className="hidden sm:inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium"
               style={{
-                background: 'rgba(255,255,255,0.05)',
-                border: '1px solid rgba(255,255,255,0.08)',
+                background: 'var(--surface-2)',
+                border: '1px solid var(--border)',
                 color: 'var(--text-2)',
-              }}>
+              }}
+            >
               {subtitle}
             </span>
           )}
@@ -105,24 +105,23 @@ export default function Header({ title, subtitle, action, actions }: HeaderProps
       <div className="flex items-center gap-1.5">
         {/* Search */}
         <div className="relative hidden md:block">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none"
-            style={{ color: 'var(--text-3)' }} />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none" style={{ color: 'var(--text-3)' }} />
           <input
             type="text"
             placeholder="Ara..."
-            className="pl-9 pr-4 py-1.5 text-[13px] rounded-lg w-40 outline-none transition-all"
+            className="pl-9 pr-4 py-1.5 text-[13px] rounded-md w-40 outline-none transition-all"
             style={{
-              background: 'rgba(255,255,255,0.04)',
-              border: '1px solid rgba(255,255,255,0.07)',
-              color: '#eeeef4',
+              background: 'var(--bg)',
+              border: '1px solid var(--border-2)',
+              color: 'var(--text-1)',
             }}
             onFocus={e => {
-              e.currentTarget.style.borderColor = 'rgba(68,112,255,0.4)'
-              e.currentTarget.style.boxShadow = '0 0 0 3px rgba(68,112,255,0.08)'
+              e.currentTarget.style.borderColor = 'var(--primary)'
+              e.currentTarget.style.boxShadow = '0 0 0 2px var(--primary-soft)'
               e.currentTarget.style.width = '200px'
             }}
             onBlur={e => {
-              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)'
+              e.currentTarget.style.borderColor = 'var(--border-2)'
               e.currentTarget.style.boxShadow = 'none'
               e.currentTarget.style.width = '160px'
             }}
@@ -134,14 +133,15 @@ export default function Header({ title, subtitle, action, actions }: HeaderProps
           <button
             onClick={() => setShowNotifs(!showNotifs)}
             className="relative p-2 rounded-lg transition-colors"
-            style={{ color: showNotifs ? '#eeeef4' : 'var(--text-2)' }}
-            onMouseEnter={e => (e.currentTarget.style.color = '#eeeef4')}
-            onMouseLeave={e => !showNotifs && (e.currentTarget.style.color = 'var(--text-2)')}>
+            style={{ color: showNotifs ? 'var(--primary)' : 'var(--text-2)', background: showNotifs ? 'var(--primary-soft)' : 'transparent' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface-2)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = showNotifs ? 'var(--primary-soft)' : 'transparent' }}
+          >
             <span className="material-symbols-outlined" style={{ fontSize: 17 }}>notifications</span>
             {unread > 0 && (
               <span
                 className="absolute top-1 right-1 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold"
-                style={{ background: 'var(--blue)', color: '#fff', boxShadow: '0 0 6px rgba(68,112,255,0.5)' }}>
+                style={{ background: 'var(--primary)', color: '#fff' }}>
                 {unread}
               </span>
             )}
@@ -149,26 +149,21 @@ export default function Header({ title, subtitle, action, actions }: HeaderProps
 
           {showNotifs && (
             <div
-              className="absolute right-0 top-full mt-2 w-[320px] rounded-2xl z-50 overflow-hidden animate-slide-up"
+              className="absolute right-0 top-full mt-2 w-[320px] rounded-xl z-50 overflow-hidden animate-slide-up"
               style={{
-                background: '#111120',
-                border: '1px solid rgba(255,255,255,0.1)',
-                boxShadow: '0 24px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)',
+                background: 'var(--surface)',
+                border: '1px solid var(--border)',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
               }}>
               {/* Header */}
-              <div className="flex items-center justify-between px-4 py-3"
-                style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+              <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
                 <div className="flex items-center gap-2">
-                  <span className="text-[13px] font-semibold" style={{ color: '#eeeef4' }}>
+                  <span className="text-[13px] font-semibold" style={{ color: 'var(--text-1)' }}>
                     Bildirimler
                   </span>
                   {unread > 0 && (
                     <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded-full"
-                      style={{
-                        background: 'rgba(68,112,255,0.15)',
-                        color: '#99b4ff',
-                        border: '1px solid rgba(68,112,255,0.2)',
-                      }}>
+                      style={{ background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--primary-glow)' }}>
                       {unread}
                     </span>
                   )}
@@ -178,13 +173,15 @@ export default function Header({ title, subtitle, action, actions }: HeaderProps
                     <button
                       onClick={() => setNotifs(prev => prev.map(n => ({ ...n, read: true })))}
                       className="text-[11px] font-medium transition-colors"
-                      style={{ color: 'var(--blue)' }}>
+                      style={{ color: 'var(--primary)' }}>
                       Tümü okundu
                     </button>
                   )}
                   <button onClick={() => setShowNotifs(false)}
                     className="p-1 rounded-md transition-colors"
-                    style={{ color: 'var(--text-2)' }}>
+                    style={{ color: 'var(--text-2)' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-2)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -197,19 +194,20 @@ export default function Header({ title, subtitle, action, actions }: HeaderProps
                     key={n.id}
                     className="flex gap-3 px-4 py-3 cursor-pointer transition-colors"
                     style={{
-                      background: !n.read ? 'rgba(68,112,255,0.03)' : 'transparent',
-                      borderBottom: idx < notifs.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
+                      background: !n.read ? 'var(--primary-soft)' : 'transparent',
+                      borderBottom: idx < notifs.length - 1 ? '1px solid var(--border)' : 'none',
                     }}
-                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.03)')}
-                    onMouseLeave={e => (e.currentTarget.style.background = !n.read ? 'rgba(68,112,255,0.03)' : 'transparent')}
-                    onClick={() => setNotifs(prev => prev.map(x => x.id === n.id ? { ...x, read: true } : x))}>
+                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = !n.read ? 'var(--primary-soft)' : 'transparent')}
+                    onClick={() => setNotifs(prev => prev.map(x => x.id === n.id ? { ...x, read: true } : x))}
+                  >
                     <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
                       style={{ background: n.bg }}>
                       <n.icon className="w-4 h-4" style={{ color: n.color }} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-[13px] leading-snug"
-                        style={{ color: n.read ? 'var(--text-2)' : '#eeeef4', fontWeight: n.read ? 400 : 500 }}>
+                        style={{ color: 'var(--text-1)', fontWeight: n.read ? 400 : 500 }}>
                         {n.title}
                       </p>
                       <p className="text-[11px] mt-0.5 truncate" style={{ color: 'var(--text-2)' }}>{n.desc}</p>
@@ -217,7 +215,7 @@ export default function Header({ title, subtitle, action, actions }: HeaderProps
                     </div>
                     {!n.read && (
                       <div className="w-1.5 h-1.5 rounded-full mt-2 shrink-0"
-                        style={{ background: 'var(--blue)', boxShadow: '0 0 5px rgba(68,112,255,0.5)' }} />
+                        style={{ background: 'var(--primary)' }} />
                     )}
                   </div>
                 ))}
@@ -230,7 +228,7 @@ export default function Header({ title, subtitle, action, actions }: HeaderProps
         {actions?.map(a => (
           <Link key={a.href} href={a.href}
             className={cn(
-              'hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-medium transition-all',
+              'hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[13px] font-medium transition-all',
               a.variant === 'primary' ? 'btn-primary' : 'btn-secondary',
             )}>
             <Plus className="w-3.5 h-3.5" />
@@ -239,7 +237,7 @@ export default function Header({ title, subtitle, action, actions }: HeaderProps
         ))}
         {action && (
           <Link href={action.href}
-            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-semibold text-white transition-all btn-primary">
+            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[13px] font-semibold text-white transition-all btn-primary">
             <Plus className="w-3.5 h-3.5" />
             {action.label}
           </Link>

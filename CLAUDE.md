@@ -1,48 +1,73 @@
-# Marksio — Claude Code Instructions
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Kaynak Doküman
 
 **ANA MİMARİ KAYNAK**: `docs/MARKSIO MASTER SYSTEM ARCHITECTURE.txt`
 
-Bu dosya:
-- Ürün vizyonu ve mimarisi
-- Database yapısı
-- Design system kuralları
-- Tüm modül gereksinimleri
-- UX kararları
-
-için tek kaynak. Tüm geliştirme bu dosyaya uygun yapılmalı.
+Ürün vizyonu, UX kararları ve modül gereksinimleri için tek kaynak. Tüm geliştirme bu dosyaya uygun yapılmalı.
 
 ---
 
-## Proje Nedir?
+## Proje
 
-Marksio = AI-powered Growth Operating System for e-commerce.
-- Klaviyo + Canva + AI automation + WhatsApp AI hybrid
-- Target: Turkish e-commerce brands
-- Stack: Next.js 14 App Router, Supabase Auth, Prisma, PostgreSQL, Recharts, Tailwind, shadcn
+Marksio = AI-powered Growth OS for Turkish e-commerce brands.
+Stack: Next.js 14 App Router, Supabase Auth + NextAuth, Prisma, PostgreSQL, Recharts, Tailwind, shadcn/Radix.
+
+---
+
+## Komutlar
+
+```bash
+npm run dev       # localhost:3002
+npm run build     # prisma generate + db push + next build
+npm run lint      # eslint
+npm run seed      # prisma/seed.ts
+```
+
+Schema değişiklikten sonra:
+```bash
+npx prisma db push    # geliştirme ortamı
+npx prisma generate   # Prisma client'ı yenile
+```
+
+---
+
+## Auth Mimarisi
+
+`getApiSession()` (`lib/auth.ts`) iki strateji dener sırayla:
+
+1. **NextAuth** (`lib/auth-options.ts`) — email/password (credentials) girişleri. `getServerSession()` kullanır.
+2. **Supabase** (`lib/supabase/`) — OTP / magic-link girişleri. Supabase'de kullanıcı varsa ama Prisma'da yoksa otomatik oluşturur.
+
+Her API route başına:
+```typescript
+const session = await getApiSession()
+if (!session) return new Response('Unauthorized', { status: 401 })
+const userId = session.user.id  // Prisma User.id (cuid)
+```
+
+`session.user.effectivePlan` expired/past_due aboneleri otomatik 'free' olarak işler.
+
+**TODO (production öncesi)**: `middleware.ts` sadece `/` → `/dashboard` redirect yapıyor, auth check yok. `AppShell.tsx`'te de auth guard yok.
 
 ---
 
 ## Design System
 
-Design tokens `app/globals.css`'de CSS variables olarak tanımlı:
+CSS variables `app/globals.css`'de tanımlı. TypeScript token'lar `lib/ds.ts`'de:
 
 ```
---bg: #08080f          (page background)
---surface: #0f0f1a     (card background)
---text-1: #eeeef4      (primary text)
---text-2: #8080a0      (secondary text)
---text-3: #3e3e54      (muted text)
---blue: #4470ff        (primary accent)
---green: #22c97a       (success)
---red: #e84545         (danger)
---amber: #f0a020       (warning)
---violet: #9f7afa      (AI/purple)
---border: rgba(255,255,255,0.07)
+colors.bg / colors.surface / colors.surface2 / colors.surface3
+colors.text1 / text2 / text3
+colors.blue (primary), green (success), red (danger), amber (warning), violet (AI)
+colors.border / border2 / border3
 ```
 
-Reusable components: `components/ui/primitives.tsx`
+`lib/ds.ts`'den `accents` map'i ile `statusColor()` ve `statusLabel()` helper'ları kullanılabilir.
+
+Reusable primitives (`components/ui/primitives.tsx`):
 - `<MCard>` — standard card
 - `<MKpiCard>` — metric display
 - `<MSectionHeader>` — section title + link
@@ -50,97 +75,102 @@ Reusable components: `components/ui/primitives.tsx`
 - `<MEmptyState>` — empty state
 - `<MPageHeader>` — page title bar
 
----
-
-## Klasör Yapısı
-
-```
-app/
-  dashboard/       — AI Growth Command Center
-  campaigns/       — Campaign management + builder
-  automations/     — Visual automation builder
-  customers/       — Customer intelligence
-  segments/        — Audience management
-  analytics/       — Revenue analytics
-  whatsapp/        — WhatsApp AI
-  ai-studio/       — AI generation center (TODO)
-  templates/       — Email templates (TODO)
-  plans/           — Pricing/subscription
-  settings/        — Workspace settings
-
-components/
-  layout/          — AppShell, Sidebar
-  ui/              — Shared UI primitives
-  ChatWidget       — AI assistant
-
-lib/
-  auth.ts          — getApiSession() bridge (Supabase → Prisma)
-  ds.ts            — Design system constants (TypeScript)
-  hooks/
-    use-session.ts — Supabase compat hook
-  supabase/
-    client.ts      — Browser client
-    server.ts      — Server client
-```
+**Kural**: Tailwind layout için, inline style brand renkleri için. `cn()` from `@/lib/utils` conditional class'lar için.
 
 ---
 
-## Auth
+## Automation Engine
 
-`getApiSession()` (`lib/auth.ts`) tüm API route'larında Supabase cookie session'ını doğrular.
-Session yoksa `null` döner ve route 401 verir.
+`lib/automation/engine.ts` — ReactFlow node graph'ını çalıştırır:
 
-Eksik olan (TODO — production öncesi):
-- `middleware.ts` henüz auth check içermiyor (sadece `/` → `/dashboard` redirect var)
-- `AppShell.tsx` henüz auth guard içermiyor
+- `startRun(automationId, customerId, triggerData)` → `AutomationRun` oluşturur
+- `executeRun(runId)` → her node'u sırayla çalıştırır
+- **WaitNode**: run `status='waiting'` olur, QStash ile `scheduleAutomationResume()` zamanlar
+- **StopNode**: run `status='completed'` olur
 
-Bunlar eklenecekse:
-- `middleware.ts` içine Supabase session check ekle
-- `AppShell.tsx` içine `useSession` guard ekle
+Node executor'ları `lib/automation/node-executors.ts`'de. Cron endpoint `/api/cron/automations` bekleyen run'ları resume eder. QStash (`lib/qstash.ts`) gecikmiş resume'ları Upstash üzerinden tetikler.
 
 ---
 
-## API Route Pattern
+## WhatsApp Sistemi
 
-```typescript
-import { getApiSession } from '@/lib/auth'
+İki ayrı WhatsApp katmanı var:
 
-export async function GET(req: Request) {
-  const session = await getApiSession()
-  if (!session) return new Response('Unauthorized', { status: 401 })
-  const userId = session.user.id
-  // ... prisma queries
-}
-```
+1. **Eski (WhatsApp\*)** — `WhatsAppSettings`, `WhatsAppConversation`, `WhatsAppMessage` modelleri. `app/whatsapp/` altındaki sayfalar.
+2. **Yeni BYO (Whatsapp\* — büyük/küçük harf farkına dikkat)** — `WhatsappAccount`, `WhatsappTemplate`, `WhatsappConversation`, `WhatsappBroadcast` modelleri. `app/api/whatsapp/` API route'ları. Her hesap kendi `phoneNumberId`, `accessToken`, `appSecret` tutar.
+
+Yeni sistemde:
+- `WhatsappAssistantConfig` → AI assistant ayarları, FAQ'lar, handover kuralları, knowledge source'lar
+- `WhatsappBroadcast` → toplu mesaj kampanyaları (QStash batch ile gönderim)
+- Webhook: `/api/whatsapp/webhook/[accountId]` — gelen mesajları karşılar
+
+---
+
+## AI Providers
+
+| Provider | Kullanım |
+|----------|----------|
+| Groq (`lib/groq.ts`) | Hızlı chat, segment önerileri |
+| Anthropic (`lib/claude.ts`) | WhatsApp AI assistant, ağır analiz |
+| OpenAI (`lib/openai-client.ts`) | Genel AI görevler |
+| Gemini (`lib/gemini.ts`) | Alternatif provider |
+| fal.ai | Görsel üretim (banner, ürün fotoğrafı) |
+
+---
+
+## Plan Sistemi
+
+`lib/plan-limits.ts` — `free | starter | growth | agency` planları:
+- `getLimits(plan)` — plan limitleri döner
+- `isAtLimit(current, limit)` — limit kontrolü (`-1` = unlimited)
+- `getEffectivePlan(plan, planStatus)` — expired/past_due → free'ye düşürür
+
+Billing: Lemon Squeezy. Webhook: `/api/webhooks/lemonsqueezy`. User'da `lsSubscriptionId`, `planStatus`, `planRenewsAt` alanları.
+
+---
+
+## Email Sistemi
+
+- **Gönderim**: Resend (`lib/resend-api.ts`). Her user kendi domain'ini doğrulayabilir (`EmailDomain` model).
+- **From adresi**: `lib/mail-from.ts` — user'ın doğrulanmış domain'i veya `SYSTEM_FROM_EMAIL`.
+- **Takip**: `/api/track/click` ve `/api/track/visit` — open/click izleme.
+- **Webhook**: `/api/billing/webhook` — Resend event'leri (bounce, complaint vb.) işler.
+
+---
+
+## Entegrasyonlar
+
+`Integration` model: `shopify | woocommerce | trendyol | hepsiburada | ikas`.
+
+- Shopify: OAuth flow (`/api/integrations/shopify/auth` → `callback`), webhook ile otomatik sync
+- WooCommerce / ikas: API key ile bağlantı
+- Sync logları: `SyncLog` model
 
 ---
 
 ## Coding Rules
 
 - TypeScript strict, no `any`
-- No comments explaining WHAT, only WHY (non-obvious)
-- No unnecessary abstractions
-- Tailwind + inline style hybrid (Tailwind for layout, inline for brand colors)
-- All pages use `AppShell` wrapper
-- All charts: Recharts + custom tooltip
-- Turkish UI strings throughout
-- Mobile responsive, no horizontal overflow
-- `cn()` from `@/lib/utils` for conditional classes
+- Tüm UI string'leri Türkçe
+- Tüm sayfalar `AppShell` wrapper kullanır
+- Tüm chart'lar Recharts + custom tooltip
+- Mobile responsive, horizontal overflow yok
+- No comments explaining WHAT, only WHY
 
 ---
 
-## Marksio Pages (Architecture)
+## Pages
 
-| Route | Status | Description |
-|-------|--------|-------------|
-| /dashboard | ✅ Live | AI Growth Command Center |
-| /campaigns | ✅ Live | Campaign list + builder |
-| /automations | ✅ Live | Automation flows |
-| /customers | ✅ Live | Customer list + import |
-| /segments | ✅ Live | Audience segments |
-| /analytics | ✅ Live | Revenue analytics |
-| /whatsapp | ✅ Live | WhatsApp AI |
-| /ai-studio | 🔲 TODO | AI generation center |
-| /templates | 🔲 TODO | Email template library |
-| /plans | ✅ Live | Subscription plans |
-| /settings | ✅ Live | Workspace settings |
+| Route | Status |
+|-------|--------|
+| /dashboard | ✅ Live |
+| /campaigns | ✅ Live |
+| /automations | ✅ Live |
+| /customers | ✅ Live |
+| /segments | ✅ Live |
+| /analytics | ✅ Live |
+| /whatsapp | ✅ Live |
+| /plans | ✅ Live |
+| /settings | ✅ Live |
+| /ai-studio | 🔲 TODO |
+| /templates | 🔲 TODO |

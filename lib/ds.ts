@@ -1,95 +1,95 @@
 /**
  * Marksio Design System — TypeScript tokens
- * Single source of truth for all component styling.
- * CSS variables defined in app/globals.css.
+ * All colors reference CSS variables so they work in both light and dark mode.
  */
 
-/* ── Color palette ── */
+/* ── Color palette — CSS variable references ── */
 export const colors = {
-  bg:       '#08080f',
-  surface:  '#0f0f1a',
-  surface2: '#171726',
-  surface3: '#1f1f32',
+  bg:       'var(--bg)',
+  surface:  'var(--surface)',
+  surface2: 'var(--surface-2)',
+  surface3: 'var(--surface-3)',
 
-  text1: '#eeeef4',
-  text2: '#8080a0',
-  text3: '#3e3e54',
+  text1: 'var(--text-1)',
+  text2: 'var(--text-2)',
+  text3: 'var(--text-3)',
 
-  border:  'rgba(255,255,255,0.07)',
-  border2: 'rgba(255,255,255,0.12)',
-  border3: 'rgba(255,255,255,0.18)',
+  border:  'var(--border)',
+  border2: 'var(--border-2)',
+  border3: 'var(--border-3)',
 
-  blue:       '#4470ff',
-  blueHover:  '#2e5be8',
-  blueSoft:   'rgba(68,112,255,0.12)',
-  blueGlow:   'rgba(68,112,255,0.20)',
+  blue:       'var(--primary)',
+  blueHover:  'var(--primary-hover)',
+  blueSoft:   'var(--primary-soft)',
+  blueGlow:   'var(--primary-glow)',
 
-  green:      '#22c97a',
-  greenSoft:  'rgba(34,201,122,0.12)',
-  red:        '#e84545',
-  redSoft:    'rgba(232,69,69,0.12)',
-  amber:      '#f0a020',
-  amberSoft:  'rgba(240,160,32,0.12)',
-  violet:     '#9f7afa',
-  violetSoft: 'rgba(159,122,250,0.12)',
+  green:      'var(--success)',
+  greenSoft:  'var(--success-soft)',
+  red:        'var(--danger)',
+  redSoft:    'var(--danger-soft)',
+  amber:      'var(--warning)',
+  amberSoft:  'var(--warning-soft)',
+  violet:     'var(--violet)',
+  violetSoft: 'var(--violet-soft)',
 
   /* Channel colors */
-  emailColor:  '#99b4ff',
-  waColor:     '#2dd4bf',
-  autoColor:   '#a78bfa',
-  pushColor:   '#fb923c',
+  emailColor:  'var(--primary)',
+  waColor:     'var(--success)',
+  autoColor:   'var(--violet)',
+  pushColor:   'var(--warning)',
 } as const
 
 /* ── Semantic accent presets ── */
 export type AccentKey = 'blue' | 'green' | 'red' | 'amber' | 'violet' | 'teal' | 'orange'
 
 export const accents: Record<AccentKey, { color: string; bg: string; border: string }> = {
-  blue:   { color: '#99b4ff', bg: 'rgba(153,180,255,0.08)', border: 'rgba(153,180,255,0.18)' },
-  green:  { color: '#34d399', bg: 'rgba(52,211,153,0.08)',  border: 'rgba(52,211,153,0.18)'  },
-  red:    { color: '#f87171', bg: 'rgba(248,113,113,0.08)', border: 'rgba(248,113,113,0.18)' },
-  amber:  { color: '#fbbf24', bg: 'rgba(251,191,36,0.08)',  border: 'rgba(251,191,36,0.18)'  },
-  violet: { color: '#a78bfa', bg: 'rgba(167,139,250,0.08)', border: 'rgba(167,139,250,0.18)' },
-  teal:   { color: '#2dd4bf', bg: 'rgba(45,212,191,0.08)',  border: 'rgba(45,212,191,0.18)'  },
-  orange: { color: '#fb923c', bg: 'rgba(251,146,60,0.08)',  border: 'rgba(251,146,60,0.18)'  },
+  blue:   { color: 'var(--primary)', bg: 'var(--primary-soft)',  border: 'color-mix(in srgb, var(--primary) 25%, transparent)' },
+  green:  { color: 'var(--success)', bg: 'var(--success-soft)',  border: 'color-mix(in srgb, var(--success) 25%, transparent)' },
+  red:    { color: 'var(--danger)',  bg: 'var(--danger-soft)',   border: 'color-mix(in srgb, var(--danger)  25%, transparent)' },
+  amber:  { color: 'var(--warning)', bg: 'var(--warning-soft)',  border: 'color-mix(in srgb, var(--warning) 25%, transparent)' },
+  violet: { color: 'var(--violet)',  bg: 'var(--violet-soft)',   border: 'color-mix(in srgb, var(--violet)  25%, transparent)' },
+  teal:   { color: 'var(--cyan)',    bg: 'rgba(19,194,194,0.08)', border: 'rgba(19,194,194,0.22)' },
+  orange: { color: 'var(--warning)', bg: 'var(--warning-soft)',  border: 'color-mix(in srgb, var(--warning) 25%, transparent)' },
 }
 
 /* ── Card styles ── */
 export const cardBase = {
-  background: 'rgba(255,255,255,0.025)',
-  border:     '1px solid rgba(255,255,255,0.07)',
+  background: 'var(--bg-card)',
+  border:     '1px solid var(--border)',
+  boxShadow:  '0px 1px 4px rgba(0,0,0,0.06)',
 } as const
 
 export const cardHover = {
-  background: 'rgba(255,255,255,0.04)',
-  border:     '1px solid rgba(255,255,255,0.12)',
+  background: 'var(--bg-card)',
+  border:     '1px solid color-mix(in srgb, var(--primary) 30%, var(--border))',
   transform:  'translateY(-1px)',
-  boxShadow:  '0 20px 60px rgba(0,0,0,0.4)',
+  boxShadow:  '0 4px 16px rgba(22,119,255,0.10)',
 } as const
 
 /* ── Typography scale ── */
 export const type = {
-  label:   { fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: colors.text3 },
-  caption: { fontSize: '11px', color: colors.text2 },
-  body:    { fontSize: '13px', color: colors.text1 },
-  metric:  { fontSize: '26px', fontWeight: 700, letterSpacing: '-0.025em', fontFamily: 'Inter, sans-serif', color: colors.text1 },
+  label:   { fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-3)' },
+  caption: { fontSize: '11px', color: 'var(--text-2)' },
+  body:    { fontSize: '13px', color: 'var(--text-1)' },
+  metric:  { fontSize: '26px', fontWeight: 700, letterSpacing: '-0.025em', fontFamily: "'Public Sans', 'Inter', sans-serif", color: 'var(--text-1)' },
   mono:    { fontFamily: 'JetBrains Mono, monospace' },
 } as const
 
 /* ── Spacing ── */
 export const spacing = {
   pagePadding: 'p-6',
-  sectionGap:  'space-y-8',
+  sectionGap:  'space-y-6',
   cardPad:     'p-5',
   cardPadSm:   'p-4',
 } as const
 
 /* ── Radius ── */
 export const radius = {
-  sm:  '6px',
-  md:  '10px',
-  lg:  '14px',
-  xl:  '16px',
-  xxl: '20px',
+  sm:  'var(--radius-sm)',
+  md:  'var(--radius)',
+  lg:  'var(--radius-lg)',
+  xl:  'var(--radius-xl)',
+  xxl: 'var(--radius-xl)',
 } as const
 
 /* ── Status helpers ── */
@@ -97,13 +97,13 @@ export function statusColor(status: string): string {
   switch (status) {
     case 'active':
     case 'sent':
-    case 'success': return colors.green
-    case 'draft':   return colors.text2
-    case 'paused':  return colors.amber
+    case 'success': return 'var(--success)'
+    case 'draft':   return 'var(--text-2)'
+    case 'paused':  return 'var(--warning)'
     case 'failed':
-    case 'error':   return colors.red
-    case 'scheduled': return '#60a5fa'
-    default:        return colors.text2
+    case 'error':   return 'var(--danger)'
+    case 'scheduled': return 'var(--primary)'
+    default:        return 'var(--text-2)'
   }
 }
 

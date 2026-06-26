@@ -19,22 +19,17 @@ import { startRun } from '@/lib/automation/engine'
 import { getApiSession } from '@/lib/auth'
 
 export async function POST(req: NextRequest) {
-  /* Auth: ya session'dan userId al, ya da body'deki userId kabul et
-     (internal çağrılar için) */
   const session = await getApiSession()
+  if (!session?.user) return NextResponse.json({ error: 'Yetkisiz' }, { status: 401 })
+  const userId = (session.user as { id: string }).id
 
   const body = await req.json() as {
     triggerType: string
     customerId:  string
-    userId?:     string
     data?:       Record<string, unknown>
   }
 
-  const userId = session?.user
-    ? (session.user as { id: string }).id
-    : body.userId
 
-  if (!userId)      return NextResponse.json({ error: 'Yetkisiz' }, { status: 401 })
   if (!body.triggerType) return NextResponse.json({ error: 'triggerType zorunlu' }, { status: 400 })
   if (!body.customerId)  return NextResponse.json({ error: 'customerId zorunlu' }, { status: 400 })
 

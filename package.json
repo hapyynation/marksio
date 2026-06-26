@@ -56,7 +56,8 @@
     "recharts": "^2.12.4",
     "resend": "^6.12.3",
     "tailwind-merge": "^2.3.0",
-    "twilio": "^6.0.2"
+    "twilio": "^6.0.2",
+    "unpdf": "^1.6.2"
   },
   "devDependencies": {
     "@types/node": "^20",

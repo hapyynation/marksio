@@ -776,6 +776,7 @@ enum TemplateCategory {
 }
 
 enum WaTemplateStatus {
+  DRAFT
   PENDING
   APPROVED
   REJECTED

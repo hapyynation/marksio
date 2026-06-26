@@ -13,6 +13,17 @@ interface FormValues {
   appSecret: string
 }
 
+type ConnectMode = 'embedded' | 'manual' | null
+
+declare global {
+  interface Window {
+    FB?: {
+      init: (opts: Record<string, unknown>) => void
+      login: (cb: (r: { authResponse?: { code?: string; extras?: Record<string, string> } }) => void, opts: Record<string, unknown>) => void
+    }
+  }
+}
+
 const STEPS = ['Giriş', 'Numara', 'İşletme', 'Uygulama', 'Numara Ekle', 'Bilgiler', 'Webhook', 'Yayınla', 'Tamamlandı'] as const
 const WEBHOOK_URL = 'https://app.marksio.com/api/webhooks/whatsapp'
 
@@ -104,6 +115,73 @@ export default function ConnectionPage() {
   const [syncStatus, setSyncStatus] = useState<'syncing' | 'done' | 'error'>('syncing')
   const [copied, setCopied] = useState<string | null>(null)
   const [numberStatus, setNumberStatus] = useState<'fresh' | 'existing' | null>(null)
+  const [connectMode, setConnectMode] = useState<ConnectMode>(null)
+  const [embeddedLoading, setEmbeddedLoading] = useState(false)
+  const [embeddedError, setEmbeddedError] = useState<string | null>(null)
+
+  const embeddedAvailable = !!process.env.NEXT_PUBLIC_FACEBOOK_APP_ID
+
+  function loadFbSdk(): Promise<void> {
+    return new Promise(resolve => {
+      if (window.FB) { resolve(); return }
+      const script = document.createElement('script')
+      script.src = 'https://connect.facebook.net/tr_TR/sdk.js'
+      script.onload = () => {
+        window.FB?.init({ appId: process.env.NEXT_PUBLIC_FACEBOOK_APP_ID, version: 'v19.0', xfbml: true, autoLogAppEvents: true })
+        resolve()
+      }
+      document.body.appendChild(script)
+    })
+  }
+
+  async function handleEmbeddedSignup() {
+    setEmbeddedLoading(true)
+    setEmbeddedError(null)
+    try {
+      await loadFbSdk()
+      window.FB!.login(
+        async (response) => {
+          const code = response.authResponse?.code
+          if (!code) {
+            setEmbeddedError('Meta girişi iptal edildi veya başarısız oldu.')
+            setEmbeddedLoading(false)
+            return
+          }
+          const extras = response.authResponse?.extras ?? {}
+          const wabaId = extras.waba_id ?? ''
+          const phoneNumberId = extras.phone_number_id ?? ''
+          if (!wabaId || !phoneNumberId) {
+            setEmbeddedError('Meta\'dan hesap bilgileri alınamadı. Lütfen Manuel Kurulum\'u deneyin.')
+            setEmbeddedLoading(false)
+            return
+          }
+          try {
+            const res = await fetch('/api/whatsapp/embedded-signup', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ code, wabaId, phoneNumberId }),
+            })
+            const d = await res.json()
+            if (!res.ok) { setEmbeddedError(d.error ?? 'Bağlantı kurulamadı.'); setEmbeddedLoading(false); return }
+            setWebhookToken(d.webhookVerifyToken ?? '')
+            setStep(7)
+          } catch {
+            setEmbeddedError('Sunucuya ulaşılamadı.')
+            setEmbeddedLoading(false)
+          }
+        },
+        {
+          config_id: process.env.NEXT_PUBLIC_FACEBOOK_EMBEDDED_SIGNUP_CONFIG_ID,
+          response_type: 'code',
+          override_default_response_type: true,
+          extras: { sessionInfoVersion: 3 },
+        },
+      )
+    } catch {
+      setEmbeddedError('Facebook SDK yüklenemedi. İnternet bağlantınızı kontrol edin.')
+      setEmbeddedLoading(false)
+    }
+  }
 
   const f = (field: keyof FormValues) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(p => ({ ...p, [field]: e.target.value }))
@@ -202,14 +280,72 @@ export default function ConnectionPage() {
                 Meta Cloud API ile WhatsApp Business hesabınızı bağlayarak müşterilerinize toplu mesaj gönderebilir,
                 şablonlarınızı yönetebilir ve AI destekli sohbet kurabilirsiniz.
               </p>
-              <button onClick={() => setStep(2)} style={{ background: '#16A34A', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 28px', fontSize: 14, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                Başla <ChevronRight size={15} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 360, margin: '0 auto' }}>
+                {embeddedAvailable && (
+                  <button
+                    onClick={() => { setConnectMode('embedded'); setStep(2) }}
+                    style={{ background: '#16A34A', color: '#fff', border: 'none', borderRadius: 8, padding: '12px 24px', fontSize: 14, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                  >
+                    <span>⚡</span> Hızlı Bağlan (1 tıkla) <ChevronRight size={15} />
+                  </button>
+                )}
+                <button
+                  onClick={() => { setConnectMode('manual'); setStep(2) }}
+                  style={{ background: embeddedAvailable ? '#F3F4F6' : '#16A34A', color: embeddedAvailable ? '#374151' : '#fff', border: embeddedAvailable ? '1px solid #E5E7EB' : 'none', borderRadius: 8, padding: '12px 24px', fontSize: 14, fontWeight: embeddedAvailable ? 500 : 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                >
+                  {embeddedAvailable ? 'Manuel Kurulum (9 adım)' : 'Başla'} <ChevronRight size={15} />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── Adım 2: Embedded Signup ── */}
+          {step === 2 && connectMode === 'embedded' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+              <div>
+                <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-1)', margin: '0 0 6px' }}>Meta Hesabınızla Bağlanın</h2>
+                <p style={{ fontSize: 12, color: 'var(--text-2)', margin: 0 }}>Aşağıdaki butona tıklayın — Meta yetkilendirme penceresi açılır, birkaç tıklamayla WhatsApp Business hesabınızı seçin.</p>
+              </div>
+
+              <InfoBox>
+                WABA ID, Phone Number ID veya Access Token girmenize gerek yok — Meta tüm bilgileri otomatik olarak iletir.
+              </InfoBox>
+
+              {embeddedError && (
+                <div style={{ background: '#FEE2E2', border: '1px solid #FECACA', borderRadius: 8, padding: '10px 14px', display: 'flex', gap: 8 }}>
+                  <AlertTriangle size={14} style={{ color: '#DC2626', marginTop: 1, flexShrink: 0 }} />
+                  <span style={{ fontSize: 12, color: '#991B1B' }}>{embeddedError}</span>
+                </div>
+              )}
+
+              <button
+                onClick={handleEmbeddedSignup}
+                disabled={embeddedLoading}
+                style={{ background: '#1877F2', color: '#fff', border: 'none', borderRadius: 8, padding: '13px 24px', fontSize: 14, fontWeight: 600, cursor: embeddedLoading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: embeddedLoading ? 0.7 : 1 }}
+              >
+                {embeddedLoading ? <Loader2 size={15} className="animate-spin" /> : <span style={{ fontSize: 16 }}>f</span>}
+                {embeddedLoading ? 'Bağlanıyor…' : 'Facebook ile Bağlan'}
               </button>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+                <span style={{ fontSize: 11, color: 'var(--text-3)' }}>veya</span>
+                <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+              </div>
+
+              <button
+                onClick={() => { setConnectMode('manual'); setEmbeddedError(null) }}
+                style={{ background: 'none', border: 'none', color: '#2563EB', fontSize: 13, cursor: 'pointer', padding: 0 }}
+              >
+                Manuel kuruluma geç →
+              </button>
+
+              <NavBtns onBack={() => setStep(1)} onNext={() => {}} nextLabel="İleri" nextDisabled />
             </div>
           )}
 
           {/* ── Adım 2: Numara Durumu ── */}
-          {step === 2 && (
+          {step === 2 && connectMode !== 'embedded' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
               <div>
                 <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-1)', margin: '0 0 6px' }}>Bağlayacağınız Numara Hakkında</h2>

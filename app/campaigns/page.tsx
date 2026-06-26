@@ -25,17 +25,17 @@ interface Campaign {
 }
 
 const statusConfig: Record<CampaignStatus, { label: string; dot: string; text: string; bg: string }> = {
-  completed: { label:'Gönderildi',    dot:'#16A34A', text:'#16A34A', bg:'#DCFCE7'  },
-  active:    { label:'Aktif',         dot:'#2563EB', text:'#2563EB', bg:'#DBEAFE'  },
-  scheduled: { label:'Zamanlandı',   dot:'#D97706', text:'#D97706', bg:'#FEF3C7'  },
-  sending:   { label:'Gönderiliyor', dot:'#2563EB', text:'#2563EB', bg:'#DBEAFE'  },
-  failed:    { label:'Başarısız',    dot:'#DC2626', text:'#DC2626', bg:'#FEE2E2'  },
-  draft:     { label:'Taslak',       dot:'#9CA3AF', text:'#6B7280', bg:'#F3F4F6'  },
+  completed: { label:'Gönderildi',    dot:'var(--success)', text:'var(--success)', bg:'var(--success-soft)'  },
+  active:    { label:'Aktif',         dot:'var(--primary)', text:'var(--primary)', bg:'var(--primary-soft)'  },
+  scheduled: { label:'Zamanlandı',   dot:'var(--warning)', text:'var(--warning)', bg:'var(--warning-soft)'  },
+  sending:   { label:'Gönderiliyor', dot:'var(--primary)', text:'var(--primary)', bg:'var(--primary-soft)'  },
+  failed:    { label:'Başarısız',    dot:'var(--danger)',  text:'var(--danger)',  bg:'var(--danger-soft)'   },
+  draft:     { label:'Taslak',       dot:'var(--text-3)', text:'var(--text-2)', bg:'var(--surface-2)'      },
 }
 
 const channelConfig: Record<string, { icon: React.ElementType; color: string; label: string }> = {
-  email:    { icon: Mail,          color: '#2563EB', label: 'E-posta'  },
-  whatsapp: { icon: MessageSquare, color: '#16A34A', label: 'WhatsApp' },
+  email:    { icon: Mail,          color: 'var(--primary)', label: 'E-posta'  },
+  whatsapp: { icon: MessageSquare, color: 'var(--success)', label: 'WhatsApp' },
 }
 
 const FILTER_TABS: { key: FilterTab; label: string }[] = [
@@ -51,9 +51,10 @@ function Toast({ msg, type }: { msg: string; type: 'success' | 'error' }) {
   return (
     <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg text-[13px] font-semibold"
       style={{
-        background: type === 'success' ? '#F0FDF4' : '#FEF2F2',
-        border: `1px solid ${type === 'success' ? '#BBF7D0' : '#FECACA'}`,
-        color: type === 'success' ? '#16A34A' : '#DC2626',
+        background: type === 'success' ? 'var(--success-soft)' : 'var(--danger-soft)',
+        border: `1px solid color-mix(in srgb, ${type === 'success' ? 'var(--success)' : 'var(--danger)'} 30%, transparent)`,
+        color: type === 'success' ? 'var(--success)' : 'var(--danger)',
+        boxShadow: '0 8px 24px rgba(0,0,0,0.1)',
       }}>
       {type === 'success' ? <CheckCircle2 className="w-4 h-4 shrink-0"/> : <X className="w-4 h-4 shrink-0"/>}
       {msg}
@@ -63,9 +64,9 @@ function Toast({ msg, type }: { msg: string; type: 'success' | 'error' }) {
 
 function ActionBtn({ onClick, disabled, variant, children }: { onClick: () => void; disabled?: boolean; variant?: 'default' | 'danger' | 'primary'; children: React.ReactNode }) {
   const styles = {
-    default: { bg:'#F9FAFB', border:'#E5E7EB', color:'var(--text-2)', hover:'#F3F4F6' },
-    danger:  { bg:'rgba(220,38,38,0.06)', border:'rgba(220,38,38,0.15)', color:'#DC2626', hover:'rgba(220,38,38,0.1)' },
-    primary: { bg:'rgba(37,99,235,0.08)', border:'rgba(37,99,235,0.2)', color:'#2563EB', hover:'rgba(37,99,235,0.14)' },
+    default: { bg:'var(--surface-2)', border:'var(--border-2)', color:'var(--text-2)', hover:'var(--surface-3)' },
+    danger:  { bg:'var(--danger-soft)', border:'color-mix(in srgb, var(--danger) 25%, transparent)', color:'var(--danger)', hover:'color-mix(in srgb, var(--danger) 14%, transparent)' },
+    primary: { bg:'var(--primary-soft)', border:'color-mix(in srgb, var(--primary) 25%, transparent)', color:'var(--primary)', hover:'color-mix(in srgb, var(--primary) 14%, transparent)' },
   }
   const s = styles[variant ?? 'default']
   return (
@@ -113,6 +114,21 @@ export default function CampaignsPage() {
       } else showToast(data.error ?? 'Gönderim başarısız.', 'error')
     } catch { showToast('Gönderim başarısız.', 'error') }
     finally { setSendingId(null) }
+  }
+
+  const handleClone = async (id: string) => {
+    try {
+      const res = await fetch(`/api/campaigns/${id}/clone`, { method: 'POST' })
+      const d = await res.json() as Campaign & { error?: string }
+      if (res.ok) {
+        setCampaigns(prev => [d, ...prev])
+        showToast('Kampanya kopyalandı.')
+      } else {
+        showToast(d.error ?? 'Kopyalama başarısız.', 'error')
+      }
+    } catch {
+      showToast('Kopyalama başarısız.', 'error')
+    }
   }
 
   const handleDelete = async (id: string) => {
@@ -181,14 +197,12 @@ export default function CampaignsPage() {
 
       {/* ── Top bar ── */}
       <div className="flex items-center justify-between px-4 md:px-6 h-14 shrink-0"
-        style={{ borderBottom:'1px solid #E5E7EB', background:'var(--surface)' }}>
+        style={{ borderBottom:'1px solid var(--border)', background:'var(--surface)' }}>
         <div>
           <h1 style={{ fontSize:15, fontWeight:600, color:'var(--text-1)' }}>Kampanyalar</h1>
           <p className="hidden sm:block" style={{ fontSize:11, color:'var(--text-2)' }}>E-posta ve WhatsApp kampanyalarınızı oluşturun, yönetin ve analiz edin.</p>
         </div>
-        <Link href="/campaigns/new"
-          className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-[12px] font-semibold"
-          style={{ background:'#2563EB', color:'#fff' }}>
+        <Link href="/campaigns/new" className="btn-primary flex items-center gap-1.5">
           <Plus className="w-3.5 h-3.5"/> Yeni Kampanya
         </Link>
       </div>
@@ -205,11 +219,11 @@ export default function CampaignsPage() {
           {/* ── KPI cards ── */}
           <div className="px-4 md:px-6 py-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 shrink-0">
             {[
-              { label:'Toplam Kampanya', value:String(campaigns.length),      icon:BarChart2,         color:'#2563EB', bg:'#DBEAFE', change:kpiChanges.campaigns },
-              { label:'Gönderilen',     value:formatNumber(totalSent),        icon:Send,              color:'#2563EB', bg:'#DBEAFE', change:kpiChanges.sent      },
-              { label:'Açılma Oranı',   value:`%${openRate}`,                 icon:Eye,               color:'#16A34A', bg:'#DCFCE7', change:kpiChanges.openRate  },
-              { label:'Tıklama Oranı',  value:`%${clickRate}`,                icon:MousePointerClick, color:'#7C3AED', bg:'#EDE9FE', change:kpiChanges.clickRate },
-              { label:'Gelir',          value:formatCurrency(totalRevenue),   icon:TrendingUp,        color:'#16A34A', bg:'#DCFCE7', change:kpiChanges.revenue   },
+              { label:'Toplam Kampanya', value:String(campaigns.length),      icon:BarChart2,         color:'var(--primary)', bg:'var(--primary-soft)', change:kpiChanges.campaigns },
+              { label:'Gönderilen',     value:formatNumber(totalSent),        icon:Send,              color:'var(--primary)', bg:'var(--primary-soft)', change:kpiChanges.sent      },
+              { label:'Açılma Oranı',   value:`%${openRate}`,                 icon:Eye,               color:'var(--success)', bg:'var(--success-soft)', change:kpiChanges.openRate  },
+              { label:'Tıklama Oranı',  value:`%${clickRate}`,                icon:MousePointerClick, color:'var(--violet)',  bg:'var(--violet-soft)',  change:kpiChanges.clickRate },
+              { label:'Gelir',          value:formatCurrency(totalRevenue),   icon:TrendingUp,        color:'var(--success)', bg:'var(--success-soft)', change:kpiChanges.revenue   },
             ].map(kpi => {
               const Icon      = kpi.icon
               const hasChange = kpi.change !== null
@@ -226,13 +240,13 @@ export default function CampaignsPage() {
                   <p style={{ fontSize:22, fontWeight:700, color:'var(--text-1)', letterSpacing:'-0.02em', marginBottom:8, lineHeight:1 }}>{kpi.value}</p>
                   {hasChange ? (
                     <div className={cn('inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-md')}
-                      style={{ color:positive ? '#16A34A':'#DC2626', background:positive ? '#DCFCE7':'#FEE2E2' }}>
+                      style={{ color:positive ? 'var(--success)':'var(--danger)', background:positive ? 'var(--success-soft)':'var(--danger-soft)' }}>
                       {positive ? <ArrowUpRight className="w-3 h-3"/> : <ArrowDownRight className="w-3 h-3"/>}
                       %{Math.abs(kpi.change!)} geçen 30 güne göre
                     </div>
                   ) : (
                     <div className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-md"
-                      style={{ color:'var(--text-3)', background:'#F3F4F6' }}>
+                      style={{ color:'var(--text-3)', background:'var(--surface-2)' }}>
                       — geçen ay verisi yok
                     </div>
                   )}
@@ -243,9 +257,9 @@ export default function CampaignsPage() {
 
           {/* ── Filter bar ── */}
           <div className="px-4 md:px-6 py-2 flex items-center gap-3 shrink-0 overflow-x-auto no-scrollbar"
-            style={{ borderBottom:'1px solid #E5E7EB', borderTop:'1px solid #F3F4F6', background:'var(--bg)' }}>
+            style={{ borderBottom:'1px solid var(--border)', borderTop:'1px solid var(--border)', background:'var(--bg)' }}>
             <div className="flex items-center p-0.5 gap-0.5 rounded-xl shrink-0"
-              style={{ background:'#F3F4F6', border:'1px solid var(--border)' }}>
+              style={{ background:'var(--surface-2)', border:'1px solid var(--border)' }}>
               {FILTER_TABS.map(tab => (
                 <button key={tab.key} onClick={() => setActiveTab(tab.key)}
                   className="px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all"
@@ -275,10 +289,10 @@ export default function CampaignsPage() {
                 [...Array(4)].map((_, i) => (
                   <div key={i} className="rounded-2xl p-4 animate-pulse" style={{ background:'var(--surface)', border:'1px solid var(--border)' }}>
                     <div className="flex items-center gap-3 mb-3">
-                      <div className="w-9 h-9 rounded-xl" style={{ background:'#F3F4F6' }}/>
+                      <div className="w-9 h-9 rounded-xl" style={{ background:'var(--surface-2)' }}/>
                       <div className="flex-1 space-y-1.5">
-                        <div className="h-3.5 rounded-md w-48" style={{ background:'#F3F4F6' }}/>
-                        <div className="h-2.5 rounded-md w-64" style={{ background:'#F3F4F6' }}/>
+                        <div className="h-3.5 rounded-md w-48" style={{ background:'var(--surface-2)' }}/>
+                        <div className="h-2.5 rounded-md w-64" style={{ background:'var(--surface-2)' }}/>
                       </div>
                       <div className="h-6 w-20 rounded-full" style={{ background:'#F3F4F6' }}/>
                     </div>
@@ -287,9 +301,9 @@ export default function CampaignsPage() {
                 ))
               ) : filtered.length === 0 ? (
                 <div className="flex flex-col items-center gap-4 py-20 text-center">
-                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
-                    style={{ background:'#DBEAFE', border:'1.5px dashed #BFDBFE' }}>
-                    <Send className="w-6 h-6" style={{ color:'#2563EB' }}/>
+                  <div className="w-14 h-14 rounded-xl flex items-center justify-center"
+                    style={{ background:'var(--primary-lighter)', border:'1.5px dashed color-mix(in srgb, var(--primary) 35%, transparent)' }}>
+                    <Send className="w-6 h-6" style={{ color:'var(--primary)' }}/>
                   </div>
                   <div>
                     <p style={{ fontSize:14, fontWeight:700, color:'var(--text-1)', marginBottom:4 }}>
@@ -300,8 +314,7 @@ export default function CampaignsPage() {
                     </p>
                   </div>
                   {!search && activeTab === 'all' && (
-                    <Link href="/campaigns/new" className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-[13px] font-bold"
-                      style={{ background:'#2563EB', color:'#fff' }}>
+                    <Link href="/campaigns/new" className="btn-primary flex items-center gap-1.5">
                       <Plus className="w-4 h-4"/> Yeni Kampanya
                     </Link>
                   )}
@@ -319,8 +332,8 @@ export default function CampaignsPage() {
                 return (
                   <div key={campaign.id} className="rounded-2xl p-4 transition-all"
                     style={{ background:'var(--surface)', border:'1px solid var(--border)', boxShadow:'0 1px 3px rgba(0,0,0,0.04)' }}
-                    onMouseEnter={e=>(e.currentTarget.style.borderColor='#D1D5DB')}
-                    onMouseLeave={e=>(e.currentTarget.style.borderColor='#E5E7EB')}>
+                    onMouseEnter={e=>(e.currentTarget.style.borderColor='color-mix(in srgb, var(--primary) 30%, var(--border))')}
+                    onMouseLeave={e=>(e.currentTarget.style.borderColor='var(--border)')}>
 
                     {/* Row 1: icon + name + status + date */}
                     <div className="flex items-center gap-3 mb-2">
@@ -338,7 +351,7 @@ export default function CampaignsPage() {
                           </button>
                           {campaign.isAi && (
                             <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[9px] font-bold shrink-0"
-                              style={{ background:'#EDE9FE', color:'#7C3AED', border:'1px solid #DDD6FE' }}>
+                              style={{ background:'var(--violet-soft)', color:'var(--violet)', border:'1px solid color-mix(in srgb, var(--violet) 25%, transparent)' }}>
                               <Sparkles className="w-2.5 h-2.5"/> AI
                             </span>
                           )}
@@ -373,7 +386,7 @@ export default function CampaignsPage() {
                               <span style={{ fontSize:11, color:'var(--text-2)' }}>{formatNumber(campaign.clicked)} tıklandı ({clickR.toFixed(0)}%)</span>
                             )}
                             {campaign.revenue > 0 && (
-                              <span style={{ fontSize:11, fontWeight:700, color:'#16A34A' }}>{formatCurrency(campaign.revenue)}</span>
+                              <span style={{ fontSize:11, fontWeight:700, color:'var(--success)' }}>{formatCurrency(campaign.revenue)}</span>
                             )}
                           </>
                         ) : campaign.status === 'scheduled' ? (
@@ -389,7 +402,7 @@ export default function CampaignsPage() {
                             <ActionBtn onClick={() => router.push(`/campaigns/${campaign.id}`)} variant="default">
                               <BarChart2 className="w-3 h-3"/> Rapor
                             </ActionBtn>
-                            <ActionBtn onClick={() => showToast('Kampanya kopyalama yakında geliyor.')} variant="default">
+                            <ActionBtn onClick={() => handleClone(campaign.id)} variant="default">
                               <Copy className="w-3 h-3"/> Kopyala
                             </ActionBtn>
                           </>

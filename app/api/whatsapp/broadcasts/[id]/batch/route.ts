@@ -1,11 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { sendBatch } from '@/lib/whatsapp-broadcast'
+import { verifyQStashSignature } from '@/lib/qstash'
+
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://app.marksio.com'
 
 export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  if (process.env.QSTASH_CURRENT_SIGNING_KEY) {
+    const valid = await verifyQStashSignature(
+      req.clone() as Request,
+      `${APP_URL}/api/whatsapp/broadcasts/${params.id}/batch`,
+    )
+    if (!valid) return new Response('Unauthorized', { status: 401 })
+  }
+
   const body = await req.json() as {
     broadcastId?: string
     phoneNumbers?: string[]

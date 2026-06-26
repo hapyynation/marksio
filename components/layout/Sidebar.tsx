@@ -92,13 +92,13 @@ function NavLink({
             padding: collapsed ? '8px' : '8px 10px',
             justifyContent: collapsed ? 'center' : 'flex-start',
             gap: collapsed ? 0 : 8,
-            background: anyChildActive && !open ? 'rgba(37,99,235,0.06)' : 'transparent',
+            background: anyChildActive && !open ? 'var(--primary-soft)' : 'transparent',
             color: anyChildActive ? 'var(--text-1)' : 'var(--text-2)',
           }}
         >
           <span
             className="material-symbols-outlined flex-shrink-0 transition-colors"
-            style={{ fontSize: 18, color: anyChildActive ? '#2563EB' : '#6B7280' }}
+            style={{ fontSize: 18, color: anyChildActive ? 'var(--primary)' : 'var(--text-3)' }}
           >
             {item.icon}
           </span>
@@ -109,7 +109,7 @@ function NavLink({
               </span>
               <span
                 className="material-symbols-outlined flex-shrink-0 transition-transform duration-200"
-                style={{ fontSize: 14, color: '#9CA3AF', transform: open ? 'rotate(180deg)' : 'none' }}
+                style={{ fontSize: 14, color: 'var(--text-3)', transform: open ? 'rotate(180deg)' : 'none' }}
               >
                 keyboard_arrow_down
               </span>
@@ -148,7 +148,7 @@ function NavLink({
         padding: collapsed ? '8px' : depth > 0 ? '6px 10px' : '8px 10px',
         justifyContent: collapsed ? 'center' : 'flex-start',
         gap: collapsed ? 0 : 8,
-        background: active ? 'rgba(37,99,235,0.08)' : 'transparent',
+        background: active ? 'var(--primary-soft)' : 'transparent',
         color: active ? 'var(--text-1)' : 'var(--text-2)',
         fontWeight: active ? 600 : 400,
         textDecoration: 'none',
@@ -158,12 +158,12 @@ function NavLink({
       {active && !collapsed && depth === 0 && (
         <div style={{
           position: 'absolute', left: 0, top: '20%', bottom: '20%',
-          width: 2, borderRadius: 1, background: '#2563EB',
+          width: 2, borderRadius: 1, background: 'var(--primary)',
         }} />
       )}
       <span
         className="material-symbols-outlined flex-shrink-0"
-        style={{ fontSize: depth > 0 ? 15 : 18, color: active ? '#2563EB' : '#9CA3AF' }}
+        style={{ fontSize: depth > 0 ? 15 : 18, color: active ? 'var(--primary)' : 'var(--text-3)' }}
       >
         {item.icon}
       </span>
@@ -242,14 +242,14 @@ export default function Sidebar() {
           >
             <div
               className="flex-shrink-0 rounded-md flex items-center justify-center"
-              style={{ width: 20, height: 20, background: '#DBEAFE', fontSize: 10, color: '#2563EB', fontWeight: 700 }}
+              style={{ width: 20, height: 20, background: 'var(--primary-lighter)', fontSize: 10, color: 'var(--primary)', fontWeight: 700 }}
             >
               {workspace ? workspace[0].toUpperCase() : 'M'}
             </div>
             <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-1)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {workspace ?? 'Mağaza Bağla'}
             </span>
-            <span className="material-symbols-outlined" style={{ fontSize: 14, color: '#9CA3AF' }}>unfold_more</span>
+            <span className="material-symbols-outlined" style={{ fontSize: 14, color: 'var(--text-3)' }}>unfold_more</span>
           </div>
         </div>
       )}
@@ -314,13 +314,15 @@ export default function Sidebar() {
         {/* Collapse toggle (desktop) */}
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="hidden lg:flex items-center justify-center mt-2 w-full rounded-lg transition-colors hover:bg-gray-50"
+          className="hidden lg:flex items-center justify-center mt-2 w-full rounded-lg transition-colors"
           style={{ height: 30, border: '1px solid var(--border)' }}
+          onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-2)')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
           title={collapsed ? 'Genişlet' : 'Daralt'}
         >
           <span
             className="material-symbols-outlined"
-            style={{ fontSize: 14, color: '#9CA3AF', transform: collapsed ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}
+            style={{ fontSize: 14, color: 'var(--text-3)', transform: collapsed ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}
           >
             chevron_left
           </span>

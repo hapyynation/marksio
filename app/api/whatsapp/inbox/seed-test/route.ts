@@ -67,10 +67,11 @@ export async function POST() {
   })
 
   // Upsert contact
+  const windowExpiresAt = new Date(Date.now() + 20 * 3600000) // 20 saat kaldı (banner test için)
   const contact = await prisma.whatsappContact.upsert({
     where: { userId_phoneNumber: { userId, phoneNumber: '+905550001234' } },
-    create: { userId, phoneNumber: '+905550001234', optInStatus: 'OPTED_IN', lastInboundAt: new Date() },
-    update: { lastInboundAt: new Date() },
+    create: { userId, phoneNumber: '+905550001234', optInStatus: 'OPTED_IN', lastInboundAt: new Date(), windowExpiresAt },
+    update: { lastInboundAt: new Date(), windowExpiresAt },
   })
 
   // Create conversation

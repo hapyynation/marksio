@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { sendWhatsAppMessage } from '@/lib/whatsapp'
 import { buildChatbotReply } from '@/lib/chatbot'
-import { decrypt } from '@/lib/encryption'
+import { decrypt, verifyHmacSha256 } from '@/lib/encryption'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -35,7 +35,32 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json()
+    const rawBody = await req.text()
+    const signature = req.headers.get('x-hub-signature-256') ?? ''
+
+    // Per-account HMAC doğrulaması — appSecret ile imzalı istekler kabul edilir
+    if (signature) {
+      const phoneNumberId = (() => {
+        try {
+          const p = JSON.parse(rawBody)
+          return p?.entry?.[0]?.changes?.[0]?.value?.metadata?.phone_number_id as string | undefined
+        } catch { return undefined }
+      })()
+      if (phoneNumberId) {
+        const acct = await prisma.whatsappAccount.findUnique({
+          where: { phoneNumberId },
+          select: { appSecret: true },
+        }).catch(() => null)
+        if (acct?.appSecret) {
+          const secret = (() => { try { return decrypt(acct.appSecret) } catch { return null } })()
+          if (secret && !verifyHmacSha256(rawBody, signature, secret)) {
+            return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+          }
+        }
+      }
+    }
+
+    const body = JSON.parse(rawBody)
 
     if (body.object !== 'whatsapp_business_account') {
       return NextResponse.json({ ok: true })
@@ -326,16 +351,13 @@ async function handleNewModelMessage({
 
   // Check FAQ matches first
   if (aiConfig?.enabled && aiConfig.faqs.length > 0) {
-    const lowerText = text.toLowerCase()
-    for (const faq of aiConfig.faqs) {
-      if (lowerText.includes(faq.question.toLowerCase().slice(0, 10))) {
-        reply = faq.answer
-        intent = 'faq_match'
-        confidence = 0.95
-        knowledgeSource = 'faq'
-        faqMatched = faq.question
-        break
-      }
+    const matched = findBestFaqMatch(text, aiConfig.faqs)
+    if (matched) {
+      reply = matched.answer
+      intent = 'faq_match'
+      confidence = 0.95
+      knowledgeSource = 'faq'
+      faqMatched = matched.question
     }
   }
 
@@ -413,4 +435,46 @@ async function handleNewModelMessage({
       status: metaRes?.ok ? 'SENT' : 'FAILED',
     },
   })
+}
+
+// ─── FAQ matching ─────────────────────────────────────────────────────────────
+
+const TR_STOPWORDS = new Set([
+  'bir', 'bu', 'da', 'de', 'mi', 've', 'ya', 'ne', 'en', 'ben', 'sen',
+  'biz', 'siz', 'ama', 'için', 'gibi', 'daha', 'çok', 'kadar', 'var',
+  'yok', 'nasıl', 'neden', 'niçin', 'ile', 'her', 'olan', 'olan', 'olan',
+  'bu', 'şu', 'o', 'ki', 'mı', 'mu', 'mü', 'mi',
+])
+
+function normalizeTr(s: string): string {
+  return s.toLowerCase()
+    .replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ş/g, 's')
+    .replace(/ı/g, 'i').replace(/ö/g, 'o').replace(/ç/g, 'c')
+}
+
+function keywords(s: string): string[] {
+  return normalizeTr(s)
+    .split(/[\s,?.!]+/)
+    .filter(w => w.length >= 3 && !TR_STOPWORDS.has(w))
+}
+
+function findBestFaqMatch(
+  text: string,
+  faqs: Array<{ question: string; answer: string }>,
+): { question: string; answer: string } | null {
+  const msgNorm = normalizeTr(text)
+  const msgWords = new Set(keywords(text))
+
+  for (const faq of faqs) {
+    // Direct substring check
+    if (msgNorm.includes(normalizeTr(faq.question))) return faq
+
+    // Keyword overlap: ≥60% of FAQ keywords found in message
+    const faqWords = keywords(faq.question)
+    if (faqWords.length === 0) continue
+    const overlap = faqWords.filter(w => msgWords.has(w)).length
+    if (overlap / faqWords.length >= 0.6) return faq
+  }
+
+  return null
 }

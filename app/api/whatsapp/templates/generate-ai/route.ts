@@ -15,50 +15,60 @@ export async function POST(req: NextRequest) {
   const session = await getApiSession()
   if (!session) return new Response('Unauthorized', { status: 401 })
 
-  const body = await req.json() as { description?: string }
-  if (!body.description?.trim()) {
-    return NextResponse.json({ error: 'Kampanya açıklaması gerekli.' }, { status: 400 })
+  const body = await req.json() as {
+    bodyText?: string
+    buttonText?: string
+    buttonUrl?: string
+  }
+  if (!body.bodyText?.trim()) {
+    return NextResponse.json({ error: 'Mesaj metni gerekli.' }, { status: 400 })
   }
 
-  const prompt = `WhatsApp Business API şablonu oluştur.
+  const buttonLine = body.buttonText?.trim()
+    ? `- BUTTONS component ekle: type "URL", text "${body.buttonText.trim()}", url "${body.buttonUrl?.trim() || 'https://example.com'}"`
+    : '- BUTTONS ekleme'
 
-Kullanıcı isteği: "${body.description}"
+  const prompt = `Senden tek bir şey istiyorum: aşağıdaki metni Meta WhatsApp Business API template JSON formatına dönüştür.
 
-Meta kuralları:
-- İsim: küçük harf, alt çizgi, max 512 karakter
-- BODY max 1024 karakter
-- HEADER max 60 karakter (TEXT formatı)
-- Değişkenler: {{1}}, {{2}} şeklinde (sıralı)
-- MARKETING: promosyon, indirim, duyuru
-- UTILITY: sipariş güncelleme, iade, bildirim
-- AUTHENTICATION: OTP, doğrulama kodu
+KULLANICININ YAZDIGI MESAJ (bu metni kelimesi kelimesine kullan, hiçbir şeyi değiştirme):
+"${body.bodyText.trim()}"
+
+KURALLAR:
+1. "BODY" component "text" alanı, yukarıdaki metnin birebir kopyası olmalı — tek karakter bile ekleme, silme veya değiştirme yapma
+2. HEADER ekleme
+3. FOOTER ekleme
+4. Değişken ({{1}} gibi) ekleme — metinde zaten varsa tut, yoksa ekleme
+5. ${buttonLine}
+6. name: metnin konusunu yansıtan lowercase_underscore_isim (max 60 karakter)
+7. category: MARKETING veya UTILITY (içeriğe göre)
+8. language: "tr"
 
 SADECE geçerli JSON döndür:
 {
-  "name": "lowercase_underscore_template_name",
-  "category": "MARKETING|UTILITY|AUTHENTICATION",
+  "name": "template_adi",
+  "category": "MARKETING",
   "categoryReason": "neden bu kategori (1 cümle)",
   "language": "tr",
   "components": [
-    { "type": "HEADER", "format": "TEXT", "text": "Başlık (max 60 karakter)" },
-    { "type": "BODY", "text": "Mesaj içeriği. {{1}} gibi değişkenler kullanılabilir." },
-    { "type": "FOOTER", "text": "Kısa dipnot" },
-    { "type": "BUTTONS", "buttons": [{ "type": "QUICK_REPLY", "text": "Buton metni" }] }
+    { "type": "BODY", "text": "kullanicinin yazdigi metin aynen buraya" }
   ],
-  "variableExamples": { "1": "örnek değer 1", "2": "örnek değer 2" },
+  "variableExamples": {},
   "estimatedCostPerMessage": 0.029,
-  "tips": ["ipucu1", "ipucu2"]
+  "tips": ["ipucu1"]
 }`
 
   try {
     const completion = await groq.chat.completions.create({
       model: GROQ_MODEL,
       messages: [
-        { role: 'system', content: 'Meta WhatsApp Business API şablonu uzmanısın. SADECE geçerli JSON döndür.' },
+        {
+          role: 'system',
+          content: 'Meta WhatsApp Business API JSON formatter\'sın. Kullanıcının metnini DEĞİŞTİRMEDEN yapılandır. SADECE geçerli JSON döndür.',
+        },
         { role: 'user', content: prompt },
       ],
       max_tokens: 1024,
-      temperature: 0.4,
+      temperature: 0.1,
     })
 
     const text = completion.choices[0]?.message?.content ?? ''
@@ -72,7 +82,8 @@ SADECE geçerli JSON döndür:
     result.estimatedCostPerMessage = COST[result.category] ?? 0.029
 
     return NextResponse.json(result)
-  } catch {
+  } catch (err) {
+    console.error('[generate-ai] error:', err)
     return NextResponse.json({ error: 'AI şablon oluşturulamadı.' }, { status: 500 })
   }
 }

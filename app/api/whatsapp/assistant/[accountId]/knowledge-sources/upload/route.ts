@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getApiSession } from '@/lib/auth'
 import { createClient } from '@supabase/supabase-js'
-import { PDFParse } from 'pdf-parse'
+import { extractText } from 'unpdf'
 
 function getAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -61,10 +61,8 @@ export async function POST(
 
   let extractedText: string | null = null
   try {
-    const parser = new PDFParse({ data: buffer })
-    const parsed = await parser.getText()
-    await parser.destroy()
-    extractedText = parsed.text?.trim().slice(0, 12000) || null
+    const { text } = await extractText(new Uint8Array(bytes), { mergePages: true })
+    extractedText = text?.trim().slice(0, 12000) || null
   } catch {
     // PDF ayrıştırma başarısız olsa bile devam et, içerik null kalır
   }

@@ -37,7 +37,7 @@ interface Template {
   name: string
   category: 'MARKETING' | 'UTILITY' | 'AUTHENTICATION'
   language: string
-  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'PAUSED' | 'DISABLED'
+  status: 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'PAUSED' | 'DISABLED'
   componentsJson: TemplateComp[]
   rejectedReason: string | null
   qualityRating: string | null
@@ -76,6 +76,7 @@ const CAT_CFG = {
 }
 
 const STS_CFG = {
+  DRAFT:    { label: 'Taslak',     color: '#8080a0', bg: 'rgba(128,128,160,0.12)' },
   APPROVED: { label: 'Onaylı',     color: '#22c97a', bg: 'rgba(34,201,122,0.12)' },
   PENDING:  { label: 'Beklemede',  color: '#f0a020', bg: 'rgba(240,160,32,0.12)' },
   REJECTED: { label: 'Reddedildi', color: '#e84545', bg: 'rgba(232,69,69,0.12)' },
@@ -131,16 +132,18 @@ function WaPreview({ components, variables }: { components: TemplateComp[]; vari
   const btns   = components.find(c => c.type === 'BUTTONS')
 
   return (
-    <div style={{ background: '#0b1117', borderRadius: 16, padding: '24px 16px', minHeight: 200 }}>
+    <div style={{ background: '#0b1117', borderRadius: 16, padding: '24px 16px', minHeight: 200, overflow: 'hidden', position: 'relative', isolation: 'isolate' }}>
       {/* Phone chrome */}
-      <div style={{ background: '#1f2c34', borderRadius: 12, overflow: 'hidden', maxWidth: 320, margin: '0 auto', boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }}>
+      <div style={{ background: '#1f2c34', borderRadius: 12, overflow: 'hidden', maxWidth: 320, margin: '0 auto', boxShadow: '0 8px 32px rgba(0,0,0,0.4)', position: 'relative', zIndex: 1 }}>
         {/* WA header bar */}
         <div style={{ background: '#202c33', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-          <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#2a3942', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <span className="material-symbols-outlined" style={{ fontSize: 16, color: '#8696a0' }}>smart_phone</span>
+          <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#2a3942', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8696a0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/>
+            </svg>
           </div>
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#e9edef' }}>İş Hesabı</div>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#e9edef', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>İş Hesabı</div>
             <div style={{ fontSize: 11, color: '#8696a0' }}>WhatsApp Business</div>
           </div>
         </div>
@@ -494,22 +497,34 @@ function TemplateDrawer({
 
 // ─── AI Generator Modal ──────────────────────────────────────────────────────
 
-function AiGeneratorModal({ onClose }: { onClose: () => void }) {
-  const [desc, setDesc] = useState('')
+function AiGeneratorModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const [bodyText, setBodyText] = useState('')
+  const [buttonText, setButtonText] = useState('')
+  const [buttonUrl, setButtonUrl] = useState('')
   const [loading, setLoading] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [savingDraft, setSavingDraft] = useState(false)
   const [result, setResult] = useState<AiResult | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [submitResult, setSubmitResult] = useState<{ ok: boolean; msg: string } | null>(null)
+  const [draftResult, setDraftResult] = useState<{ ok: boolean; msg: string } | null>(null)
 
   async function generate() {
-    if (!desc.trim()) return
+    if (!bodyText.trim()) return
     setLoading(true)
     setError(null)
     setResult(null)
+    setSubmitResult(null)
+    setDraftResult(null)
     try {
       const res = await fetch('/api/whatsapp/templates/generate-ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ description: desc }),
+        body: JSON.stringify({
+          bodyText: bodyText.trim(),
+          buttonText: buttonText.trim() || undefined,
+          buttonUrl: buttonUrl.trim() || undefined,
+        }),
       })
       const d = await res.json() as AiResult & { error?: string }
       if (!res.ok || d.error) { setError(d.error ?? 'Hata oluştu'); return }
@@ -518,6 +533,77 @@ function AiGeneratorModal({ onClose }: { onClose: () => void }) {
       setError('Bağlantı hatası')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function submitToMeta() {
+    if (!result) return
+    setSubmitting(true)
+    setSubmitResult(null)
+    try {
+      const res = await fetch('/api/whatsapp/templates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: result.name,
+          category: result.category,
+          language: result.language,
+          components: result.components,
+        }),
+      })
+      const text = await res.text()
+      let d: { template?: unknown; error?: string }
+      try {
+        d = JSON.parse(text) as typeof d
+      } catch {
+        setSubmitResult({ ok: false, msg: `Sunucu hatası (${res.status}): ${text.slice(0, 120)}` })
+        return
+      }
+      if (!res.ok || d.error) {
+        setSubmitResult({ ok: false, msg: d.error ?? 'Şablon gönderilemedi' })
+      } else {
+        setSubmitResult({ ok: true, msg: 'Şablon Meta\'ya gönderildi! Onay bekleniyor.' })
+        onCreated()
+      }
+    } catch (err) {
+      setSubmitResult({ ok: false, msg: `Ağ hatası: ${err instanceof Error ? err.message : String(err)}` })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function saveDraft() {
+    if (!result) return
+    setSavingDraft(true)
+    setDraftResult(null)
+    try {
+      const res = await fetch('/api/whatsapp/templates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: result.name,
+          category: result.category,
+          language: result.language,
+          components: result.components,
+          saveDraft: true,
+        }),
+      })
+      const text = await res.text()
+      let d: { template?: unknown; error?: string }
+      try { d = JSON.parse(text) as typeof d } catch {
+        setDraftResult({ ok: false, msg: `Sunucu hatası (${res.status})` })
+        return
+      }
+      if (!res.ok || d.error) {
+        setDraftResult({ ok: false, msg: d.error ?? 'Taslak kaydedilemedi' })
+      } else {
+        setDraftResult({ ok: true, msg: 'Taslak kaydedildi. Şablonlar listesinde görüntüleyebilirsiniz.' })
+        onCreated()
+      }
+    } catch (err) {
+      setDraftResult({ ok: false, msg: `Ağ hatası: ${err instanceof Error ? err.message : String(err)}` })
+    } finally {
+      setSavingDraft(false)
     }
   }
 
@@ -532,7 +618,7 @@ function AiGeneratorModal({ onClose }: { onClose: () => void }) {
             <Sparkles size={18} color="#9f7afa" />
             <div>
               <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--text-1)' }}>AI Şablon Oluşturucu</h3>
-              <p style={{ margin: 0, fontSize: 12, color: 'var(--text-3)' }}>Kampanyanı anlat, AI Meta-uyumlu şablon hazırlasın</p>
+              <p style={{ margin: 0, fontSize: 12, color: 'var(--text-3)' }}>Mesajını yaz, AI Meta formatına dönüştürsün</p>
             </div>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)' }}>
@@ -541,21 +627,55 @@ function AiGeneratorModal({ onClose }: { onClose: () => void }) {
         </div>
 
         <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
-          <div style={{ marginBottom: 16 }}>
-            <textarea
-              value={desc}
-              onChange={e => setDesc(e.target.value)}
-              placeholder="Örn: Yaz indirimi duyurusu — tüm ürünlerde %30 indirim, 3 gün geçerli. VIP müşterilere özel erken erişim."
-              rows={3}
-              style={{ width: '100%', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '12px', fontSize: 13, color: 'var(--text-1)', resize: 'vertical', outline: 'none', boxSizing: 'border-box' }}
-            />
+          <div style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-2)', marginBottom: 6 }}>
+                Mesaj metni <span style={{ color: '#e84545' }}>*</span>
+              </label>
+              <textarea
+                value={bodyText}
+                onChange={e => setBodyText(e.target.value)}
+                placeholder={'Gönderilecek mesajı tam olarak yaz.\nÖrn: SEPETTE10 koduyla %10 indirim kazanın! Kampanya 3 gün sürecek.'}
+                rows={4}
+                style={{ width: '100%', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '12px', fontSize: 13, color: 'var(--text-1)', resize: 'vertical', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', lineHeight: 1.6 }}
+              />
+              <p style={{ margin: '4px 0 0', fontSize: 11, color: 'var(--text-3)' }}>AI bu metni kelimesi kelimesine kullanacak — değiştirmeyecek.</p>
+            </div>
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-2)', marginBottom: 6 }}>
+                  Buton metni <span style={{ color: 'var(--text-3)', fontWeight: 400 }}>(isteğe bağlı)</span>
+                </label>
+                <input
+                  type="text"
+                  value={buttonText}
+                  onChange={e => setButtonText(e.target.value)}
+                  placeholder="Örn: Alışverişe Başla"
+                  style={{ width: '100%', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 12px', fontSize: 13, color: 'var(--text-1)', outline: 'none', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-2)', marginBottom: 6 }}>
+                  Link <span style={{ color: 'var(--text-3)', fontWeight: 400 }}>(isteğe bağlı)</span>
+                </label>
+                <input
+                  type="url"
+                  value={buttonUrl}
+                  onChange={e => setButtonUrl(e.target.value)}
+                  placeholder="https://..."
+                  style={{ width: '100%', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 12px', fontSize: 13, color: 'var(--text-1)', outline: 'none', boxSizing: 'border-box' }}
+                />
+              </div>
+            </div>
+
             <button
               onClick={generate}
-              disabled={loading || !desc.trim()}
-              style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(159,122,250,0.15)', border: '1px solid rgba(159,122,250,0.3)', borderRadius: 8, padding: '9px 18px', fontSize: 13, fontWeight: 600, color: '#9f7afa', cursor: loading || !desc.trim() ? 'not-allowed' : 'pointer', opacity: loading || !desc.trim() ? 0.6 : 1 }}
+              disabled={loading || !bodyText.trim()}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(159,122,250,0.15)', border: '1px solid rgba(159,122,250,0.3)', borderRadius: 8, padding: '9px 18px', fontSize: 13, fontWeight: 600, color: '#9f7afa', cursor: loading || !bodyText.trim() ? 'not-allowed' : 'pointer', opacity: loading || !bodyText.trim() ? 0.6 : 1, alignSelf: 'flex-start' }}
             >
               {loading ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
-              {loading ? 'Oluşturuluyor...' : 'Şablon Oluştur'}
+              {loading ? 'Yapılandırılıyor...' : 'Meta Formatına Dönüştür'}
             </button>
           </div>
 
@@ -582,26 +702,45 @@ function AiGeneratorModal({ onClose }: { onClose: () => void }) {
               {/* Preview */}
               <WaPreview components={result.components} variables={result.variableExamples} />
 
-              {/* Components JSON for copy */}
-              <div>
-                <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-2)', margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Meta API Bileşenleri</p>
-                <div style={{ position: 'relative', background: 'var(--bg)', borderRadius: 8, padding: '12px', fontFamily: 'monospace', fontSize: 11, color: 'var(--text-2)', maxHeight: 200, overflowY: 'auto' }}>
-                  <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>{JSON.stringify(result.components, null, 2)}</pre>
-                  <button
-                    onClick={() => navigator.clipboard.writeText(JSON.stringify(result.components, null, 2))}
-                    style={{ position: 'absolute', top: 8, right: 8, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, padding: '4px 8px', fontSize: 11, color: 'var(--text-2)', cursor: 'pointer' }}
-                  >
-                    Kopyala
-                  </button>
-                </div>
-              </div>
-
               {result.tips.length > 0 && (
                 <div style={{ background: 'rgba(68,112,255,0.06)', border: '1px solid rgba(68,112,255,0.15)', borderRadius: 8, padding: '12px 14px' }}>
                   <p style={{ fontSize: 11, fontWeight: 700, color: '#4470ff', margin: '0 0 8px' }}>AI İpuçları</p>
                   {result.tips.map((tip, i) => (
                     <p key={i} style={{ fontSize: 12, color: 'var(--text-2)', margin: i < result.tips.length - 1 ? '0 0 4px' : 0 }}>• {tip}</p>
                   ))}
+                </div>
+              )}
+
+              {submitResult && (
+                <div style={{ background: submitResult.ok ? 'rgba(34,201,122,0.08)' : 'rgba(232,69,69,0.08)', border: `1px solid ${submitResult.ok ? 'rgba(34,201,122,0.25)' : 'rgba(232,69,69,0.25)'}`, borderRadius: 8, padding: '10px 14px' }}>
+                  <p style={{ fontSize: 12, color: submitResult.ok ? '#22c97a' : '#e84545', margin: 0 }}>{submitResult.msg}</p>
+                </div>
+              )}
+
+              {draftResult && (
+                <div style={{ background: draftResult.ok ? 'rgba(34,201,122,0.08)' : 'rgba(232,69,69,0.08)', border: `1px solid ${draftResult.ok ? 'rgba(34,201,122,0.25)' : 'rgba(232,69,69,0.25)'}`, borderRadius: 8, padding: '10px 14px' }}>
+                  <p style={{ fontSize: 12, color: draftResult.ok ? '#22c97a' : '#e84545', margin: 0 }}>{draftResult.msg}</p>
+                </div>
+              )}
+
+              {!submitResult?.ok && !draftResult?.ok && (
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    onClick={saveDraft}
+                    disabled={savingDraft || submitting}
+                    style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '11px 14px', fontSize: 13, fontWeight: 600, color: 'var(--text-2)', cursor: savingDraft || submitting ? 'not-allowed' : 'pointer', opacity: savingDraft || submitting ? 0.6 : 1 }}
+                  >
+                    {savingDraft ? <Loader2 size={14} className="animate-spin" /> : <Copy size={14} />}
+                    {savingDraft ? 'Kaydediliyor...' : 'Taslak Olarak Kaydet'}
+                  </button>
+                  <button
+                    onClick={submitToMeta}
+                    disabled={submitting || savingDraft}
+                    style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, background: 'rgba(68,112,255,0.15)', border: '1px solid rgba(68,112,255,0.35)', borderRadius: 8, padding: '11px 14px', fontSize: 13, fontWeight: 600, color: '#4470ff', cursor: submitting || savingDraft ? 'not-allowed' : 'pointer', opacity: submitting || savingDraft ? 0.6 : 1 }}
+                  >
+                    {submitting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                    {submitting ? 'Gönderiliyor...' : 'Meta\'ya Gönder'}
+                  </button>
                 </div>
               )}
             </div>
@@ -965,7 +1104,7 @@ export default function TemplatesPage() {
       )}
 
       {/* AI Generator modal */}
-      {showAI && <AiGeneratorModal onClose={() => setShowAI(false)} />}
+      {showAI && <AiGeneratorModal onClose={() => setShowAI(false)} onCreated={() => { setShowAI(false); load() }} />}
     </div>
   )
 }

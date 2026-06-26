@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
@@ -48,7 +48,7 @@ const S: Record<string, { icon: React.ElementType; color: string; bg: string; bo
   failed:    { icon: XCircle,      color: '#e84545', bg: 'rgba(232,69,69,0.08)',   border: 'rgba(232,69,69,0.18)',   label: 'Başarısız'  },
   waiting:   { icon: Clock,        color: '#f0a020', bg: 'rgba(240,160,32,0.08)',  border: 'rgba(240,160,32,0.18)',  label: 'Bekliyor'   },
   running:   { icon: Loader2,      color: '#99b4ff', bg: 'rgba(153,180,255,0.08)', border: 'rgba(153,180,255,0.18)', label: 'Çalışıyor'  },
-  stopped:   { icon: XCircle,      color: '#8080a0', bg: 'rgba(128,128,160,0.08)', border: 'rgba(128,128,160,0.18)', label: 'Durduruldu' },
+  stopped:   { icon: XCircle,      color: 'var(--text-2)', bg: 'var(--surface-2)', border: 'var(--border)', label: 'Durduruldu' },
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -325,14 +325,14 @@ export default function RunHistoryPage() {
         <button onClick={() => router.push('/automations')}
           className="w-8 h-8 rounded-xl flex items-center justify-center transition-all"
           style={{ border: '1px solid var(--border)', color: 'var(--text-2)' }}
-          onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+          onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
           onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
           <ArrowLeft size={14} />
         </button>
 
         <div className="flex-1 min-w-0">
           <p className="text-[10px] font-medium uppercase tracking-wider" style={{ color: 'var(--text-3)' }}>Otomasyonlar</p>
-          <h1 className="text-sm font-bold truncate" style={{ color: '#eeeef4' }}>{autoName || 'Run Geçmişi'}</h1>
+          <h1 className="text-sm font-bold truncate" style={{ color: 'var(--text-1)' }}>{autoName || 'Run Geçmişi'}</h1>
         </div>
 
         {/* Auto-refresh toggle */}
@@ -340,7 +340,7 @@ export default function RunHistoryPage() {
           style={{
             display: 'flex', alignItems: 'center', gap: 5,
             padding: '5px 10px', borderRadius: 8,
-            background: autoRefresh ? 'rgba(34,201,122,0.1)' : 'rgba(255,255,255,0.04)',
+            background: autoRefresh ? 'rgba(34,201,122,0.1)' : 'var(--surface-2)',
             border: `1px solid ${autoRefresh ? 'rgba(22,163,74,0.25)' : 'var(--border-2)'}`,
             color: autoRefresh ? '#22c97a' : 'var(--text-2)',
             fontSize: 11, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s',
@@ -372,7 +372,7 @@ export default function RunHistoryPage() {
                   <k.icon className="w-3.5 h-3.5" style={{ color: k.col }} />
                 </div>
               </div>
-              <p className="text-2xl font-black tracking-tight" style={{ color: '#eeeef4' }}>{formatNumber(k.val)}</p>
+              <p className="text-2xl font-black tracking-tight" style={{ color: 'var(--text-1)' }}>{formatNumber(k.val)}</p>
             </div>
           ))}
         </div>
@@ -433,7 +433,7 @@ export default function RunHistoryPage() {
               <BarChart3 className="w-6 h-6" style={{ color: '#99b4ff' }} />
             </div>
             <div>
-              <p className="text-sm font-bold mb-1" style={{ color: '#eeeef4' }}>
+              <p className="text-sm font-bold mb-1" style={{ color: 'var(--text-1)' }}>
                 {statusFilter ? `${S[statusFilter]?.label} run yok` : 'Henüz çalıştırma yok'}
               </p>
               <p className="text-xs" style={{ color: 'var(--text-2)' }}>

@@ -132,6 +132,59 @@ function TemplateSelect({ value, onChange }: { value: string; onChange: (v: stri
   return <PSelect label="E-posta Şablonu" value={value} options={opts} onChange={onChange} />
 }
 
+interface WaTemplate {
+  id: string
+  name: string
+  status: string
+  componentsJson: Array<{ type: string; text?: string; buttons?: Array<{ type: string; text: string; url?: string }> }>
+}
+
+function WaTemplateSelect({
+  selectedId,
+  onSelect,
+}: {
+  selectedId: string
+  onSelect: (tpl: WaTemplate | null) => void
+}) {
+  const [templates, setTemplates] = useState<WaTemplate[]>([])
+  useEffect(() => {
+    fetch('/api/whatsapp/templates')
+      .then(r => r.json())
+      .then((d: { templates?: WaTemplate[] }) => { if (Array.isArray(d.templates)) setTemplates(d.templates) })
+      .catch(() => {})
+  }, [])
+
+  const usable = templates.filter(t => ['DRAFT', 'APPROVED', 'PENDING'].includes(t.status))
+  const opts = [
+    { value: '', label: 'Şablon seçme (manuel yaz)' },
+    ...usable.map(t => ({
+      value: t.id,
+      label: `${t.name}${t.status === 'DRAFT' ? ' [Taslak]' : t.status === 'PENDING' ? ' [Beklemede]' : ''}`,
+    })),
+  ]
+
+  const selected = usable.find(t => t.id === selectedId) ?? null
+
+  return (
+    <div>
+      <PSelect
+        label="WhatsApp Şablonundan Doldur"
+        value={selectedId}
+        options={opts}
+        onChange={id => onSelect(usable.find(t => t.id === id) ?? null)}
+        hint="Seçince mesaj alanı otomatik dolar"
+      />
+      {selected && (selected.status === 'DRAFT' || selected.status === 'PENDING') && (
+        <div style={{ marginTop: 6, padding: '6px 10px', borderRadius: 7, background: 'rgba(240,160,32,0.08)', border: '1px solid rgba(240,160,32,0.25)' }}>
+          <p style={{ margin: 0, fontSize: 9.5, color: '#f0a020', lineHeight: 1.45 }}>
+            ⚠ Bu şablon henüz Meta tarafından onaylanmadı. 24 saatlik pencere dışındaki gönderimler için onaylı şablon gerekir.
+          </p>
+        </div>
+      )}
+    </div>
+  )
+}
+
 /* ─────────────────────────────────────────────────────────────
    CONFIG DATA
 ───────────────────────────────────────────────────────────── */
@@ -284,7 +337,27 @@ function ActionConfig({ node, upd }: { node: Node; upd: (p: Cfg) => void }) {
 
   if (at === 'send_whatsapp') return (
     <Section title="WhatsApp Ayarları">
+      <WaTemplateSelect
+        selectedId={s('waTemplateId')}
+        onSelect={tpl => {
+          if (!tpl) {
+            set('waTemplateId', '')
+            return
+          }
+          const body = tpl.componentsJson.find((c: { type: string }) => c.type === 'BODY')
+          const btn = tpl.componentsJson.find((c: { type: string }) => c.type === 'BUTTONS')
+          const firstBtn = btn?.buttons?.[0]
+          upd({
+            waTemplateId: tpl.id,
+            message: body?.text ?? '',
+            waButtonText: firstBtn?.text ?? '',
+            waButtonUrl: firstBtn?.url ?? '',
+          })
+        }}
+      />
       <PTextarea label="Mesaj" value={s('message')} placeholder={'Merhaba {{firstName}},\n\nMesaj içeriği…'} rows={4} hint="{{firstName}}, {{email}}, {{phone}} kullanılabilir" onChange={v => set('message', v)} />
+      <PInput label="Buton Metni" value={s('waButtonText')} placeholder="Opsiyonel buton" onChange={v => set('waButtonText', v)} />
+      <PInput label="Buton Linki" value={s('waButtonUrl')} placeholder="https://..." onChange={v => set('waButtonUrl', v)} />
       <PToggle label="Medya / Görsel Ekle" checked={b('includeMedia')} onChange={v => set('includeMedia', v)} />
     </Section>
   )

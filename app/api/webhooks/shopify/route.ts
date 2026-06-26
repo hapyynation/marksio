@@ -19,8 +19,10 @@ export async function POST(req: NextRequest) {
 
   const rawBody = await req.text()
 
-  const webhookSecret = process.env.SHOPIFY_WEBHOOK_SECRET
-  if (webhookSecret && !verifyWebhookHmac(rawBody, hmac, webhookSecret)) {
+  // Shopify webhook signing secret = app's API secret (SHOPIFY_CLIENT_SECRET).
+  // SHOPIFY_WEBHOOK_SECRET overrides if a separate secret is configured.
+  const webhookSecret = process.env.SHOPIFY_WEBHOOK_SECRET || process.env.SHOPIFY_CLIENT_SECRET
+  if (!webhookSecret || !verifyWebhookHmac(rawBody, hmac, webhookSecret)) {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
   }
 

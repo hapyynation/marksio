@@ -1,26 +1,16 @@
 'use client'
 
-/**
- * Marksio UI Primitives
- * Core reusable components for all pages.
- * Import: import { MCard, MKpiCard, MSectionHeader, MBadge, MEmptyState, MPageHeader } from '@/components/ui/primitives'
- */
-
 import { cn } from '@/lib/utils'
-import { cardBase, cardHover, accents, type, statusColor, statusLabel, colors, type AccentKey } from '@/lib/ds'
+import { cardBase, cardHover, accents, statusColor, statusLabel, colors, type AccentKey } from '@/lib/ds'
 import { ArrowUpRight, ArrowDownRight, ChevronRight, AlertTriangle } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
 
 /* ────────────────────────────────────────────────
-   MCard — standard card shell
+   MCard — standard card shell (Mantis MainCard)
 ──────────────────────────────────────────────── */
 export function MCard({
-  children,
-  className,
-  style,
-  hover = false,
-  onClick,
+  children, className, style, hover = false, onClick,
 }: {
   children: React.ReactNode
   className?: string
@@ -31,10 +21,10 @@ export function MCard({
   const [hovered, setHovered] = useState(false)
   return (
     <div
-      className={cn('rounded-2xl overflow-hidden', className, hover || onClick ? 'cursor-pointer' : '')}
+      className={cn('rounded-lg overflow-hidden', className, hover || onClick ? 'cursor-pointer' : '')}
       style={{
         ...cardBase,
-        transition: 'all 0.2s',
+        transition: 'all 0.15s',
         ...(hovered && hover ? cardHover : {}),
         ...style,
       }}
@@ -48,11 +38,11 @@ export function MCard({
 }
 
 /* ────────────────────────────────────────────────
-   MCardHeader — card header with divider
+   MCardHeader — card header with Mantis divider
 ──────────────────────────────────────────────── */
 export function MCardHeader({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={cn('px-5 py-4', className)} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+    <div className={cn('px-5 py-4', className)} style={{ borderBottom: '1px solid var(--border)' }}>
       {children}
     </div>
   )
@@ -62,11 +52,7 @@ export function MCardHeader({ children, className }: { children: React.ReactNode
    MSectionHeader — section title + optional link
 ──────────────────────────────────────────────── */
 export function MSectionHeader({
-  title,
-  sub,
-  href,
-  hrefLabel = 'Tümü',
-  action,
+  title, sub, href, hrefLabel = 'Tümü', action,
 }: {
   title: string
   sub?: string
@@ -77,16 +63,16 @@ export function MSectionHeader({
   return (
     <div className="flex items-center justify-between mb-4">
       <div>
-        <h2 className="text-[13px] font-bold" style={{ color: colors.text1 }}>{title}</h2>
-        {sub && <p className="text-[11px] mt-0.5" style={{ color: colors.text3 }}>{sub}</p>}
+        <h2 className="text-[13px] font-semibold" style={{ color: 'var(--text-1)' }}>{title}</h2>
+        {sub && <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-3)' }}>{sub}</p>}
       </div>
       {action ?? (href && (
         <Link
           href={href}
-          className="flex items-center gap-0.5 text-[11px] font-semibold transition-colors"
-          style={{ color: colors.text3 }}
-          onMouseEnter={e => (e.currentTarget.style.color = colors.emailColor)}
-          onMouseLeave={e => (e.currentTarget.style.color = colors.text3)}
+          className="flex items-center gap-0.5 text-[11px] font-medium transition-colors"
+          style={{ color: 'var(--text-3)' }}
+          onMouseEnter={e => (e.currentTarget.style.color = 'var(--primary)')}
+          onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-3)')}
         >
           {hrefLabel} <ChevronRight className="w-3 h-3" />
         </Link>
@@ -96,16 +82,10 @@ export function MSectionHeader({
 }
 
 /* ────────────────────────────────────────────────
-   MKpiCard — metric display card
+   MKpiCard — Mantis AnalyticEcommerce style
 ──────────────────────────────────────────────── */
 export function MKpiCard({
-  label,
-  value,
-  sub,
-  icon: Icon,
-  accent = 'blue',
-  change,
-  className,
+  label, value, sub, icon: Icon, accent = 'blue', change, className,
 }: {
   label: string
   value: string
@@ -121,38 +101,37 @@ export function MKpiCard({
 
   return (
     <div
-      className={cn('relative rounded-2xl p-5 overflow-hidden cursor-default', className)}
-      style={{ ...cardBase, transition: 'all .2s', ...(hovered ? cardHover : {}) }}
+      className={cn('relative rounded-lg p-5 overflow-hidden cursor-default', className)}
+      style={{ ...cardBase, transition: 'all .15s', ...(hovered ? cardHover : {}) }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      <div className="absolute top-0 left-4 right-4 h-px rounded-full"
-        style={{ background: `linear-gradient(90deg,transparent,${a.color}44,transparent)` }} />
-
-      <div className="flex items-start justify-between mb-4">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.08em]" style={{ color: colors.text3 }}>{label}</p>
-        <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ background: a.bg }}>
+      <div className="flex items-start justify-between mb-3">
+        <p className="text-[11px] font-medium" style={{ color: 'var(--text-2)' }}>{label}</p>
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: a.bg }}>
           <Icon className="w-4 h-4" style={{ color: a.color }} />
         </div>
       </div>
 
-      <p className="text-[26px] font-bold tracking-tight leading-none mb-1.5"
-        style={{ color: colors.text1, letterSpacing: '-0.025em' }}>
-        {value}
-      </p>
+      <div className="flex items-center gap-2 mb-1">
+        <p className="text-[26px] font-bold leading-none" style={{ color: 'var(--text-1)', letterSpacing: '-0.025em' }}>
+          {value}
+        </p>
+        {change !== undefined && change !== 0 && (
+          <span
+            className={cn('inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full')}
+            style={{
+              color: positive ? 'var(--success)' : 'var(--danger)',
+              background: positive ? 'var(--success-soft)' : 'var(--danger-soft)',
+            }}
+          >
+            {positive ? <ArrowUpRight className="w-2.5 h-2.5" /> : <ArrowDownRight className="w-2.5 h-2.5" />}
+            %{Math.abs(change).toFixed(1)}
+          </span>
+        )}
+      </div>
 
-      {sub && <p className="text-[11px]" style={{ color: colors.text3 }}>{sub}</p>}
-
-      {change !== undefined && change !== 0 && (
-        <div
-          className={cn('inline-flex items-center gap-1 text-[10px] font-semibold mt-3 px-2 py-1 rounded-lg',
-            positive ? 'text-emerald-400' : 'text-red-400')}
-          style={{ background: positive ? 'rgba(52,211,153,0.08)' : 'rgba(248,113,113,0.08)' }}
-        >
-          {positive ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-          %{Math.abs(change).toFixed(1)}
-        </div>
-      )}
+      {sub && <p className="text-[11px]" style={{ color: 'var(--text-3)' }}>{sub}</p>}
     </div>
   )
 }
@@ -161,11 +140,7 @@ export function MKpiCard({
    MBadge — status/type badge
 ──────────────────────────────────────────────── */
 export function MBadge({
-  label,
-  accent,
-  status,
-  dot = false,
-  className,
+  label, accent, status, dot = false, className,
 }: {
   label?: string
   accent?: AccentKey
@@ -174,13 +149,14 @@ export function MBadge({
   className?: string
 }) {
   const resolvedLabel = label ?? (status ? statusLabel(status) : '')
-  const color = accent ? accents[accent].color : (status ? statusColor(status) : colors.text2)
-  const bg    = accent ? accents[accent].bg    : `${color}18`
+  const color = accent ? accents[accent].color : (status ? statusColor(status) : 'var(--text-2)')
+  const bg    = accent ? accents[accent].bg    : `color-mix(in srgb, ${color} 10%, transparent)`
+  const border = accent ? accents[accent].border : `color-mix(in srgb, ${color} 20%, transparent)`
 
   return (
     <span
       className={cn('inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full', className)}
-      style={{ background: bg, color, border: `1px solid ${color}28` }}
+      style={{ background: bg, color, border: `1px solid ${border}` }}
     >
       {dot && <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} />}
       {resolvedLabel}
@@ -192,11 +168,7 @@ export function MBadge({
    MEmptyState — consistent empty states
 ──────────────────────────────────────────────── */
 export function MEmptyState({
-  icon: Icon,
-  title,
-  sub,
-  action,
-  actionHref,
+  icon: Icon, title, sub, action, actionHref,
 }: {
   icon: React.ElementType
   title: string
@@ -206,18 +178,18 @@ export function MEmptyState({
 }) {
   return (
     <div className="flex flex-col items-center justify-center py-14 gap-3">
-      <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.04)' }}>
-        <Icon className="w-5 h-5" style={{ color: colors.text3 }} />
+      <div className="w-12 h-12 rounded-lg flex items-center justify-center" style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
+        <Icon className="w-5 h-5" style={{ color: 'var(--text-3)' }} />
       </div>
       <div className="text-center">
-        <p className="text-[13px] font-semibold" style={{ color: colors.text2 }}>{title}</p>
-        {sub && <p className="text-[12px] mt-0.5" style={{ color: colors.text3 }}>{sub}</p>}
+        <p className="text-[13px] font-semibold" style={{ color: 'var(--text-1)' }}>{title}</p>
+        {sub && <p className="text-[12px] mt-1" style={{ color: 'var(--text-3)' }}>{sub}</p>}
       </div>
       {action && actionHref && (
         <Link
           href={actionHref}
           className="inline-flex items-center gap-1.5 text-[12px] font-semibold"
-          style={{ color: colors.emailColor }}
+          style={{ color: 'var(--primary)' }}
         >
           {action} <ChevronRight className="w-3.5 h-3.5" />
         </Link>
@@ -227,16 +199,10 @@ export function MEmptyState({
 }
 
 /* ────────────────────────────────────────────────
-   MPageHeader — sticky page title bar
+   MPageHeader — sticky page title bar (Mantis AppBar style)
 ──────────────────────────────────────────────── */
 export function MPageHeader({
-  title,
-  sub,
-  icon: Icon,
-  actions,
-  tabs,
-  activeTab,
-  onTabChange,
+  title, sub, icon: Icon, actions, tabs, activeTab, onTabChange,
 }: {
   title: string
   sub?: string
@@ -250,9 +216,9 @@ export function MPageHeader({
     <div
       className="sticky top-0 z-20 px-6 shrink-0"
       style={{
-        background: 'rgba(8,8,15,0.9)',
-        backdropFilter: 'blur(24px)',
-        borderBottom: '1px solid rgba(255,255,255,0.05)',
+        background: 'var(--surface)',
+        borderBottom: '1px solid var(--border)',
+        boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
       }}
     >
       <div className="flex items-center justify-between h-14">
@@ -265,17 +231,17 @@ export function MPageHeader({
                 <button
                   key={tab.key}
                   onClick={() => onTabChange?.(tab.key)}
-                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[12px] font-semibold transition-all"
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-[12px] font-semibold transition-all"
                   style={active
-                    ? { background: 'rgba(255,255,255,0.07)', color: colors.text1 }
-                    : { color: colors.text3 }}
+                    ? { background: 'var(--primary-soft)', color: 'var(--primary)' }
+                    : { color: 'var(--text-3)', background: 'transparent' }}
                 >
                   {TabIcon && <TabIcon className="w-3.5 h-3.5" />}
                   {tab.label}
                   {tab.pulse && (
                     <span className="relative flex w-1.5 h-1.5">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                      <span className="relative inline-flex rounded-full w-1.5 h-1.5 bg-emerald-500" />
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ background: 'var(--success)' }} />
+                      <span className="relative inline-flex rounded-full w-1.5 h-1.5" style={{ background: 'var(--success)' }} />
                     </span>
                   )}
                 </button>
@@ -285,14 +251,13 @@ export function MPageHeader({
         ) : (
           <div className="flex items-center gap-3">
             {Icon && (
-              <div className="w-8 h-8 rounded-xl flex items-center justify-center"
-                style={{ background: colors.blueSoft }}>
-                <Icon className="w-4 h-4" style={{ color: colors.emailColor }} />
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'var(--primary-soft)' }}>
+                <Icon className="w-4 h-4" style={{ color: 'var(--primary)' }} />
               </div>
             )}
             <div>
-              <h1 className="text-[14px] font-bold" style={{ color: colors.text1 }}>{title}</h1>
-              {sub && <p className="text-[11px]" style={{ color: colors.text3 }}>{sub}</p>}
+              <h1 className="text-[14px] font-semibold" style={{ color: 'var(--text-1)' }}>{title}</h1>
+              {sub && <p className="text-[11px]" style={{ color: 'var(--text-3)' }}>{sub}</p>}
             </div>
           </div>
         )}
@@ -303,16 +268,10 @@ export function MPageHeader({
 }
 
 /* ────────────────────────────────────────────────
-   MButton — primary/secondary button
+   MButton — Mantis contained/outlined/ghost button
 ──────────────────────────────────────────────── */
 export function MButton({
-  children,
-  variant = 'primary',
-  size = 'md',
-  href,
-  onClick,
-  className,
-  disabled,
+  children, variant = 'primary', size = 'md', href, onClick, className, disabled,
 }: {
   children: React.ReactNode
   variant?: 'primary' | 'secondary' | 'ghost' | 'danger'
@@ -322,39 +281,28 @@ export function MButton({
   className?: string
   disabled?: boolean
 }) {
-  const styles: Record<string, React.CSSProperties> = {
-    primary:   { background: 'rgba(68,112,255,0.15)', color: '#99b4ff', border: '1px solid rgba(68,112,255,0.25)' },
-    secondary: { background: 'rgba(255,255,255,0.04)', color: colors.text2, border: '1px solid rgba(255,255,255,0.08)' },
-    ghost:     { background: 'transparent', color: colors.text2, border: '1px solid transparent' },
-    danger:    { background: 'rgba(232,69,69,0.1)', color: colors.red, border: `1px solid rgba(232,69,69,0.2)` },
+  const classMap: Record<string, string> = {
+    primary:   'btn-primary',
+    secondary: 'btn-secondary',
+    ghost:     'btn-ghost',
+    danger:    'btn-danger',
   }
-  const hoverStyles: Record<string, React.CSSProperties> = {
-    primary:   { background: 'rgba(68,112,255,0.25)', color: '#c4d4ff', borderColor: 'rgba(68,112,255,0.4)' },
-    secondary: { background: 'rgba(255,255,255,0.07)', color: colors.text1, borderColor: 'rgba(255,255,255,0.12)' },
-    ghost:     { background: 'rgba(255,255,255,0.04)', color: colors.text1 },
-    danger:    { background: 'rgba(232,69,69,0.18)', color: colors.red },
+  const sizeClass = {
+    sm: 'text-[11px] px-3 py-1.5',
+    md: 'text-[12px] px-3.5 py-2',
+    lg: 'text-[13px] px-4 py-2.5',
   }
-  const sizeClass = { sm: 'text-[11px] px-3 py-1.5 rounded-lg', md: 'text-[12px] px-3.5 py-2 rounded-xl', lg: 'text-[13px] px-4 py-2.5 rounded-xl' }
 
-  const [hovered, setHovered] = useState(false)
-
-  const cls = cn('inline-flex items-center gap-1.5 font-semibold transition-all', sizeClass[size], className, disabled ? 'opacity-40 pointer-events-none' : '')
-  const style = { ...styles[variant], ...(hovered ? hoverStyles[variant] : {}) }
-
-  if (href) {
-    return (
-      <Link href={href} className={cls} style={style}
-        onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
-        {children}
-      </Link>
-    )
-  }
-  return (
-    <button className={cls} style={style} onClick={onClick} disabled={disabled}
-      onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
-      {children}
-    </button>
+  const cls = cn(
+    'inline-flex items-center gap-1.5 font-medium transition-all',
+    classMap[variant],
+    sizeClass[size],
+    className,
+    disabled ? 'opacity-40 pointer-events-none' : '',
   )
+
+  if (href) return <Link href={href} className={cls}>{children}</Link>
+  return <button className={cls} onClick={onClick} disabled={disabled}>{children}</button>
 }
 
 /* ────────────────────────────────────────────────
@@ -362,10 +310,9 @@ export function MButton({
 ──────────────────────────────────────────────── */
 export function MStatRow({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
-    <div className="flex items-center justify-between py-1.5">
-      <span className="text-[12px]" style={{ color: colors.text3 }}>{label}</span>
-      <span className="text-[12px] font-bold"
-        style={{ color: color ?? colors.text1, fontFamily: 'JetBrains Mono, monospace' }}>
+    <div className="flex items-center justify-between py-1.5" style={{ borderBottom: '1px solid var(--border)' }}>
+      <span className="text-[12px]" style={{ color: 'var(--text-3)' }}>{label}</span>
+      <span className="text-[12px] font-semibold" style={{ color: color ?? 'var(--text-1)', fontFamily: 'JetBrains Mono, monospace' }}>
         {value}
       </span>
     </div>
@@ -404,15 +351,15 @@ export function MAiInsight({
   const Icon = icons[type]
 
   return (
-    <div className="flex items-start gap-3 p-3.5 rounded-xl"
+    <div className="flex items-start gap-3 p-3.5 rounded-lg"
       style={{ background: a.bg, border: `1px solid ${a.border}` }}>
-      <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
-        style={{ background: `${a.color}18` }}>
+      <div className="w-6 h-6 rounded-md flex items-center justify-center shrink-0 mt-0.5"
+        style={{ background: `color-mix(in srgb, ${a.color} 15%, var(--surface))` }}>
         <Icon className="w-3.5 h-3.5" style={{ color: a.color }} />
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: a.color }}>{title}</p>
-        <p className="text-[11.5px] leading-relaxed" style={{ color: '#aaaacc' }}>{text}</p>
+        <p className="text-[11.5px] leading-relaxed" style={{ color: 'var(--text-1)' }}>{text}</p>
         {action && actionHref && (
           <Link href={actionHref} className="inline-flex items-center gap-1 mt-2 text-[10px] font-semibold" style={{ color: a.color }}>
             {action} <ChevronRight className="w-2.5 h-2.5" />
@@ -424,14 +371,10 @@ export function MAiInsight({
 }
 
 /* ────────────────────────────────────────────────
-   MProgressBar — labeled progress bar
+   MProgressBar — Mantis LinearProgress style
 ──────────────────────────────────────────────── */
 export function MProgressBar({
-  label,
-  value,
-  max = 100,
-  color = '#4470ff',
-  showPct = true,
+  label, value, max = 100, color = 'var(--primary)', showPct = true,
 }: {
   label: string
   value: number
@@ -443,18 +386,18 @@ export function MProgressBar({
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between text-[11px]">
-        <span style={{ color: colors.text2 }}>{label}</span>
+        <span style={{ color: 'var(--text-2)' }}>{label}</span>
         {showPct && <span style={{ color, fontFamily: 'JetBrains Mono, monospace' }}>%{pct.toFixed(0)}</span>}
       </div>
-      <div className="h-1 rounded-full" style={{ background: 'rgba(255,255,255,0.06)' }}>
-        <div className="h-1 rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: color }} />
+      <div className="h-1.5 rounded-full" style={{ background: 'var(--border)' }}>
+        <div className="h-1.5 rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: color }} />
       </div>
     </div>
   )
 }
 
 /* ────────────────────────────────────────────────
-   MPremiumTooltip — recharts custom tooltip
+   MPremiumTooltip — recharts custom tooltip (Mantis style)
 ──────────────────────────────────────────────── */
 export function MPremiumTooltip({
   active,
@@ -469,18 +412,18 @@ export function MPremiumTooltip({
 }) {
   if (!active || !payload?.length) return null
   return (
-    <div className="rounded-xl px-3.5 py-2.5 shadow-2xl"
-      style={{ background: '#141420', border: '1px solid rgba(255,255,255,0.1)' }}>
+    <div className="rounded-lg px-3.5 py-2.5"
+      style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 8px 24px rgba(0,0,0,0.1)' }}>
       <p className="text-[10px] font-semibold mb-2"
-        style={{ color: '#666688', fontFamily: 'JetBrains Mono, monospace' }}>{label}</p>
+        style={{ color: 'var(--text-3)', fontFamily: 'JetBrains Mono, monospace' }}>{label}</p>
       {payload.map(p => (
         <div key={p.name} className="flex items-center justify-between gap-5 mb-1 last:mb-0">
-          <span className="flex items-center gap-1.5 text-[11px]" style={{ color: '#8888aa' }}>
+          <span className="flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--text-2)' }}>
             <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: p.color }} />
             {p.name}
           </span>
           <span className="text-[11px] font-bold tabular-nums"
-            style={{ color: '#f0f0f8', fontFamily: 'JetBrains Mono, monospace' }}>
+            style={{ color: 'var(--text-1)', fontFamily: 'JetBrains Mono, monospace' }}>
             {formatter ? formatter(p.name, p.value) : p.value}
           </span>
         </div>

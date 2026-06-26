@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Loader2, Upload, Download, Search, Filter, X, ChevronLeft, ChevronRight, MoreVertical, UserX, Trash2, Tag, RefreshCw, Plus, CheckSquare } from 'lucide-react'
+import { Loader2, Upload, Download, Search, Filter, X, ChevronLeft, ChevronRight, UserX, Trash2, Tag, RefreshCw, Plus } from 'lucide-react'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -855,9 +855,13 @@ export default function SubscribersPage() {
           <thead>
             <tr style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
               <th style={{ padding: '10px 14px', width: 36 }}>
-                <button onClick={selectAll} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', display: 'flex' }}>
-                  <CheckSquare size={15} />
-                </button>
+                <input
+                  type="checkbox"
+                  checked={subscribers.length > 0 && selected.size === subscribers.length}
+                  ref={el => { if (el) el.indeterminate = selected.size > 0 && selected.size < subscribers.length }}
+                  onChange={selectAll}
+                  style={{ cursor: 'pointer', accentColor: '#4470ff', width: 15, height: 15 }}
+                />
               </th>
               {['Abone', 'Opt-in', 'Segment', 'Harcama', 'Sipariş', 'Son Sipariş', 'Pencere', 'Etiketler', ''].map(h => (
                 <th key={h} style={{ padding: '10px 10px', fontSize: 11, fontWeight: 600, color: 'var(--text-3)', textAlign: 'left', whiteSpace: 'nowrap', letterSpacing: '0.04em', textTransform: 'uppercase' }}>{h}</th>
@@ -911,7 +915,7 @@ export default function SubscribersPage() {
                         type="checkbox"
                         checked={selected.has(s.id)}
                         onChange={() => toggleSelect(s.id)}
-                        style={{ cursor: 'pointer', accentColor: '#4470ff' }}
+                        style={{ cursor: 'pointer', accentColor: '#4470ff', width: 15, height: 15 }}
                       />
                     </td>
                     {/* Name + phone */}

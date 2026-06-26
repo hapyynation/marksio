@@ -17,44 +17,33 @@ export async function GET() {
     orderBy: { lastMessageAt: 'desc' },
     take: 100,
     include: {
-      contact: { select: { phoneNumber: true } },
+      contact: {
+        select: { phoneNumber: true, windowExpiresAt: true, lastInboundAt: true },
+      },
       messages: {
-        orderBy: { sentAt: 'asc' },
-        take: 50,
-        select: {
-          id: true,
-          direction: true,
-          content: true,
-          sentAt: true,
-        },
+        orderBy: { sentAt: 'desc' },
+        take: 1,
+        select: { id: true, direction: true, content: true, status: true, sentAt: true },
       },
     },
   })
 
   const conversations = convs.map(c => {
-    const lastMsg = c.messages[c.messages.length - 1]
+    const lastMsg = c.messages[0]
+    const hasUnread = lastMsg?.direction === 'INBOUND'
     return {
       id: c.id,
       phone: c.contact.phoneNumber,
       name: null as string | null,
       lastMessage: lastMsg?.content ?? '',
       lastMessageAt: c.lastMessageAt.toISOString(),
-      status: mapStatus(c.status),
+      lastMessageDirection: lastMsg?.direction ?? null,
+      status: c.status as 'AI_HANDLING' | 'HUMAN_TAKEOVER' | 'CLOSED',
       aiActive: c.status === 'AI_HANDLING',
-      messages: c.messages.map(m => ({
-        id: m.id,
-        role: (m.direction === 'INBOUND' ? 'customer' : 'assistant') as 'customer' | 'assistant',
-        body: m.content ?? '',
-        timestamp: m.sentAt.toISOString(),
-      })),
+      hasUnread,
+      windowExpiresAt: c.contact.windowExpiresAt?.toISOString() ?? null,
     }
   })
 
   return NextResponse.json({ conversations })
-}
-
-function mapStatus(s: string): 'open' | 'closed' | 'human' {
-  if (s === 'CLOSED') return 'closed'
-  if (s === 'HUMAN_TAKEOVER') return 'human'
-  return 'open'
 }
